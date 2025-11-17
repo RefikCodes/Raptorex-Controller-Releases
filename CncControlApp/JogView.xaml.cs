@@ -15,75 +15,75 @@ namespace CncControlApp
 {
     public partial class JogView : UserControl
     {
-  private readonly JogMovementHandler _jogMovementHandler;
-private readonly ControlButtonHandler _controlButtonHandler;
-   private readonly SliderHandler _sliderHandler;
-   private readonly StepControlHandler _stepControlHandler;
+ private readonly JogMovementHandler _jogMovementHandler;
+        private readonly ControlButtonHandler _controlButtonHandler;
+  private readonly SliderHandler _sliderHandler;
+        private readonly StepControlHandler _stepControlHandler;
 
         private PanelJogView _panelJogView;
 
- // 🆕 Helper for consistent logging
-  private void Log(string message) => App.MainController?.AddLogMessage(message);
+        // 🆕 Helper for consistent logging
+        private void Log(string message) => App.MainController?.AddLogMessage(message);
 
-  public JogView()
+        public JogView()
         {
-   InitializeComponent();
+       InitializeComponent();
 
-     if (App.MainController == null)
-         {
-      return;
+            if (App.MainController == null)
+    {
+       return;
  }
 
             this.DataContext = App.MainController;
 
-   try
+try
     {
         _jogMovementHandler = new JogMovementHandler(App.MainController);
-    _controlButtonHandler = new ControlButtonHandler(App.MainController);
-     _sliderHandler = new SliderHandler(App.MainController);
+       _controlButtonHandler = new ControlButtonHandler(App.MainController);
+             _sliderHandler = new SliderHandler(App.MainController);
 
-        if (XYZStepButtonGrid != null && XYZContinuousButton != null &&
-            AContinuousButton != null && AStepButtonGrid != null)
-      {
+     // Removed A-axis controls initialization
+    if (XYZStepButtonGrid != null && XYZContinuousButton != null)
+         {
 _stepControlHandler = new StepControlHandler(
-     App.MainController,
-XYZStepButtonGrid,
-  XYZContinuousButton,
-       AContinuousButton,
-  AStepButtonGrid);
+           App.MainController,
+     XYZStepButtonGrid,
+           XYZContinuousButton,
+       null,  // AContinuousButton removed
+        null); // AStepButtonGrid removed
  }
 
-  this.Loaded += JogView_Loaded;
+     this.Loaded += JogView_Loaded;
             }
-  catch (Exception ex)
-            {
-      Log($"> ❌ HATA: JogView başlatma - {ex.Message}");
-      }
-}
+       catch (Exception ex)
+        {
+    Log($"> ❌ HATA: JogView başlatma - {ex.Message}");
+            }
+        }
 
         private async void JogView_Loaded(object sender, RoutedEventArgs e)
         {
-      try
-        {
-  if (_stepControlHandler != null)
-          {
-    _stepControlHandler.UpdateXYZStepButtonSelection();
-  _stepControlHandler.UpdateAAxisStepButtonSelection();
+ try
+            {
+                if (_stepControlHandler != null)
+     {
+              _stepControlHandler.UpdateXYZStepButtonSelection();
+        // Removed A-axis step button selection update
     }
 
-      if (App.MainController != null)
-    {
-   App.MainController.JogSpeedPercentage = 50;
-      App.MainController.AAxisSpeedPercentage = 50;
+                if (App.MainController != null)
+        {
+             App.MainController.JogSpeedPercentage = 50;
+                  // Removed A-axis speed percentage initialization
 
-    await Task.Delay(3000);
-     await JogDebugHelper.TestSystemDiagnosis(App.MainController);
-       }
-}
-         catch (Exception ex)
+      await Task.Delay(3000);
+           await JogDebugHelper.TestSystemDiagnosis(App.MainController);
+                }
+    }
+            catch (Exception ex)
             {
-    Log($"> ❌ HATA: JogView yükleme - {ex.Message}");
-  }
+      Log($"> ❌ HATA: JogView yükleme - {ex.Message}");
+            }
         }
 
         // ONLY XY OVERLAY
@@ -146,53 +146,45 @@ await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogXPl
         private async void JogZMinus_Start(object sender, MouseButtonEventArgs e) =>
    await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogZMinusStart(sender, e), "JogZMinus_Start", Log);
 
-        private async void JogAPlus_Start(object sender, MouseButtonEventArgs e) =>
-  await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogAPlusStart(sender, e), "JogAPlus_Start", Log);
-        
-  private async void JogAMinus_Start(object sender, MouseButtonEventArgs e) =>
-  await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogAMinusStart(sender, e), "JogAMinus_Start", Log);
-        
-        private async void Jog_Stop(object sender, MouseButtonEventArgs e) =>
-   await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogStop(sender, e), "Jog_Stop", Log);
-        
-        private async void Jog_Stop_MouseLeave(object sender, MouseEventArgs e) =>
-     await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogStopMouseLeave(sender, e), "Jog_Stop_MouseLeave", Log);
-   
-      private async void Jog_MouseMove(object sender, MouseEventArgs e) =>
-     await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogMouseMove(sender, e), "Jog_MouseMove", Log);
-
-   // 🆕 Touch handlers - consolidated with SafeHandleAsync
-     private async void JogXPlus_TouchStart(object sender, TouchEventArgs e) =>
-       await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogXPlusTouchStart(sender, e), "JogXPlus_Touch", Log);
-        
- private async void JogXMinus_TouchStart(object sender, TouchEventArgs e) =>
-      await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogXMinusTouchStart(sender, e), "JogXMinus_Touch", Log);
-     
-      private async void JogYPlus_TouchStart(object sender, TouchEventArgs e) =>
-      await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogYPlusTouchStart(sender, e), "JogYPlus_Touch", Log);
-        
-private async void JogYMinus_TouchStart(object sender, TouchEventArgs e) =>
-        await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogYMinusTouchStart(sender, e), "JogYMinus_Touch", Log);
+        // Removed A-axis jog methods
       
-    private async void JogZPlus_TouchStart(object sender, TouchEventArgs e) =>
-       await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogZPlusTouchStart(sender, e), "JogZPlus_Touch", Log);
+        private async void Jog_Stop(object sender, MouseButtonEventArgs e) =>
+            await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogStop(sender, e), "Jog_Stop", Log);
+        
+   private async void Jog_Stop_MouseLeave(object sender, MouseEventArgs e) =>
+            await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogStopMouseLeave(sender, e), "Jog_Stop_MouseLeave", Log);
+        
+        private async void Jog_MouseMove(object sender, MouseEventArgs e) =>
+   await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogMouseMove(sender, e), "Jog_MouseMove", Log);
+
+        // 🆕 Touch handlers - consolidated with SafeHandleAsync
+        private async void JogXPlus_TouchStart(object sender, TouchEventArgs e) =>
+       await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogXPlusTouchStart(sender, e), "JogXPlus_Touch", Log);
+      
+        private async void JogXMinus_TouchStart(object sender, TouchEventArgs e) =>
+     await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogXMinusTouchStart(sender, e), "JogXMinus_Touch", Log);
+        
+        private async void JogYPlus_TouchStart(object sender, TouchEventArgs e) =>
+            await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogYPlusTouchStart(sender, e), "JogYPlus_Touch", Log);
+  
+        private async void JogYMinus_TouchStart(object sender, TouchEventArgs e) =>
+            await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogYMinusTouchStart(sender, e), "JogYMinus_Touch", Log);
+        
+        private async void JogZPlus_TouchStart(object sender, TouchEventArgs e) =>
+ await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogZPlusTouchStart(sender, e), "JogZPlus_Touch", Log);
         
         private async void JogZMinus_TouchStart(object sender, TouchEventArgs e) =>
-       await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogZMinusTouchStart(sender, e), "JogZMinus_Touch", Log);
-        
-        private async void JogAPlus_TouchStart(object sender, TouchEventArgs e) =>
-      await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogAPlusTouchStart(sender, e), "JogAPlus_Touch", Log);
-        
-    private async void JogAMinus_TouchStart(object sender, TouchEventArgs e) =>
-     await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogAMinusTouchStart(sender, e), "JogAMinus_Touch", Log);
+await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogZMinusTouchStart(sender, e), "JogZMinus_Touch", Log);
     
+        // Removed A-axis touch methods
+ 
         private async void Jog_TouchStop(object sender, TouchEventArgs e) =>
-     await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogTouchStop(sender, e), "Jog_TouchStop", Log);
+   await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogTouchStop(sender, e), "Jog_TouchStop", Log);
         
-     private async void Jog_TouchMove(object sender, TouchEventArgs e) =>
-  await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogTouchMove(sender, e), "Jog_TouchMove", Log);
-      
-     #endregion
+      private async void Jog_TouchMove(object sender, TouchEventArgs e) =>
+            await EventHandlerHelper.SafeHandleAsync(() => _jogMovementHandler?.HandleJogTouchMove(sender, e), "Jog_TouchMove", Log);
+        
+        #endregion
 
         #region Control Buttons - 🆕 REFACTORED: Using EventHandlerHelper pattern
    
@@ -293,81 +285,38 @@ EventHandlerHelper.SafeHandle(() => _sliderHandler?.HandleSpindleSpeedSliderTouc
         
         #endregion
 
-        #region A-Axis Speed Slider - 🆕 REFACTORED: Using EventHandlerHelper pattern
-    
-        private void AAxisSpeedSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) =>
-  EventHandlerHelper.SafeHandle(() => _sliderHandler?.HandleAAxisSpeedSliderValueChanged(sender, e), "AAxisSpeed_Value", Log);
-      
-    private void AAxisSpeedSlider_TouchDown(object sender, TouchEventArgs e) =>
-            EventHandlerHelper.SafeHandle(() => _sliderHandler?.HandleAAxisSpeedSliderTouchDown(sender, e), "AAxisSpeed_TouchDown", Log);
-        
-  private void AAxisSpeedSlider_TouchMove(object sender, TouchEventArgs e) =>
-        EventHandlerHelper.SafeHandle(() => _sliderHandler?.HandleAAxisSpeedSliderTouchMove(sender, e), "AAxisSpeed_TouchMove", Log);
-      
-     private void AAxisSpeedSlider_TouchUp(object sender, TouchEventArgs e) =>
-      EventHandlerHelper.SafeHandle(() => _sliderHandler?.HandleAAxisSpeedSliderTouchUp(sender, e), "AAxisSpeed_TouchUp", Log);
-     
-        private void AAxisSpeedSlider_TouchLeave(object sender, TouchEventArgs e) =>
-      EventHandlerHelper.SafeHandle(() => _sliderHandler?.HandleAAxisSpeedSliderTouchLeave(sender, e), "AAxisSpeed_TouchLeave", Log);
- 
-   private void AAxisSpeedSlider_MouseDown(object sender, MouseButtonEventArgs e) =>
-    EventHandlerHelper.SafeHandle(() => _sliderHandler?.HandleAAxisSpeedSliderMouseDown(sender, e), "AAxisSpeed_MouseDown", Log);
+        #region Step Controls - 🆕 REFACTORED: Using EventHandlerHelper pattern
+   
+  private void XYZContinuous_Click(object sender, RoutedEventArgs e)
+      {
+            EventHandlerHelper.SafeHandle(() =>
+  {
+  if (_stepControlHandler != null)
+         _stepControlHandler.HandleXYZContinuousClick(sender, e);
 
-        private void AAxisSpeedSlider_MouseMove(object sender, MouseEventArgs e) =>
-        EventHandlerHelper.SafeHandle(() => _sliderHandler?.HandleAAxisSpeedSliderMouseMove(sender, e), "AAxisSpeed_MouseMove", Log);
+       if (_jogMovementHandler != null)
+  {
+              _jogMovementHandler.ResetXYZJoggingState();
+            }
+    }, "XYZContinuous_Click", Log);
+        }
         
-  private void AAxisSpeedSlider_MouseUp(object sender, MouseButtonEventArgs e) =>
-    EventHandlerHelper.SafeHandle(() => _sliderHandler?.HandleAAxisSpeedSliderMouseUp(sender, e), "AAxisSpeed_MouseUp", Log);
+        private void XYZStepSize_Click(object sender, RoutedEventArgs e) =>
+     EventHandlerHelper.SafeHandle(() => _stepControlHandler?.HandleXYZStepSizeClick(sender, e), "XYZStepSize_Click", Log);
+        
+        private void XYZStepSize_TouchDown(object sender, TouchEventArgs e) =>
+    EventHandlerHelper.SafeHandle(() => _stepControlHandler?.HandleXYZStepSizeTouchDown(sender, e), "XYZStepSize_Touch", Log);
+    
+        private void XYZStepSize_TouchUp(object sender, TouchEventArgs e) =>
+     EventHandlerHelper.SafeHandle(() => _stepControlHandler?.HandleXYZStepSizeTouchUp(sender, e), "XYZStepSize_TouchUp", Log);
+        
+        private void XYZStepSize_PreviewMouseDown(object sender, MouseButtonEventArgs e) =>
+            EventHandlerHelper.SafeHandle(() => _stepControlHandler?.HandleXYZStepSizePreviewMouseDown(sender, e), "XYZStepSize_Mouse", Log);
+        
+     // Removed A-axis step control methods
         
         #endregion
 
-  #region Step Controls - 🆕 REFACTORED: Using EventHandlerHelper pattern
-        
- private void XYZContinuous_Click(object sender, RoutedEventArgs e)
-        {
-   EventHandlerHelper.SafeHandle(() =>
- {
-    if (_stepControlHandler != null)
-      _stepControlHandler.HandleXYZContinuousClick(sender, e);
-
-  if (_jogMovementHandler != null)
-       {
-_jogMovementHandler.ResetXYZJoggingState();
-      }
-  }, "XYZContinuous_Click", Log);
-    }
-        
-private void XYZStepSize_Click(object sender, RoutedEventArgs e) =>
-EventHandlerHelper.SafeHandle(() => _stepControlHandler?.HandleXYZStepSizeClick(sender, e), "XYZStepSize_Click", Log);
-      
-  private void XYZStepSize_TouchDown(object sender, TouchEventArgs e) =>
-EventHandlerHelper.SafeHandle(() => _stepControlHandler?.HandleXYZStepSizeTouchDown(sender, e), "XYZStepSize_Touch", Log);
-        
-        private void XYZStepSize_TouchUp(object sender, TouchEventArgs e) =>
-EventHandlerHelper.SafeHandle(() => _stepControlHandler?.HandleXYZStepSizeTouchUp(sender, e), "XYZStepSize_TouchUp", Log);
-        
-  private void XYZStepSize_PreviewMouseDown(object sender, MouseButtonEventArgs e) =>
-   EventHandlerHelper.SafeHandle(() => _stepControlHandler?.HandleXYZStepSizePreviewMouseDown(sender, e), "XYZStepSize_Mouse", Log);
-        
-        private void AContinuous_Click(object sender, RoutedEventArgs e)
-        {
- EventHandlerHelper.SafeHandle(() =>
-    {
-    if (_stepControlHandler != null)
-      _stepControlHandler.HandleAContinuousClick(sender, e);
-
-if (_jogMovementHandler != null)
-      {
-      _jogMovementHandler.ResetAJoggingState();
-       }
- }, "AContinuous_Click", Log);
-  }
-   
-        private void AAxisStepSize_Click(object sender, RoutedEventArgs e) =>
-            EventHandlerHelper.SafeHandle(() => _stepControlHandler?.HandleAAxisStepSizeClick(sender, e), "AAxisStepSize_Click", Log);
-        
-   #endregion
-
-   private void btnSpindle_Checked(object sender, RoutedEventArgs e) { }
+  private void btnSpindle_Checked(object sender, RoutedEventArgs e) { }
     }
 }

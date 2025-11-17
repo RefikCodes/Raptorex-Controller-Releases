@@ -1,15 +1,17 @@
 ﻿<UserControl x:Class="CncControlApp.JogView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:CncControlApp"
-             xmlns:conv="clr-namespace:CncControlApp.Converters"
-             xmlns:controls="clr-namespace:CncControlApp.Controls"
-             mc:Ignorable="d" 
-             HorizontalAlignment="Stretch" 
-             VerticalAlignment="Stretch"
-             d:DesignHeight="945">
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+    xmlns:local="clr-namespace:CncControlApp"
+     xmlns:conv="clr-namespace:CncControlApp.Converters"
+  xmlns:controls="clr-namespace:CncControlApp.Controls"
+  mc:Ignorable="d" 
+  HorizontalAlignment="Stretch" 
+    VerticalAlignment="Stretch"
+ d:DesignHeight="945">
+
+    <!-- DESIGNER REFRESH MARKER -->
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
@@ -28,22 +30,10 @@
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="RadioAStepToggleButtonStyle" TargetType="{x:Type ToggleButton}" BasedOn="{StaticResource TouchFriendlyStepToggleButtonStyle}">
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#FF757575"/>
-                </Trigger>
-                <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Background" Value="#FF4CAF50"/>
-                    <Setter Property="BorderBrush" Value="#FF388E3C"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
         <!-- Selected/pressed state: keep background neutral, highlight only border -->
         <Style x:Key="ControlToggleButtonBorderOnlyStyle"
-               TargetType="{x:Type ToggleButton}"
-               BasedOn="{StaticResource ControlToggleButtonStyle}">
+       TargetType="{x:Type ToggleButton}"
+    BasedOn="{StaticResource ControlToggleButtonStyle}">
             <Setter Property="Background" Value="#FF474A50"/>
             <Setter Property="BorderBrush" Value="#FFA2A2A4"/>
 
@@ -68,158 +58,137 @@
         <!-- MAIN GRID -->
         <Grid x:Name="MainGrid" Margin="0,5,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="377*"/>
-                <ColumnDefinition Width="227*"/>
-                <ColumnDefinition Width="139*"/>
-                <ColumnDefinition Width="254*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="449*"/>
+                <ColumnDefinition Width="449*"/>
+                <ColumnDefinition Width="146*"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-                <RowDefinition Height="80*"/>
-                <RowDefinition Height="95*"/>
-                <RowDefinition Height="492*"/>
-                <RowDefinition Height="273*"/>
+                <RowDefinition Height="80"/>
+                <RowDefinition/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="120"/>
             </Grid.RowDefinitions>
 
             <!-- ROW 0 - Top Control Panel -->
-            <Border Grid.ColumnSpan="4"
-                    CornerRadius="10"
-                    Padding="15,5,15,8"
-                    BorderBrush="#FFA2A2A4"
-                    BorderThickness="1"
-                    Background="#FF2D2D30">
+            <Border Grid.Column="0"
+        CornerRadius="10"
+ Padding="15,5,15,8"
+     BorderBrush="#FFA2A2A4"
+    BorderThickness="1"
+     Background="#FF2D2D30" Margin="5,0,5,0">
                 <StackPanel Orientation="Horizontal">
                     <ToggleButton x:Name="btnCoolant" Content="COOLANT" Style="{StaticResource ControlToggleButtonBorderOnlyStyle}"
-                                  IsChecked="{Binding IsCoolantOn, Mode=OneWay}" Click="CoolantButton_Click"
-                                  ToolTip="Coolant On/Off" Background="#FF474A50" Height="55" BorderBrush="#FFA2A2A4"/>
-
-                    <ToggleButton x:Name="btnMist" Content="MIST" Style="{StaticResource ControlToggleButtonBorderOnlyStyle}"
-                                  IsChecked="{Binding IsMistOn, Mode=OneWay}" Click="MistButton_Click"
-                                  ToolTip="Mist On/Off" Background="#FF474A50" Height="55" BorderBrush="#FFA2A2A4"/>
-
-                    <ToggleButton x:Name="btnLights" Content="LIGHTS" Style="{StaticResource ControlToggleButtonBorderOnlyStyle}"
-                                  IsChecked="{Binding IsLightsOn, Mode=OneWay}" Click="LightsButton_Click"
-                                  ToolTip="Lights On/Off" Background="#FF474A50" Height="55" BorderBrush="#FFA2A2A4"/>
-
-                    <ToggleButton x:Name="btnToolChange" Content="TOOL CHANGE" Style="{StaticResource ControlToggleButtonBorderOnlyStyle}"
-                                  IsChecked="{Binding IsToolChangeOn, Mode=OneWay}" Click="ToolChangeButton_Click"
-                                  ToolTip="Tool Change Position" Background="#FF474A50" Height="55" BorderBrush="#FFA2A2A4"/>
-
-                    <ToggleButton x:Name="btnConsole" Content="CONSOLE" Style="{StaticResource ControlToggleButtonBorderOnlyStyle}"
-                                  Click="ConsoleButton_Click" ToolTip="Open Console Application"
-                                  Background="#FF474A50" Height="55" BorderBrush="#FFA2A2A4"/>
-
-                    <ToggleButton x:Name="btnAirBlast" Content="AIR BLAST" Style="{StaticResource ControlToggleButtonBorderOnlyStyle}"
-                                  IsChecked="{Binding IsAirBlastOn, Mode=OneWay}" Click="AirBlastButton_Click"
-                                  ToolTip="Air Blast On/Off" Background="#FF474A50" Margin="8,0,8,0" Height="55" BorderBrush="#FFA2A2A4"/>
+       IsChecked="{Binding IsCoolantOn, Mode=OneWay}" Click="CoolantButton_Click"
+ ToolTip="Coolant On/Off" Background="#FF474A50" Height="55" BorderBrush="#FFA2A2A4"/>
                 </StackPanel>
             </Border>
 
-            <!-- ROW 1 - Spindle Panel -->
-            <Border Grid.Row="1" Grid.ColumnSpan="4"
-                    Background="#FF2D2D30"
-                    CornerRadius="10"
-                    Margin="0,10,0,0"
-                    Padding="15,8"
-                    BorderThickness="1"
-                    BorderBrush="#FFA2A2A4">
-                <Grid ClipToBounds="True" VerticalAlignment="Center">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="140"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Left (original) content) -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
-                        <ToggleButton x:Name="btnSpindle" Content="SPINDLE" Style="{StaticResource ControlToggleButtonBorderOnlyStyle}"
-                                      IsChecked="{Binding IsSpindleOn, Mode=OneWay}" Click="SpindleButton_Click"
-                                      ToolTip="Spindle On/Off" Margin="0,0,20,0" Background="#FF474A50" Height="55"
-                                      Checked="btnSpindle_Checked" BorderBrush="#FFA2A2A4"/>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="SPINDLE SPEED" FontSize="12" FontWeight="Bold"
-                                       Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <Grid Margin="5,0,5,0" VerticalAlignment="Center" Width="496">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="0" FontSize="10" FontWeight="Bold"
-                                           Foreground="DarkGray" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <Slider Grid.Column="1"
-                                        x:Name="SpindleSpeedSlider"
-                                        Orientation="Horizontal"
-                                        Style="{StaticResource TouchFriendlySliderStyle}"
-                                        Width="415"
-                                        Height="47"
-                                        Minimum="0"
-                                        Maximum="{Binding MaxSpindleSpeed, FallbackValue=24000}"
-                                        Value="{Binding SpindleSpeed, Mode=TwoWay}"
-                                        IsEnabled="{Binding IsSpindleOn}"
-                                        Background="#FF474A50"
-                                        Foreground="#FF4CAF50"
-                                        TouchDown="SpindleSpeedSlider_TouchDown"
-                                        TouchMove="SpindleSpeedSlider_TouchMove"
-                                        TouchUp="SpindleSpeedSlider_TouchUp"
-                                        TouchLeave="SpindleSpeedSlider_TouchLeave"
-                                        MouseDown="SpindleSpeedSlider_MouseDown"
-                                        MouseMove="SpindleSpeedSlider_MouseMove"
-                                        MouseUp="SpindleSpeedSlider_MouseUp"
-                                        ValueChanged="SpindleSpeedSlider_ValueChanged"
-                                        BorderBrush="#FFA2A2A4" HorizontalAlignment="Left"/>
-                                <TextBlock Grid.Column="2" Text="{Binding MaxSpindleSpeed, StringFormat=F0}"
-                                           FontSize="10" FontWeight="Bold" Foreground="#FFBDBDBD"
-                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
-                            </Grid>
-                            <Border CornerRadius="8" Padding="10,6" MinWidth="100" Margin="30,0,0,0" Width="180">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Width="150">
-                                    <TextBlock Text="{Binding SpindleSpeed, StringFormat=F0}" FontSize="16"
-                                               FontWeight="Normal" Foreground="#FF4CAF50" VerticalAlignment="Center"/>
-                                    <TextBlock Text=" RPM" FontSize="12" FontWeight="Normal"
-                                               Foreground="White" VerticalAlignment="Center" Margin="2,0,0,0" Width="123"/>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
+            <!-- ROW 0 - Spindle Speed Panel -->
+            <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="3"
+     Background="#FF2D2D30"
+     CornerRadius="10"
+ Margin="5,0,5,0"
+Padding="15,8"
+   BorderThickness="1"
+       BorderBrush="#FFA2A2A4">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
+                    <ToggleButton x:Name="btnSpindle" Content="SPINDLE" Style="{StaticResource ControlToggleButtonBorderOnlyStyle}"
+ IsChecked="{Binding IsSpindleOn, Mode=OneWay}" Click="SpindleButton_Click"
+   ToolTip="Spindle On/Off" Margin="0,0,20,0" Background="#FF474A50" Height="55"
+  Checked="btnSpindle_Checked" BorderBrush="#FFA2A2A4"/>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Grid Margin="5,0,5,0" VerticalAlignment="Center" Width="496">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="0" FontSize="10" FontWeight="Bold"
+  Foreground="DarkGray" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <Slider Grid.Column="1"
+      x:Name="SpindleSpeedSlider"
+     Orientation="Horizontal"
+Style="{StaticResource TouchFriendlySliderStyle}"
+ Width="415"
+Height="47"
+      Minimum="0"
+   Maximum="{Binding MaxSpindleSpeed, FallbackValue=24000}"
+     Value="{Binding SpindleSpeed, Mode=TwoWay}"
+   IsEnabled="{Binding IsSpindleOn}"
+     Background="#FF474A50"
+    Foreground="#FF4CAF50"
+   TouchDown="SpindleSpeedSlider_TouchDown"
+ TouchMove="SpindleSpeedSlider_TouchMove"
+     TouchUp="SpindleSpeedSlider_TouchUp"
+     TouchLeave="SpindleSpeedSlider_TouchLeave"
+   MouseDown="SpindleSpeedSlider_MouseDown"
+   MouseMove="SpindleSpeedSlider_MouseMove"
+   MouseUp="SpindleSpeedSlider_MouseUp"
+  ValueChanged="SpindleSpeedSlider_ValueChanged"
+    BorderBrush="#FFA2A2A4" HorizontalAlignment="Left"/>
+                            <TextBlock Grid.Column="2" Text="{Binding MaxSpindleSpeed, StringFormat=F0}"
+        FontSize="10" FontWeight="Bold" Foreground="#FFBDBDBD"
+VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </Grid>
+                        <Border CornerRadius="8" Padding="10,6" MinWidth="100" Margin="30,0,0,0" Width="180">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Width="150">
+                                <TextBlock Text="{Binding SpindleSpeed, StringFormat=F0}" FontSize="16"
+ FontWeight="Normal" Foreground="#FF4CAF50" VerticalAlignment="Center"/>
+                                <TextBlock Text=" RPM" FontSize="12" FontWeight="Normal"
+  Foreground="White" VerticalAlignment="Center" Margin="2,0,0,0" Width="123"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
-
-                    <!-- Right area: toggle, overlay opened over rows 2-3 -->
-                    <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <ToggleButton x:Name="SwitchToPanelJogButton"
-                                      Width="120"
-                                      Height="55"
-                                      HorizontalAlignment="Center"
-                                      VerticalAlignment="Top"
-                                      Checked="SwitchToPanelJogButton_Checked"
-                                      Unchecked="SwitchToPanelJogButton_Unchecked">
-                            <ToggleButton.Style>
-                                <Style TargetType="ToggleButton" BasedOn="{StaticResource ControlToggleButtonBorderOnlyStyle}">
-                                    <Setter Property="Content" Value="Open Panel Jog"/>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsChecked" Value="True">
-                                            <Setter Property="Content" Value="Close Panel Jog"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ToggleButton.Style>
-                        </ToggleButton>
-                    </StackPanel>
-                </Grid>
+                </StackPanel>
             </Border>
 
-            <!-- ROW 2 - XY Movement (with overlay host only over XY area) -->
-            <Border Grid.Row="2" Grid.Column="0"
-                    Background="#FF2D2D30"
-                    CornerRadius="10"
-                    Padding="15"
-                    BorderBrush="#FFA2A2A4"
-                    BorderThickness="1"
-                    Margin="0,10,5,0"
-                    VerticalAlignment="Stretch">
+            <!-- ROW 1 - Panel Jog Button (Right side) -->
+            <Border Grid.Column="4"
+     Background="#FF2D2D30"
+     CornerRadius="10"
+Padding="5,0,5,0"
+   BorderThickness="1"
+    BorderBrush="#FFA2A2A4" Margin="5,0,5,0">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <ToggleButton x:Name="SwitchToPanelJogButton"
+ Width="120"
+Height="55"
+      HorizontalAlignment="Center"
+ VerticalAlignment="Center"
+   Checked="SwitchToPanelJogButton_Checked"
+ Unchecked="SwitchToPanelJogButton_Unchecked">
+                        <ToggleButton.Style>
+                            <Style TargetType="ToggleButton" BasedOn="{StaticResource ControlToggleButtonBorderOnlyStyle}">
+                                <Setter Property="Content" Value="Open Panel Jog"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter Property="Content" Value="Close Panel Jog"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ToggleButton.Style>
+                    </ToggleButton>
+                </StackPanel>
+            </Border>
+
+            <!-- ROW 2 - XY Movement (Spanning 3 columns) -->
+            <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+  Background="#FF2D2D30"
+   CornerRadius="10"
+ Padding="15"
+  BorderBrush="#FFA2A2A4"
+  BorderThickness="1"
+   Margin="0,10,5,0">
                 <Grid x:Name="XYPanelRoot" VerticalAlignment="Stretch">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
@@ -229,62 +198,68 @@
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Grid.Row="0" Grid.ColumnSpan="3"
-                               Text="X-Y AXIS MOVEMENT"
-                               Style="{StaticResource SectionHeaderStyle}"
-                               HorizontalAlignment="Center"/>
+  Text="X-Y AXIS MOVEMENT"
+    Style="{StaticResource SectionHeaderStyle}"
+ HorizontalAlignment="Center"/>
 
                     <Button x:Name="btnJogYplus"
-                            Grid.Row="1" Grid.Column="1"
-                            Style="{StaticResource UnifiedJogButtonStyle}"
-                            PreviewMouseDown="JogYPlus_Start"
-                            PreviewMouseUp="Jog_Stop"
-                            MouseLeave="Jog_Stop_MouseLeave"
-                            MouseMove="Jog_MouseMove"
-                            TouchDown="JogYPlus_TouchStart"
-                            TouchUp="Jog_TouchStop"
-                            TouchLeave="Jog_TouchStop"
-                            TouchMove="Jog_TouchMove"
-                            HorizontalAlignment="Center">
+  Grid.Row="2" Grid.Column="1"
+  Style="{StaticResource UnifiedJogButtonStyle}"
+     PreviewMouseDown="JogYPlus_Start"
+  PreviewMouseUp="Jog_Stop"
+       MouseLeave="Jog_Stop_MouseLeave"
+      MouseMove="Jog_MouseMove"
+ TouchDown="JogYPlus_TouchStart"
+   TouchUp="Jog_TouchStop"
+   TouchLeave="Jog_TouchStop"
+    TouchMove="Jog_TouchMove"
+      Width="120"
+      Height="120"
+      Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <StackPanel>
-                            <TextBlock Text="▲" FontSize="24" Foreground="Black"/>
-                            <TextBlock Text="Y+" FontSize="14" Foreground="Black"/>
+                            <TextBlock Text="▲" FontSize="32" Foreground="Black"/>
+                            <TextBlock Text="Y+" FontSize="18" Foreground="Black"/>
                         </StackPanel>
                     </Button>
 
                     <Button x:Name="btnJogXminus"
-                            Grid.Row="2" Grid.Column="0"
-                            Style="{StaticResource UnifiedJogButtonStyle}"
-                            PreviewMouseDown="JogXMinus_Start"
-                            PreviewMouseUp="Jog_Stop"
-                            MouseLeave="Jog_Stop_MouseLeave"
-                            MouseMove="Jog_MouseMove"
-                            TouchDown="JogXMinus_TouchStart"
-                            TouchUp="Jog_TouchStop"
-                            TouchLeave="Jog_TouchStop"
-                            TouchMove="Jog_TouchMove"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center">
+   Grid.Row="3" Grid.Column="0"
+     Style="{StaticResource UnifiedJogButtonStyle}"
+      PreviewMouseDown="JogXMinus_Start"
+   PreviewMouseUp="Jog_Stop"
+   MouseLeave="Jog_Stop_MouseLeave"
+      MouseMove="Jog_MouseMove"
+ TouchDown="JogXMinus_TouchStart"
+TouchUp="Jog_TouchStop"
+     TouchLeave="Jog_TouchStop"
+    TouchMove="Jog_TouchMove"
+   HorizontalAlignment="Right"
+  VerticalAlignment="Center"
+      Width="120"
+      Height="120"
+    Margin="5">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="◄" FontSize="24" Foreground="Black"/>
-                            <TextBlock Text=" X-" FontSize="14" Foreground="Black"/>
+                            <TextBlock Text="◄" FontSize="32" Foreground="Black"/>
+                            <TextBlock Text=" X-" FontSize="18" Foreground="Black"/>
                         </StackPanel>
                     </Button>
 
-                    <Border Grid.Row="2" Grid.Column="1"
-                            CornerRadius="12"
-                            Width="110"
-                            Height="110"
-                            Margin="5"
-                            Background="#FF616D84"
-                            BorderThickness="1"
-                            BorderBrush="#FFCBCBCB"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
+                    <!-- Center Coordinate Display Panel -->
+                    <Border Grid.Row="3" Grid.Column="1"
+  CornerRadius="30"
+       Width="120"
+     Height="120"
+         Margin="20,20,20,20"
+      Background="#FF616D84"
+ BorderThickness="1"
+        BorderBrush="#FFCBCBCB"
+     HorizontalAlignment="Center"
+VerticalAlignment="Center">
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock FontSize="12"
-                                       Foreground="palegreen"
-                                       HorizontalAlignment="Center"
-                                       FontWeight="Normal">
+                            <TextBlock FontSize="16"
+    Foreground="palegreen"
+    HorizontalAlignment="Center"
+ FontWeight="Normal">
                                 <TextBlock.Text>
                                     <MultiBinding StringFormat="X: {0:F2}&#x0a;Y: {1:F2}">
                                         <Binding Path="MStatus.WorkX"/>
@@ -296,546 +271,373 @@
                     </Border>
 
                     <Button x:Name="btnJogXplus"
-                            Grid.Row="2" Grid.Column="2"
-                            Style="{StaticResource UnifiedJogButtonStyle}"
-                            PreviewMouseDown="JogXPlus_Start"
-                            PreviewMouseUp="Jog_Stop"
-                            MouseLeave="Jog_Stop_MouseLeave"
-                            MouseMove="Jog_MouseMove"
-                            TouchDown="JogXPlus_TouchStart"
-                            TouchUp="Jog_TouchStop"
-                            TouchLeave="Jog_TouchStop"
-                            TouchMove="Jog_TouchMove"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Center">
+    Grid.Row="3" Grid.Column="2"
+  Style="{StaticResource UnifiedJogButtonStyle}"
+PreviewMouseDown="JogXPlus_Start"
+    PreviewMouseUp="Jog_Stop"
+      MouseLeave="Jog_Stop_MouseLeave"
+  MouseMove="Jog_MouseMove"
+   TouchDown="JogXPlus_TouchStart"
+ TouchUp="Jog_TouchStop"
+       TouchLeave="Jog_TouchStop"
+      TouchMove="Jog_TouchMove"
+  HorizontalAlignment="Left"
+ VerticalAlignment="Center"
+      Width="120"
+      Height="120"
+   Margin="5">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="X+ " FontSize="14" Foreground="Black"/>
-                            <TextBlock Text="►" FontSize="24" Foreground="Black"/>
+                            <TextBlock Text="X+ " FontSize="18" Foreground="Black"/>
+                            <TextBlock Text="►" FontSize="32" Foreground="Black"/>
                         </StackPanel>
                     </Button>
 
                     <Button x:Name="btnJogYminus"
-                            Grid.Row="3" Grid.Column="1"
-                            Style="{StaticResource UnifiedJogButtonStyle}"
-                            PreviewMouseDown="JogYMinus_Start"
-                            PreviewMouseUp="Jog_Stop"
-                            MouseLeave="Jog_Stop_MouseLeave"
-                            MouseMove="Jog_MouseMove"
-                            TouchDown="JogYMinus_TouchStart"
-                            TouchUp="Jog_TouchStop"
-                            TouchLeave="Jog_TouchStop"
-                            TouchMove="Jog_TouchMove"
-                            HorizontalAlignment="Center">
+   Grid.Row="4" Grid.Column="1"
+ Style="{StaticResource UnifiedJogButtonStyle}"
+   PreviewMouseDown="JogYMinus_Start"
+     PreviewMouseUp="Jog_Stop"
+   MouseLeave="Jog_Stop_MouseLeave"
+   MouseMove="Jog_MouseMove"
+    TouchDown="JogYMinus_TouchStart"
+   TouchUp="Jog_TouchStop"
+    TouchLeave="Jog_TouchStop"
+     TouchMove="Jog_TouchMove"
+ Width="120"
+ Height="120"
+ Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <StackPanel>
-                            <TextBlock Text="Y-" FontSize="14" Foreground="Black"/>
-                            <TextBlock Text="▼" FontSize="24" Foreground="Black"/>
+                            <TextBlock Text="Y-" FontSize="18" Foreground="Black"/>
+                            <TextBlock Text="▼" FontSize="32" Foreground="Black"/>
                         </StackPanel>
                     </Button>
 
-                    <Grid Grid.Row="4" Grid.ColumnSpan="3"
-                          Margin="0,10,0,0"
-                          Width="300"
-                          HorizontalAlignment="Center">
+                    <Grid Grid.Row="6" Grid.ColumnSpan="3"
+   Margin="0,10,0,0"
+   HorizontalAlignment="Center">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="15"/>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="40"/>
-                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="F:" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Grid.Column="0" Text="F:" FontSize="12" FontWeight="Bold" Foreground="White" Margin="0,0,5,0"/>
                         <TextBlock Grid.Column="1" Text="{Binding CurrentXYJogSpeed, StringFormat={}{0} mm/min}"
-                                   FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50"/>
-                        <TextBlock Grid.Column="2" Text="Step:" FontSize="12" FontWeight="Bold" Foreground="White"/>
+    FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50" Margin="0,0,15,0"/>
+                        <TextBlock Grid.Column="2" Text="Step:" FontSize="12" FontWeight="Bold" Foreground="White" Margin="0,0,5,0"/>
                         <TextBlock Grid.Column="3" Text="{Binding SelectedXYZStepSizeDisplay}"
-                                   FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50"/>
+    FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50"/>
                     </Grid>
 
                     <!-- XY-only overlay host on top of the XY content -->
                     <Grid x:Name="PanelJogOverlayHostXY"
-                          Grid.Row="0" Grid.Column="0"
-                          Grid.RowSpan="5" Grid.ColumnSpan="3"
-                          Background="Transparent"
-                          Visibility="Collapsed"/>
+  Grid.Row="0" Grid.Column="0"
+ Grid.RowSpan="7" Grid.ColumnSpan="3"
+Background="Transparent"
+   Visibility="Collapsed"/>
                 </Grid>
             </Border>
 
-            <!-- ROW 2 - Z Movement -->
-            <Border Grid.Row="2" Grid.Column="1"
-                    Background="#FF2D2D30"
-                    CornerRadius="10"
-                    Padding="15"
-                    BorderBrush="#FFA2A2A4"
-                    BorderThickness="1"
-                    Margin="0,10,5,0"
-                    VerticalAlignment="Stretch">
+            <!-- ROW 2 - Z Movement (Last column) -->
+            <Border Grid.Row="1" Grid.Column="3"
+ Background="#FF2D2D30"
+ CornerRadius="10"
+      Padding="15"
+   BorderBrush="#FFA2A2A4"
+     BorderThickness="1"
+   Margin="0,10,0,0" Grid.ColumnSpan="2">
                 <Grid VerticalAlignment="Stretch">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <TextBlock Grid.Row="0" Text="Z AXIS MOVEMENT"
-                               Style="{StaticResource SectionHeaderStyle}"
-                               HorizontalAlignment="Center"/>
-
-                    <Grid Grid.Row="1">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-
-                        <Button x:Name="btnJogZplus"
-                                Grid.Row="0"
-                                Style="{StaticResource UnifiedJogButtonStyle}"
-                                PreviewMouseDown="JogZPlus_Start"
-                                PreviewMouseUp="Jog_Stop"
-                                MouseLeave="Jog_Stop_MouseLeave"
-                                MouseMove="Jog_MouseMove"
-                                TouchDown="JogZPlus_TouchStart"
-                                TouchUp="Jog_TouchStop"
-                                TouchLeave="Jog_TouchStop"
-                                TouchMove="Jog_TouchMove"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Top">
-                            <StackPanel>
-                                <TextBlock Text="▲" FontSize="24" Foreground="Black"/>
-                                <TextBlock Text="Z+" FontSize="14" Foreground="Black"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Border Grid.Row="1"
-                                Background="#FF616D84"
-                                CornerRadius="12"
-                                Width="110"
-                                Height="110"
-                                Margin="5"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                BorderBrush="#FFCBCBCB"
-                                BorderThickness="1">
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="{Binding MStatus.WorkZ, StringFormat=F2}" 
-                                           FontSize="14" Foreground="palegreen"
-                                           HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Button x:Name="btnJogZminus"
-                                Grid.Row="2"
-                                Style="{StaticResource UnifiedJogButtonStyle}"
-                                PreviewMouseDown="JogZMinus_Start"
-                                PreviewMouseUp="Jog_Stop"
-                                MouseLeave="Jog_Stop_MouseLeave"
-                                MouseMove="Jog_MouseMove"
-                                TouchDown="JogZMinus_TouchStart"
-                                TouchUp="Jog_TouchStop"
-                                TouchLeave="Jog_TouchStop"
-                                TouchMove="Jog_TouchMove"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Bottom">
-                            <StackPanel>
-                                <TextBlock Text="Z-" FontSize="14" Foreground="Black"/>
-                                <TextBlock Text="▼" FontSize="24" Foreground="Black"/>
-                            </StackPanel>
-                        </Button>
-                    </Grid>
-
-                    <Grid Grid.Row="2" Margin="0,10,0,0" Width="180" HorizontalAlignment="Center">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="15"/>
-                            <ColumnDefinition Width="70"/>
-                            <ColumnDefinition Width="40"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="F:" FontSize="12" FontWeight="Bold" Foreground="White"/>
-                        <TextBlock Grid.Column="1" Text="{Binding CurrentZJogSpeed, StringFormat={}{0} mm/min}"
-                                   FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50"/>
-                        <TextBlock Grid.Column="2" Text="Step:" FontSize="12" FontWeight="Bold" Foreground="White"/>
-                        <TextBlock Grid.Column="3" Text="{Binding SelectedXYZStepSizeDisplay}"
-                                   FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50"/>
-                    </Grid>
-                </Grid>
-            </Border>
-
-            <!-- ROW 2 - SPEED Control -->
-            <Border x:Name="SpeedPanelBorder"
-                    Grid.Row="2" Grid.Column="2"
-                    Background="#FF2D2D30"
-                    CornerRadius="10"
-                    Padding="15"
-                    BorderBrush="#FFA2A2A4"
-                    BorderThickness="1"
-                    Margin="0,10,5,0"
-                    VerticalAlignment="Stretch">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <TextBlock Grid.Row="0"
-                               Text="SPEED"
-                               FontSize="12"
-                               FontWeight="Bold"
-                               Foreground="#FFB0BEC5"
-                               HorizontalAlignment="Center"
-                               Margin="0,0,0,8"/>
-
-                    <Grid Grid.Row="1" Margin="12,0,12,0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <TextBlock x:Name="TopSpeedLabel"
-                                   Grid.Row="0"
-                                   Text="{Binding MaxXYJogSpeed, StringFormat={}{0} mm/min}"
-                                   FontSize="10"
-                                   FontWeight="Bold"
-                                   Foreground="DarkGray"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,0,0,8"/>
-
-                        <Slider x:Name="JogSpeedSlider"
-                                Grid.Row="1"
-                                Orientation="Vertical"
-                                Style="{StaticResource TouchFriendlySliderStyle}"
-                                Maximum="100"
-                                Minimum="1"
-                                Value="{Binding JogSpeedPercentage, Mode=TwoWay}"
-                                Width="50"
-                                Background="#FF474A50"
-                                Foreground="#FF0986E6"
-                                BorderThickness="1"
-                                BorderBrush="#FFA2A2A4"
-                                HorizontalAlignment="Center"
-                                TouchDown="JogSpeedSlider_TouchDown"
-                                TouchMove="JogSpeedSlider_TouchMove"
-                                TouchUp="JogSpeedSlider_TouchUp"
-                                TouchLeave="JogSpeedSlider_TouchLeave"
-                                MouseDown="JogSpeedSlider_MouseDown"
-                                MouseMove="JogSpeedSlider_MouseMove"
-                                MouseUp="JogSpeedSlider_MouseUp"
-                                ValueChanged="JogSpeedSlider_ValueChanged">
-                            <Slider.Height>
-                                <MultiBinding Converter="{StaticResource SubtractiveHeightConverter}" ConverterParameter="85">
-                                    <Binding ElementName="SpeedPanelBorder" Path="ActualHeight"/>
-                                    <Binding ElementName="TopSpeedLabel" Path="ActualHeight"/>
-                                    <Binding ElementName="BottomSpeedLabel" Path="ActualHeight"/>
-                                </MultiBinding>
-                            </Slider.Height>
-                        </Slider>
-
-                        <TextBlock x:Name="BottomSpeedLabel"
-                                   Grid.Row="2"
-                                   Text="1% (Min)"
-                                   FontSize="10"
-                                   FontWeight="Bold"
-                                   Foreground="#FFBDBDBD"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,8,0,0"/>
-                    </Grid>
-                </Grid>
-            </Border>
-
-            <!-- ROW 2 - XYZ STEP Control -->
-            <Border x:Name="XYZStepPanel"
-                    Grid.Row="2"
-                    Grid.Column="3"
-                    Background="#FF2D2D30"
-                    CornerRadius="10"
-                    Padding="15"
-                    BorderBrush="#FFA2A2A4"
-                    BorderThickness="1"
-                    Margin="0,10,0,0"
-                    VerticalAlignment="Stretch">
-                <Border.Style>
-                    <Style TargetType="Border">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsAAxisAvailable}" Value="False">
-                                <Setter Property="Grid.Row" Value="3"/>
-                                <Setter Property="Grid.Column" Value="0"/>
-                                <Setter Property="Grid.ColumnSpan" Value="3"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Border.Style>
-
-                <Grid VerticalAlignment="Stretch">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <TextBlock Grid.Row="0"
-                               Text="XYZ STEP CONTROL"
-                               Style="{StaticResource SectionHeaderStyle}"/>
-
-                    <ToggleButton Grid.Row="1"
-                                  x:Name="XYZContinuousButton"
-                                  Style="{StaticResource RadioStepToggleButtonStyle}"
-                                  Content="CONTINUOUS"
-                                  FontSize="12"
-                                  FontWeight="Bold"
-                                  Width="156"
-                                  Height="45"
-                                  HorizontalAlignment="Center"
-                                  Margin="0,0,0,10"
-                                  Click="XYZContinuous_Click"
-                                  Background="#FF474A50"/>
-
-                    <TextBlock Grid.Row="2"
-                               Text="STEP SIZE (mm)"
-                               FontSize="12"
-                               Foreground="#FFBDBDBD"
-                               HorizontalAlignment="Center"
-                               Margin="0,0,0,10"/>
-
-                    <Border Grid.Row="3"
-                            CornerRadius="8"
-                            Padding="10"
-                            Margin="0,0,0,12">
-                        <UniformGrid Rows="4" Columns="2" x:Name="XYZStepButtonGrid">
-                            <ToggleButton Content="0.01" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="0.01"
-                                          Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
-                                          TouchUp="XYZStepSize_TouchUp"
-                                          PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
-                                          Background="#FF474A50"/>
-                            <ToggleButton Content="0.03" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="0.03"
-                                          Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
-                                          TouchUp="XYZStepSize_TouchUp"
-                                          PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
-                                          Background="#FF474A50"/>
-                            <ToggleButton Content="0.05" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="0.05"
-                                          Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
-                                          TouchUp="XYZStepSize_TouchUp"
-                                          PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
-                                          Background="#FF474A50"/>
-                            <ToggleButton Content="0.1" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="0.1"
-                                          Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
-                                          TouchUp="XYZStepSize_TouchUp"
-                                          PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
-                                          Background="#FF474A50"/>
-                            <ToggleButton Content="1" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="1"
-                                          Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
-                                          TouchUp="XYZStepSize_TouchUp"
-                                          PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
-                                          Background="#FF474A50"/>
-                            <ToggleButton Content="5" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="5"
-                                          Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
-                                          TouchUp="XYZStepSize_TouchUp"
-                                          PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
-                                          Background="#FF474A50"/>
-                            <ToggleButton Content="10" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="10"
-                                          Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
-                                          TouchUp="XYZStepSize_TouchUp"
-                                          PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
-                                          Background="#FF474A50"/>
-                            <ToggleButton Content="20" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="20"
-                                          Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
-                                          TouchUp="XYZStepSize_TouchUp"
-                                          PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
-                                          Background="#FF474A50"/>
-                        </UniformGrid>
-                    </Border>
-                </Grid>
-            </Border>
-
-            <!-- ROW 3 - A axis movement -->
-            <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
-                    Background="#FF2D2D30"
-                    CornerRadius="10"
-                    Padding="15"
-                    BorderBrush="#FFA2A2A4"
-                    BorderThickness="1"
-                    Margin="0,10,5,0"
-                    Visibility="{Binding IsAAxisAvailable, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <Grid VerticalAlignment="Top">
-                    <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="1"
+    Text="Z AXIS MOVEMENT"
+    Style="{StaticResource SectionHeaderStyle}"
+  HorizontalAlignment="Center"/>
+
+                    <Button x:Name="btnJogZplus"
+ Grid.Row="2"
+   Style="{StaticResource UnifiedJogButtonStyle}"
+       PreviewMouseDown="JogZPlus_Start"
+       PreviewMouseUp="Jog_Stop"
+  MouseLeave="Jog_Stop_MouseLeave"
+  MouseMove="Jog_MouseMove"
+     TouchDown="JogZPlus_TouchStart"
+TouchUp="Jog_TouchStop"
+   TouchLeave="Jog_TouchStop"
+     TouchMove="Jog_TouchMove"
+  HorizontalAlignment="Center"
+      VerticalAlignment="Center"
+      Width="120"
+      Height="120"
+      Margin="5">
+                        <StackPanel>
+                            <TextBlock Text="▲" FontSize="32" Foreground="Black"/>
+                            <TextBlock Text="Z+" FontSize="18" Foreground="Black"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Border Grid.Row="3"
+    Background="#FF616D84"
+     CornerRadius="30"
+         Width="120"
+  Height="120"
+   Margin="20,20,20,20"
+     HorizontalAlignment="Center"
+   VerticalAlignment="Center"
+       BorderBrush="#FFCBCBCB"
+    BorderThickness="1">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding MStatus.WorkZ, StringFormat=F2}" 
+  FontSize="16" Foreground="palegreen"
+  HorizontalAlignment="Center"
+  FontWeight="Normal"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Button x:Name="btnJogZminus"
+   Grid.Row="4"
+  Style="{StaticResource UnifiedJogButtonStyle}"
+PreviewMouseDown="JogZMinus_Start"
+      PreviewMouseUp="Jog_Stop"
+ MouseLeave="Jog_Stop_MouseLeave"
+    MouseMove="Jog_MouseMove"
+TouchDown="JogZMinus_TouchStart"
+       TouchUp="Jog_TouchStop"
+     TouchLeave="Jog_TouchStop"
+ TouchMove="Jog_TouchMove"
+   HorizontalAlignment="Center"
+ VerticalAlignment="Center"
+      Width="120"
+Height="120"
+      Margin="5">
+                        <StackPanel>
+                            <TextBlock Text="Z-" FontSize="18" Foreground="Black"/>
+                            <TextBlock Text="▼" FontSize="32" Foreground="Black"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Grid Grid.Row="6" Grid.ColumnSpan="1"
+   Margin="0,10,0,0"
+   HorizontalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="F:" FontSize="12" FontWeight="Bold" Foreground="White" Margin="0,0,5,0"/>
+                        <TextBlock Grid.Column="1" Text="{Binding CurrentZJogSpeed, StringFormat={}{0} mm/min}"
+    FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50" Margin="0,0,15,0"/>
+                        <TextBlock Grid.Column="2" Text="Step:" FontSize="12" FontWeight="Bold" Foreground="White" Margin="0,0,5,0"/>
+                        <TextBlock Grid.Column="3" Text="{Binding SelectedXYZStepSizeDisplay}"
+ FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50"/>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- ROW 3 - XYZ STEP Control (Horizontal, spanning all columns) -->
+            <Border x:Name="XYZStepPanel"
+ Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5"
+ Background="#FF2D2D30"
+        CornerRadius="10"
+     Padding="15"
+    BorderBrush="#FFA2A2A4"
+BorderThickness="1"
+ Margin="0,10,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="A AXIS MOVEMENT"
-                               Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center"/>
-                    <Button x:Name="btnJogAminus"
-                            Grid.Row="1" Grid.Column="0"
-                            Style="{StaticResource UnifiedJogButtonStyle}"
-                            PreviewMouseDown="JogAMinus_Start"
-                            PreviewMouseUp="Jog_Stop"
-                            MouseLeave="Jog_Stop_MouseLeave"
-                            MouseMove="Jog_MouseMove"
-                            TouchDown="JogAMinus_TouchStart"
-                            TouchUp="Jog_TouchStop"
-                            TouchLeave="Jog_TouchStop"
-                            TouchMove="Jog_TouchMove"
-                            HorizontalAlignment="Right">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="↺" FontSize="24" Foreground="Black"/>
-                            <TextBlock Text=" A-" FontSize="14" Foreground="Black"/>
-                        </StackPanel>
-                    </Button>
-                    <Border Grid.Row="1" Grid.Column="1"
-                            Background="#FF616D84"
-                            CornerRadius="12"
-                            Width="100"
-                            Height="100"
-                            Margin="10"
-                            HorizontalAlignment="Center"
-                            BorderBrush="#FFCBCBCB"
-                            BorderThickness="1">
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="{Binding MStatus.WorkA, StringFormat={}{0:F2}°}" 
-                                       FontSize="14" Foreground="palegreen" HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                    <Button x:Name="btnJogAplus"
-                            Grid.Row="1" Grid.Column="2"
-                            Style="{StaticResource UnifiedJogButtonStyle}"
-                            PreviewMouseDown="JogAPlus_Start"
-                            PreviewMouseUp="Jog_Stop"
-                            MouseLeave="Jog_Stop_MouseLeave"
-                            MouseMove="Jog_MouseMove"
-                            TouchDown="JogAPlus_TouchStart"
-                            TouchUp="Jog_TouchStop"
-                            TouchLeave="Jog_TouchStop"
-                            TouchMove="Jog_TouchMove"
-                            HorizontalAlignment="Left">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="A+ " FontSize="14" Foreground="Black"/>
-                            <TextBlock Text="↻" FontSize="24" Foreground="Black"/>
-                        </StackPanel>
-                    </Button>
-                    <Grid Grid.Row="2" Grid.ColumnSpan="3" Margin="0,10,0,0" Width="350" HorizontalAlignment="Center">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="15"/>
-                            <ColumnDefinition Width="120"/>
-                            <ColumnDefinition Width="40"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="F:" FontSize="12" FontWeight="Bold" Foreground="White"/>
-                        <TextBlock Grid.Column="1" Text="{Binding CurrentAAxisJogSpeed, StringFormat={}{0} deg/min}"
-                                   FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50"/>
-                        <TextBlock Grid.Column="2" Text="Step:" FontSize="12" FontWeight="Bold" Foreground="White"/>
-                        <TextBlock Grid.Column="3" Text="{Binding SelectedAStepSizeDisplay}"
-                                   FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50"/>
-                    </Grid>
-                </Grid>
-            </Border>
 
-            <!-- ROW 3 - A axis speed -->
-            <Border Grid.Row="3" Grid.Column="2"
-                    Background="#FF2D2D30"
-                    CornerRadius="10"
-                    Padding="15"
-                    BorderBrush="#FFA2A2A4"
-                    BorderThickness="1"
-                    Margin="0,10,5,0"
-                    Visibility="{Binding IsAAxisAvailable, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="A-AXIS SPEED" FontSize="12" FontWeight="Bold"
-                               Foreground="#FFB0BEC5" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                    <Grid Grid.Row="1" Margin="15,0,15,0">
+                    <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center" Margin="0,0,20,0">
+                        <TextBlock Text="XYZ STEP CONTROL"
+      Style="{StaticResource SectionHeaderStyle}"
+   HorizontalAlignment="Left"
+  Margin="0,0,0,10"/>
+
+                        <ToggleButton x:Name="XYZContinuousButton"
+     Style="{StaticResource RadioStepToggleButtonStyle}"
+    Content="CONTINUOUS"
+   FontSize="12"
+     FontWeight="Bold"
+ Width="140"
+    Height="50"
+  Click="XYZContinuous_Click"
+     Background="#FF474A50"/>
+                    </StackPanel>
+
+                    <Grid Grid.Column="1">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Text="{Binding MaxAJogSpeed, StringFormat={}{0} deg/min}"
-                                   FontSize="9" FontWeight="Bold" Foreground="DarkGray"
-                                   HorizontalAlignment="Center" Margin="0,0,0,5"/>
-                        <Slider x:Name="AAxisSpeedSlider"
-                                Orientation="Vertical"
-                                Style="{StaticResource TouchFriendlySliderStyle}"
-                                Maximum="100"
-                                Minimum="1"
-                                Value="{Binding AAxisSpeedPercentage, Mode=TwoWay}"
-                                Width="50"
-                                MinHeight="120"
-                                MaxHeight="160"
-                                Background="#FF474A50"
-                                Foreground="#FF0986E6"
-                                TouchDown="AAxisSpeedSlider_TouchDown"
-                                TouchMove="AAxisSpeedSlider_TouchMove"
-                                TouchUp="AAxisSpeedSlider_TouchUp"
-                                TouchLeave="AAxisSpeedSlider_TouchLeave"
-                                MouseDown="AAxisSpeedSlider_MouseDown"
-                                MouseMove="AAxisSpeedSlider_MouseMove"
-                                MouseUp="AAxisSpeedSlider_MouseUp"
-                                ValueChanged="AAxisSpeedSlider_ValueChanged"
-                                BorderThickness="1"
-                                Margin="14,16,13,0"
-                                Height="126"
-                                VerticalAlignment="Top"
-                                Grid.RowSpan="2"
-                                BorderBrush="#FFA2A2A4"/>
-                        <TextBlock Grid.Row="2" Text="1% (Min)" FontSize="9" FontWeight="Bold"
-                                   Foreground="#FFBDBDBD" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+
+                        <TextBlock Grid.Row="0"
+         Text="STEP SIZE (mm)"
+ FontSize="11"
+   Foreground="#FFBDBDBD"
+  HorizontalAlignment="Left"
+   Margin="0,0,0,5"/>
+
+                        <UniformGrid Grid.Row="1" Rows="1" Columns="8" x:Name="XYZStepButtonGrid">
+                            <ToggleButton Content="0.01" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="0.01"
+    Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
+      TouchUp="XYZStepSize_TouchUp"
+     PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
+       Background="#FF474A50" Margin="2"/>
+                            <ToggleButton Content="0.03" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="0.03"
+   Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
+    TouchUp="XYZStepSize_TouchUp"
+    PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
+    Background="#FF474A50" Margin="2"/>
+                            <ToggleButton Content="0.05" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="0.05"
+    Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
+  TouchUp="XYZStepSize_TouchUp"
+    PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
+ Background="#FF474A50" Margin="2"/>
+                            <ToggleButton Content="0.1" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="0.1"
+    Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
+     TouchUp="XYZStepSize_TouchUp"
+ PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
+ Background="#FF474A50" Margin="2"/>
+                            <ToggleButton Content="1" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="1"
+ Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
+  TouchUp="XYZStepSize_TouchUp"
+    PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
+       Background="#FF474A50" Margin="2"/>
+                            <ToggleButton Content="5" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="5"
+Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
+     TouchUp="XYZStepSize_TouchUp"
+PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
+ Background="#FF474A50" Margin="2"/>
+                            <ToggleButton Content="10" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="10"
+  Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
+    TouchUp="XYZStepSize_TouchDown"
+    PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
+           Background="#FF474A50" Margin="2"/>
+                            <ToggleButton Content="20" Style="{StaticResource RadioStepToggleButtonStyle}" Tag="20"
+ Click="XYZStepSize_Click" TouchDown="XYZStepSize_TouchDown"
+        TouchUp="XYZStepSize_TouchUp"
+   PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
+  Background="#FF474A50" Margin="2"/>
+                        </UniformGrid>
                     </Grid>
                 </Grid>
             </Border>
 
-            <!-- ROW 3 - A axis step -->
-            <Border Grid.Row="3" Grid.Column="3"
-                    Background="#FF2D2D30"
-                    CornerRadius="10"
-                    Padding="15"
-                    BorderBrush="#FFA2A2A4"
-                    BorderThickness="1"
-                    Margin="0,10,0,0"
-                    Visibility="{Binding IsAAxisAvailable, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <Grid Margin="0,0,0,5">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="A-AXIS STEP" Style="{StaticResource SectionHeaderStyle}"/>
-                    <ToggleButton Grid.Row="1" x:Name="AContinuousButton" Style="{StaticResource RadioAStepToggleButtonStyle}"
-                                  Content="CONTINUOUS" FontSize="11" FontWeight="Bold"
-                                  Width="130" Height="35" HorizontalAlignment="Center"
-                                  Margin="0,0,0,10" Click="AContinuous_Click" Background="#FF474A50"/>
-                    <TextBlock Grid.Row="2" Text="STEP SIZE (°)" FontSize="9" Foreground="#FFBDBDBD"
-                               HorizontalAlignment="Center" Margin="0,0,0,5"/>
-                    <Border Grid.Row="3" CornerRadius="5" Padding="5" VerticalAlignment="Top" Height="98">
-                        <UniformGrid Rows="2" Columns="2" VerticalAlignment="Top" x:Name="AStepButtonGrid">
-                            <ToggleButton Content="0.01°" Style="{StaticResource RadioAStepToggleButtonStyle}" Tag="0.01"
-                                          Click="AAxisStepSize_Click" FontSize="9" Width="65" Height="35" Margin="1" Background="#FF474A50"/>
-                            <ToggleButton Content="0.1°" Style="{StaticResource RadioAStepToggleButtonStyle}" Tag="0.1"
-                                          Click="AAxisStepSize_Click" FontSize="9" Width="65" Height="35" Margin="1" Background="#FF474A50"/>
-                            <ToggleButton Content="1°" Style="{StaticResource RadioAStepToggleButtonStyle}" Tag="1"
-                                          Click="AAxisStepSize_Click" FontSize="9" Width="65" Height="35" Margin="1" Background="#FF474A50"/>
-                            <ToggleButton Content="45°" Style="{StaticResource RadioAStepToggleButtonStyle}" Tag="45"
-                                          Click="AAxisStepSize_Click" FontSize="9" Width="65" Height="35" Margin="1" Background="#FF474A50"/>
-                        </UniformGrid>
-                    </Border>
+            <!-- ROW 4 - SPEED Control (Horizontal, spanning all columns) -->
+            <Border x:Name="SpeedPanelBorder"
+        Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="5"
+  Background="#FF2D2D30"
+  CornerRadius="10"
+     Padding="15,8"
+    BorderBrush="#FFA2A2A4"
+ BorderThickness="1"
+    Margin="0,10,0,0">
+                <Grid ClipToBounds="True" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
+                        <TextBlock Text="JOG SPEED"
+       FontSize="12"
+  FontWeight="Bold"
+ Foreground="White"
+   VerticalAlignment="Center"
+    Margin="0,0,10,0"/>
+
+                        <Grid Margin="5,0,5,0" VerticalAlignment="Center" Width="496">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0"
+   Text="1%"
+    FontSize="10"
+    FontWeight="Bold"
+  Foreground="DarkGray" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                            <Slider x:Name="JogSpeedSlider"
+      Grid.Row="1" Grid.Column="1"
+       Orientation="Horizontal"
+    Style="{StaticResource TouchFriendlySliderStyle}"
+    Maximum="100"
+        Minimum="1"
+        Value="{Binding JogSpeedPercentage, Mode=TwoWay}"
+      Width="415"
+      Height="47"
+  Background="#FF474A50"
+Foreground="#FF0986E6"
+   BorderThickness="1"
+    BorderBrush="#FFA2A2A4"
+      VerticalAlignment="Center"
+  TouchDown="JogSpeedSlider_TouchDown"
+  TouchMove="JogSpeedSlider_TouchMove"
+ TouchUp="JogSpeedSlider_TouchUp"
+   TouchLeave="JogSpeedSlider_TouchLeave"
+ MouseDown="JogSpeedSlider_MouseDown"
+   MouseMove="JogSpeedSlider_MouseMove"
+   MouseUp="JogSpeedSlider_MouseUp"
+     ValueChanged="JogSpeedSlider_ValueChanged"
+  HorizontalAlignment="Left"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="2"
+       Text="100%"
+FontSize="10"
+   FontWeight="Bold"
+      Foreground="#FFBDBDBD"
+    VerticalAlignment="Center"
+    Margin="10,0,0,0"/>
+                        </Grid>
+
+                        <Border CornerRadius="8" Padding="10,6" MinWidth="100" Margin="30,0,0,0" Width="180">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Width="150">
+                                <TextBlock Text="{Binding JogSpeedPercentage, StringFormat={}{0:F0}}"
+      FontSize="16"
+       FontWeight="Normal"
+         Foreground="#FF0986E6"
+  VerticalAlignment="Center"/>
+                                <TextBlock Text=" %"
+      FontSize="12"
+       FontWeight="Normal"
+      Foreground="White"
+    VerticalAlignment="Center"
+      Margin="2,0,0,0"
+  Width="123"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </Grid>
             </Border>
 
             <!-- Keep the old full overlay host collapsed (not used) -->
             <Grid x:Name="PanelJogOverlayHost"
-                  Grid.Row="2"
-                  Grid.Column="0"
-                  Grid.ColumnSpan="4"
-                  Grid.RowSpan="2"
-                  Background="Transparent"
-                  Visibility="Collapsed"/>
+  Grid.Row="1"
+   Grid.Column="0"
+    Grid.ColumnSpan="5"
+  Grid.RowSpan="1"
+    Background="Transparent"
+ Visibility="Collapsed"/>
         </Grid>
     </Border>
 </UserControl>

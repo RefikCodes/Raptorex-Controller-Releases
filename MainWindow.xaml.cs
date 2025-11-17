@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using CncControlApp.Managers; // event cache erişimi için
 using System.Windows.Navigation;
+using CncControlApp.Controls;
 
 namespace CncControlApp
 {
@@ -25,7 +26,7 @@ namespace CncControlApp
 
         // Probe logging control
         private const bool ProbeLogVerbose = false;
-        private const int MaxProbeFeed = 300; // ← cap probe feed (mm/min) to 250 (increased from 180)
+        private const int MaxProbeFeed =300; // ← cap probe feed (mm/min) to250 (increased from180)
 
         private bool _probePanelVisible = false;
         private bool _probeCanvasInitialized = false;
@@ -42,11 +43,11 @@ namespace CncControlApp
         private double _lastProbeY;
         private double _lastProbeZ;
 
-        private double _probeWorkspaceMaxX = 300;
-        private double _probeWorkspaceMaxY = 200;
-        private double _probeWorkspaceMaxZ = 100;
-        private double _probeCanvasScaleFactorX = 1.0;
-        private double _probeCanvasScaleFactorY = 1.0;
+        private double _probeWorkspaceMaxX =300;
+        private double _probeWorkspaceMaxY =200;
+        private double _probeWorkspaceMaxZ =100;
+        private double _probeCanvasScaleFactorX =1.0;
+        private double _probeCanvasScaleFactorY =1.0;
 
         private Ellipse _currentPositionIndicator;
         private TextBlock _currentPositionLabel;
@@ -86,7 +87,45 @@ namespace CncControlApp
 
             // In constructor AFTER InitializeComponent():
             DataContext = App.MainController;
+
+            // Hook ProbePanelView events
+            HookProbePanelEvents();
         }
+
+        private void HookProbePanelEvents()
+        {
+            var panel = MainProbePanel as ProbePanelView;
+            if (panel == null) return;
+
+            // Avoid duplicate subscriptions
+            panel.ZProbeClicked -= ZProbeButton_Click;
+            panel.PlusXProbeClicked -= PlusXProbeButton_Click;
+            panel.MinusXProbeClicked -= MinusXProbeButton_Click;
+            panel.PlusYProbeClicked -= PlusYProbeButton_Click;
+            panel.MinusYProbeClicked -= MinusYProbeButton_Click;
+            panel.SetZeroXClicked -= ProbeSetZeroButton_Click;
+            panel.SetZeroYClicked -= ProbeSetZeroButton_Click;
+            panel.SetZeroZClicked -= ProbeSetZeroButton_Click;
+            panel.SetZeroAClicked -= ProbeSetZeroButton_Click;
+
+            panel.ZProbeClicked += ZProbeButton_Click;
+            panel.PlusXProbeClicked += PlusXProbeButton_Click;
+            panel.MinusXProbeClicked += MinusXProbeButton_Click;
+            panel.PlusYProbeClicked += PlusYProbeButton_Click;
+            panel.MinusYProbeClicked += MinusYProbeButton_Click;
+            panel.SetZeroXClicked += ProbeSetZeroButton_Click;
+            panel.SetZeroYClicked += ProbeSetZeroButton_Click;
+            panel.SetZeroZClicked += ProbeSetZeroButton_Click;
+            panel.SetZeroAClicked += ProbeSetZeroButton_Click;
+        }
+
+        // Proxies to canvases and labels inside ProbePanelView
+        private Canvas MainGridLinesCanvas => (MainProbePanel as ProbePanelView)?.GridLinesCanvas;
+        private Canvas MainProbeCoordinatesCanvas => (MainProbePanel as ProbePanelView)?.ProbeCoordinatesCanvas;
+        private Canvas MainCrosshairCanvas => (MainProbePanel as ProbePanelView)?.CrosshairCanvas;
+        private TextBlock MainProbeXCoordinate => (MainProbePanel as ProbePanelView)?.ProbeXText;
+        private TextBlock MainProbeYCoordinate => (MainProbePanel as ProbePanelView)?.ProbeYText;
+        private TextBlock MainProbeZCoordinate => (MainProbePanel as ProbePanelView)?.ProbeZText;
 
         public bool IsKioskMode => _isKioskMode;
 

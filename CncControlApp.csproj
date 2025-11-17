@@ -105,6 +105,9 @@
     <Compile Include="CncControlApp\Controls\FeedRpmPopup.xaml.cs">
       <DependentUpon>FeedRpmPopup.xaml</DependentUpon>
     </Compile>
+    <Compile Include="CncControlApp\Controls\ProbePanelView.xaml.cs">
+      <DependentUpon>ProbePanelView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="CncControlApp\Controls\RotationPopup.xaml.cs" />
     <Compile Include="CncControlApp\Controls\StreamingPopup.xaml.cs">
       <DependentUpon>StreamingPopup.xaml</DependentUpon>
@@ -232,6 +235,9 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="CncControlApp\Controls\FeedRpmPopup.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="CncControlApp\Controls\ProbePanelView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="CncControlApp\Controls\RotationPopup.xaml">
