@@ -1,0 +1,250 @@
+﻿// ✅ TAMAMEN YENİ Z PROBE - SEKANSİ TAM OLARAK SÖYLEDİĞİN GİBİ
+// Hiç bir ? gönderimi YOK - Merkez 50ms ile çalışacak
+// Coarse: 3mm geri çek → Idle gör → probe → Idle gör → Machine.Z oku
+// Fine: 3mm geri çek → Idle gör → probe → Idle gör → Machine.Z oku
+// Son: 10mm geri çek → Idle gör → 10mm olarak sıfırla
+// Feed: Coarse = rapid/10, Fine = rapid/15
+
+private async void ZProbeButton_Click(object sender, RoutedEventArgs e)
+{
+    try
+    {
+        App.MainController?.AddLogMessage("> 🔧 Z Probe başlatılıyor (YENİ SEKANS)...");
+        
+        if (App.MainController?.IsConnected != true)
+        {
+  App.MainController?.AddLogMessage("> ❌ CNC bağlı değil");
+        return;
+    }
+
+   // G91 - Rölatif mod
+    if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G91"))
+        {
+App.MainController?.AddLogMessage("> ❌ G91 ayarlanamadı!");
+          return;
+      }
+        App.MainController?.AddLogMessage("> ⚙️ G91 aktif");
+
+        // Z rapid ayardan oku ($112)
+    double zRapid = 1000.0;
+        try
+        {
+            var zSetting = App.MainController?.Settings?.FirstOrDefault(s => s.Id == 112);
+       if (zSetting != null && double.TryParse(zSetting.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double zVal))
+       {
+     zRapid = Math.Max(1.0, zVal);
+       }
+     }
+      catch { }
+
+        // Feed hesapla: Coarse = rapid/10, Fine = rapid/15
+        int coarseFeed = ClampProbeFeed((int)(zRapid / 10.0));
+ int fineFeed = ClampProbeFeed((int)(zRapid / 15.0));
+        
+        App.MainController?.AddLogMessage($"> 🚀 Z rapid: {zRapid:F0} mm/min");
+   App.MainController?.AddLogMessage($"> 📏 Coarse feed: {coarseFeed} mm/min (rapid/10)");
+        App.MainController?.AddLogMessage($"> 📏 Fine feed: {fineFeed} mm/min (rapid/15)");
+
+// ===== COARSE PROBE =====
+        // 1. 3mm geri çek
+        App.MainController?.AddLogMessage("> 🔼 Coarse: 3mm geri çek");
+        if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G00 Z3.000"))
+        {
+          App.MainController?.AddLogMessage("> ❌ 3mm geri çekme başarısız");
+       await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+            return;
+        }
+
+    // 2. Idle gör
+     App.MainController?.AddLogMessage("> ⏳ Idle bekleniyor...");
+        if (!await WaitForIdleAsync(15000, "Coarse_Retract"))
+        {
+     App.MainController?.AddLogMessage("> ❌ Idle görülmedi (3mm geri çekme)");
+            await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+   return;
+        }
+        App.MainController?.AddLogMessage("> ✅ Idle görüldü");
+
+        // 3. Probe başla
+ string coarseCmd = $"G38.2 Z-30.000 F{coarseFeed}";
+      App.MainController?.AddLogMessage($"> 🔍 Coarse probe: {coarseCmd}");
+        if (!await App.MainController.SendGCodeCommandWithConfirmationAsync(coarseCmd))
+        {
+        App.MainController?.AddLogMessage("> ❌ Coarse probe gönderilemedi");
+            await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+     return;
+        }
+
+  // 4. Idle gör
+      App.MainController?.AddLogMessage("> ⏳ Idle bekleniyor (probe sonrası)...");
+        if (!await WaitForIdleAsync(45000, "Coarse_Probe"))
+        {
+      App.MainController?.AddLogMessage("> ❌ Idle görülmedi (coarse probe)");
+      await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+        return;
+        }
+App.MainController?.AddLogMessage("> ✅ Idle görüldü (probe bitti)");
+
+    // 5. Machine.Z oku
+      double firstZ = App.MainController?.MStatus?.Z ?? double.NaN;
+        if (!IsFinite(firstZ))
+        {
+       App.MainController?.AddLogMessage("> ❌ İlk Z okunamadı");
+            await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+            return;
+     }
+        App.MainController?.AddLogMessage($"> 📍 İlk temas Z(MPos) = {firstZ:F3} mm");
+
+        // ===== FINE PROBE =====
+        // 1. 3mm geri çek
+        App.MainController?.AddLogMessage("> 🔼 Fine: 3mm geri çek");
+      if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G00 Z3.000"))
+        {
+            App.MainController?.AddLogMessage("> ❌ 3mm geri çekme başarısız (fine)");
+   await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+         return;
+        }
+
+      // 2. Idle gör
+   App.MainController?.AddLogMessage("> ⏳ Idle bekleniyor...");
+      if (!await WaitForIdleAsync(15000, "Fine_Retract"))
+        {
+            App.MainController?.AddLogMessage("> ❌ Idle görülmedi (fine 3mm geri çekme)");
+       await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+            return;
+   }
+        App.MainController?.AddLogMessage("> ✅ Idle görüldü");
+
+        // 3. Probe başla
+        string fineCmd = $"G38.2 Z-6.000 F{fineFeed}";
+        App.MainController?.AddLogMessage($"> 🎯 Fine probe: {fineCmd}");
+        if (!await App.MainController.SendGCodeCommandWithConfirmationAsync(fineCmd))
+        {
+            App.MainController?.AddLogMessage("> ❌ Fine probe gönderilemedi");
+    await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+ return;
+        }
+
+        // 4. Idle gör
+App.MainController?.AddLogMessage("> ⏳ Idle bekleniyor (probe sonrası)...");
+        if (!await WaitForIdleAsync(30000, "Fine_Probe"))
+        {
+            App.MainController?.AddLogMessage("> ❌ Idle görülmedi (fine probe)");
+    await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+       return;
+        }
+        App.MainController?.AddLogMessage("> ✅ Idle görüldü (probe bitti)");
+
+        // 5. Machine.Z oku
+        double secondZ = App.MainController?.MStatus?.Z ?? double.NaN;
+      if (!IsFinite(secondZ))
+        {
+            App.MainController?.AddLogMessage("> ❌ İkinci Z okunamadı");
+      await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+  return;
+    }
+        App.MainController?.AddLogMessage($"> 📍 İkinci temas Z(MPos) = {secondZ:F3} mm");
+
+        // ===== SON: 10MM GERİ ÇEK VE SIFIRLA =====
+        // 1. 10mm geri çek
+        App.MainController?.AddLogMessage("> 🔼 10mm geri çek");
+        if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G00 Z10.000"))
+        {
+  App.MainController?.AddLogMessage("> ❌ 10mm geri çekme başarısız");
+          await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+            return;
+        }
+
+        // 2. Idle gör
+        App.MainController?.AddLogMessage("> ⏳ Idle bekleniyor...");
+        if (!await WaitForIdleAsync(15000, "Final_Retract"))
+        {
+            App.MainController?.AddLogMessage("> ❌ Idle görülmedi (10mm geri çekme)");
+      await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+            return;
+        }
+        App.MainController?.AddLogMessage("> ✅ Idle görüldü");
+
+        // 3. 10mm olarak sıfırla
+        App.MainController?.AddLogMessage("> 🎯 Z=10mm olarak sıfırlanıyor...");
+   if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G92 Z10"))
+        {
+            App.MainController?.AddLogMessage("> ❌ G92 Z10 başarısız");
+ await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+        return;
+        }
+      App.MainController?.AddLogMessage("> ✅ Z=10mm olarak sıfırlandı");
+
+        // G90 - Absolut mod
+      await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+        App.MainController?.AddLogMessage("> ⚙️ G90 aktif");
+
+        // Fark hesapla ve göster
+        double delta = secondZ - firstZ;
+    App.MainController?.AddLogMessage($"> 📊 İlk temas: {firstZ:F3} mm");
+        App.MainController?.AddLogMessage($"> 📊 İkinci temas: {secondZ:F3} mm");
+        App.MainController?.AddLogMessage($"> 📊 Fark: {delta:+0.000;-0.000;0.000} mm");
+
+        MessageBox.Show(
+      $"İlk temas Z(MPos): {firstZ:F3} mm\n" +
+            $"İkinci temas Z(MPos): {secondZ:F3} mm\n" +
+    $"Fark: {delta:+0.000;-0.000;0.000} mm\n" +
+        $"Mutlak fark: {Math.Abs(delta):0.000} mm",
+     "Z Probe Tamamlandı",
+            MessageBoxButton.OK,
+       MessageBoxImage.Information
+        );
+
+        App.MainController?.AddLogMessage("> ✅ Z Probe tamamlandı");
+    }
+    catch (Exception ex)
+    {
+        App.MainController?.AddLogMessage($"> ❌ HATA: {ex.Message}");
+        try { await App.MainController.SendGCodeCommandWithConfirmationAsync("G90"); } catch { }
+    }
+}
+
+// ✅ Sadece Idle bekleyen metod - HİÇ QUERY GÖNDERMİYOR
+// Merkez 50ms ile query gönderecek, biz sadece Idle'ı izliyoruz
+private async Task<bool> WaitForIdleAsync(int timeoutMs, string tag)
+{
+    var sw = Stopwatch.StartNew();
+    int idleCount = 0;
+    const int requiredIdleCount = 3; // 3 kez Idle görünce onaylı sayalım
+
+  while (sw.ElapsedMilliseconds < timeoutMs)
+    {
+     string state = App.MainController?.MachineStatus ?? string.Empty;
+
+        bool isIdle = state.StartsWith("Idle", StringComparison.OrdinalIgnoreCase) ||
+  state.IndexOf("<Idle|", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        bool isAlarm = state.StartsWith("Alarm", StringComparison.OrdinalIgnoreCase) ||
+         state.IndexOf("<Alarm|", StringComparison.OrdinalIgnoreCase) >= 0;
+
+      if (isAlarm)
+        {
+        App.MainController?.AddLogMessage($"> 🛑 [{tag}] Alarm tespit edildi!");
+            return false;
+   }
+
+        if (isIdle)
+  {
+      idleCount++;
+      if (idleCount >= requiredIdleCount)
+            {
+                App.MainController?.AddLogMessage($"> ✅ [{tag}] Idle onaylandı ({sw.ElapsedMilliseconds}ms)");
+   return true;
+            }
+        }
+        else
+        {
+          idleCount = 0; // Reset if not idle
+        }
+
+        await Task.Delay(50); // 50ms bekle, merkez query gönderiyor
+    }
+
+    App.MainController?.AddLogMessage($"> ⌛ [{tag}] Timeout ({timeoutMs}ms)");
+    return false;
+}

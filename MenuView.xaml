@@ -1,0 +1,185 @@
+﻿<UserControl x:Class="CncControlApp.MenuView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="800" d:DesignWidth="150"
+             Background="Transparent">
+
+    <UserControl.Resources>
+
+        <!-- Base panel background -->
+        <SolidColorBrush x:Key="MenuBaseBackground" Color="#FF2D2F33"/>
+
+        <!-- Pastel accents -->
+        <SolidColorBrush x:Key="StatusAccent"   Color="#7FAEDC"/>
+        <SolidColorBrush x:Key="GCodeAccent"    Color="#F4D27A"/>
+        <SolidColorBrush x:Key="JogAccent"      Color="#7FD9C8"/>
+        <SolidColorBrush x:Key="ProbeAccent"    Color="#8AD28A"/>
+        <SolidColorBrush x:Key="ConsoleAccent"  Color="#D6A7E6"/>
+
+        <!-- Neutral backgrounds -->
+        <SolidColorBrush x:Key="MenuButtonNeutralBackground" Color="#FF32353A"/>
+        <SolidColorBrush x:Key="MenuButtonNeutralBackgroundHover" Color="#FF3A3E44"/>
+        <SolidColorBrush x:Key="MenuButtonNeutralBackgroundActive" Color="#FF40454C"/>
+
+        <!-- Content template -->
+        <DataTemplate x:Key="MenuButtonContentTemplate">
+            <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+                <Border Width="50" Height="50"
+                        CornerRadius="12"
+                        BorderThickness="1"
+                        BorderBrush="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=BorderBrush}"
+                        Background="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=BorderBrush}">
+                    <TextBlock Text="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=CommandParameter}"
+                               FontSize="26"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="White"
+                               FontWeight="Bold"/>
+                </Border>
+                <TextBlock Text="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Content}"
+                           Margin="0,8,0,0"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           TextAlignment="Center"
+                           Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=BorderBrush}"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Selectable style -->
+        <Style x:Key="SelectableMenuButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource MenuButtonNeutralBackground}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="Tag" Value="{x:Null}"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Root" Property="Background" Value="{StaticResource MenuButtonNeutralBackgroundHover}"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{StaticResource MenuButtonNeutralBackgroundActive}"/>
+                                <Setter TargetName="Root" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                                <Setter TargetName="Root" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.97" ScaleY="0.97"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Active">
+                                <Setter TargetName="Root" Property="Background" Value="{StaticResource MenuButtonNeutralBackgroundActive}"/>
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                <Setter TargetName="Root" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="ActiveProbe">
+                                <Setter TargetName="Root" Property="Background" Value="{StaticResource MenuButtonNeutralBackgroundActive}"/>
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                <Setter TargetName="Root" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </UserControl.Resources>
+
+    <Border CornerRadius="8"
+            Background="{DynamicResource MenuButtonNeutralBackground}"
+            BorderBrush="#FFA2A2A4"
+            BorderThickness="5"
+            SnapsToDevicePixels="True"
+            Margin="0,0,0,0"
+            VerticalAlignment="Stretch">
+        <Grid HorizontalAlignment="Left">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Orientation="Vertical" Margin="6" VerticalAlignment="Top">
+
+                <Button x:Name="GcodeButton"
+                        Width="180"
+                        Height="100"
+                        Margin="4,6,4,10"
+                        Style="{StaticResource SelectableMenuButtonStyle}"
+                        Click="MenuButton_Click"
+                        BorderBrush="#FFA2A2A4"
+                        Content="G-CODE"
+                        CommandParameter="📄"
+                        ContentTemplate="{StaticResource MenuButtonContentTemplate}"/>
+
+                <Button x:Name="JogButton"
+                        Width="180"
+                        Height="100"
+                        Margin="4,0,4,10"
+                        Style="{StaticResource SelectableMenuButtonStyle}"
+                        Click="MenuButton_Click"
+                        BorderBrush="#FFA2A2A4"
+                        Content="JOG"
+                        CommandParameter="🎮"
+                        ContentTemplate="{StaticResource MenuButtonContentTemplate}"/>
+
+                <Button x:Name="ProbeButton"
+                        Width="180"
+                        Height="100"
+                        Margin="4,0,4,10"
+                        Style="{StaticResource SelectableMenuButtonStyle}"
+                        Click="ProbeButton_Click"
+                        BorderBrush="#FFA2A2A4"
+                        Content="PROBE"
+                        CommandParameter="📏"
+                        ContentTemplate="{StaticResource MenuButtonContentTemplate}"/>
+
+                <Button x:Name="ConsoleButton"
+                        Width="180"
+                        Height="100"
+                        Margin="4,0,4,10"
+                        Style="{StaticResource SelectableMenuButtonStyle}"
+                        Click="MenuButton_Click"
+                        BorderBrush="#FFA2A2A4"
+                        Content="CONSOLE"
+                        CommandParameter="💻"
+                        ContentTemplate="{StaticResource MenuButtonContentTemplate}"/>
+
+                <!-- Moved StatusButton to bottom and renamed to Settings -->
+                <Button x:Name="StatusButton"
+                        Width="180"
+                        Height="100"
+                        Margin="4,0,4,10"
+                        Style="{StaticResource SelectableMenuButtonStyle}"
+                        Tag="Active"
+                        Click="MenuButton_Click"
+                        BorderBrush="#FFA2A2A4"
+                        Content="SETTINGS"
+                        CommandParameter="⚙️"
+                        ContentTemplate="{StaticResource MenuButtonContentTemplate}"/>
+
+            </StackPanel>
+
+        </Grid>
+    </Border>
+</UserControl>

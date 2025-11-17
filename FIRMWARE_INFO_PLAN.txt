@@ -1,0 +1,18 @@
+﻿Summary of firmware info board implementation plan:
+
+1. âœ… Added properties to ConnectionManager:
+   - FirmwareName, FirmwareVersion, BoardName, ConfigName, DetectedAxisCount, IsFluidNC
+
+2. â³ Need to fix ProcessConfigLine - code insertion went wrong, mixed up x: check with board: check
+
+3. Next steps:
+   - Fix ProcessConfigLine method structure
+   - Extract firmware version from welcome message (Grbl/FluidNC version string)
+   - Create SettingsView.xaml UI with firmware info panel
+   - Wire ConnectionManager to SettingsView via MainWindow
+
+Files to edit:
+- ConnectionManager.cs - fix ProcessConfigLine
+- SettingsView.xaml - create firmware info UI
+- SettingsView.xaml.cs - add bindings
+- MainWindow.xaml.cs - pass ConnectionManager reference to SettingsView

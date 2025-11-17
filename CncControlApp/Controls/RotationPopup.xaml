@@ -1,0 +1,315 @@
+﻿<Window x:Class="CncControlApp.Controls.RotationPopup"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="G-CODE ROTATION"
+ WindowStyle="None" ResizeMode="NoResize" Width="900" Height="700" Background="Transparent" AllowsTransparency="True" WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Topmost="True">
+ <Window.Resources>
+ <Style x:Key="GreenActionButtonStyle" TargetType="Button">
+ <Setter Property="Background" Value="#FF4CAF50"/>
+ <Setter Property="BorderBrush" Value="#FF45A049"/>
+ <Setter Property="Foreground" Value="White"/>
+ <Setter Property="BorderThickness" Value="1"/>
+ <Setter Property="Cursor" Value="Hand"/>
+ <Setter Property="SnapsToDevicePixels" Value="True"/>
+ <Setter Property="Template">
+ <Setter.Value>
+ <ControlTemplate TargetType="Button">
+ <Border x:Name="Root" CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+ <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+ </Border>
+ <ControlTemplate.Triggers>
+ <Trigger Property="IsMouseOver" Value="True">
+ <Setter TargetName="Root" Property="Background" Value="#FF59C95E"/>
+ <Setter TargetName="Root" Property="BorderBrush" Value="#FF52BA56"/>
+ </Trigger>
+ <Trigger Property="IsPressed" Value="True">
+ <Setter TargetName="Root" Property="Background" Value="#FF6BD976"/>
+ <Setter TargetName="Root" Property="BorderBrush" Value="#FF5EC76A"/>
+ </Trigger>
+ <Trigger Property="IsEnabled" Value="False">
+ <Setter TargetName="Root" Property="Opacity" Value="0.75"/>
+ <Setter TargetName="Root" Property="Background" Value="#FF4CAF50"/>
+ <Setter Property="Foreground" Value="#FFFFFFFF"/>
+ </Trigger>
+ </ControlTemplate.Triggers>
+ </ControlTemplate>
+ </Setter.Value>
+ </Setter>
+ </Style>
+
+ <Style x:Key="YellowActionButtonStyle" TargetType="Button">
+ <Setter Property="Background" Value="#F5D66A"/>
+ <Setter Property="BorderBrush" Value="#E0C153"/>
+ <Setter Property="Foreground" Value="#000000"/>
+ <Setter Property="BorderThickness" Value="1"/>
+ <Setter Property="Cursor" Value="Hand"/>
+ <Setter Property="SnapsToDevicePixels" Value="True"/>
+ <Setter Property="Template">
+ <Setter.Value>
+ <ControlTemplate TargetType="Button">
+ <Border x:Name="Root" CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+ <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+ </Border>
+ <ControlTemplate.Triggers>
+ <Trigger Property="IsMouseOver" Value="True">
+ <Setter TargetName="Root" Property="Background" Value="#F8DF89"/>
+ <Setter TargetName="Root" Property="BorderBrush" Value="#E9CF6D"/>
+ </Trigger>
+ <Trigger Property="IsPressed" Value="True">
+ <Setter TargetName="Root" Property="Background" Value="#FAE79D"/>
+ <Setter TargetName="Root" Property="BorderBrush" Value="#EFD980"/>
+ </Trigger>
+ <Trigger Property="IsEnabled" Value="False">
+ <Setter TargetName="Root" Property="Opacity" Value="0.7"/>
+ <Setter TargetName="Root" Property="Background" Value="#EED982"/>
+ <Setter Property="Foreground" Value="#666666"/>
+ </Trigger>
+ </ControlTemplate.Triggers>
+ </ControlTemplate>
+ </Setter.Value>
+ </Setter>
+ </Style>
+
+ <Style x:Key="BlueActionButtonStyle" TargetType="Button">
+ <Setter Property="Background" Value="#187CA2"/>
+ <Setter Property="BorderBrush" Value="#146888"/>
+ <Setter Property="Foreground" Value="White"/>
+ <Setter Property="BorderThickness" Value="1"/>
+ <Setter Property="Cursor" Value="Hand"/>
+ <Setter Property="SnapsToDevicePixels" Value="True"/>
+ <Setter Property="Template">
+ <Setter.Value>
+ <ControlTemplate TargetType="Button">
+ <Border x:Name="Root" CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+ <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+ </Border>
+ <ControlTemplate.Triggers>
+ <Trigger Property="IsMouseOver" Value="True">
+ <Setter TargetName="Root" Property="Background" Value="#1F8EB8"/>
+ <Setter TargetName="Root" Property="BorderBrush" Value="#19799A"/>
+ </Trigger>
+ <Trigger Property="IsPressed" Value="True">
+ <Setter TargetName="Root" Property="Background" Value="#26A0CF"/>
+ <Setter TargetName="Root" Property="BorderBrush" Value="#1B86AD"/>
+ </Trigger>
+ <Trigger Property="IsEnabled" Value="False">
+ <Setter TargetName="Root" Property="Opacity" Value="0.7"/>
+ <Setter TargetName="Root" Property="Background" Value="#187CA2"/>
+ </Trigger>
+ </ControlTemplate.Triggers>
+ </ControlTemplate>
+ </Setter.Value>
+ </Setter>
+ </Style>
+
+ <Style x:Key="BlueSecondaryActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BlueActionButtonStyle}">
+ <Setter Property="Background" Value="#1C7A9E"/>
+ <Setter Property="BorderBrush" Value="#165F79"/>
+ </Style>
+
+ <Style x:Key="RedActionButtonStyle" TargetType="Button">
+ <Setter Property="Background" Value="#D32F2F"/>
+ <Setter Property="BorderBrush" Value="#B71C1C"/>
+ <Setter Property="Foreground" Value="White"/>
+ <Setter Property="BorderThickness" Value="1"/>
+ <Setter Property="Cursor" Value="Hand"/>
+ <Setter Property="SnapsToDevicePixels" Value="True"/>
+ <Setter Property="Template">
+ <Setter.Value>
+ <ControlTemplate TargetType="Button">
+ <Border x:Name="Root" CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+ <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+ </Border>
+ <ControlTemplate.Triggers>
+ <Trigger Property="IsMouseOver" Value="True">
+ <Setter TargetName="Root" Property="Background" Value="#E53935"/>
+ <Setter TargetName="Root" Property="BorderBrush" Value="#C62828"/>
+ </Trigger>
+ <Trigger Property="IsPressed" Value="True">
+ <Setter TargetName="Root" Property="Background" Value="#F44336"/>
+ <Setter TargetName="Root" Property="BorderBrush" Value="#D32F2F"/>
+ </Trigger>
+ <Trigger Property="IsEnabled" Value="False">
+ <Setter TargetName="Root" Property="Opacity" Value="0.75"/>
+ <Setter TargetName="Root" Property="Background" Value="#D32F2F"/>
+ </Trigger>
+ </ControlTemplate.Triggers>
+ </ControlTemplate>
+ </Setter.Value>
+ </Setter>
+ </Style>
+
+ <Style x:Key="RotationSliderStyle" TargetType="Slider" BasedOn="{StaticResource TouchFriendlySliderStyle}">
+ <Setter Property="Width" Value="Auto"/>
+ <Setter Property="Height" Value="40"/>
+ <Setter Property="HorizontalAlignment" Value="Stretch"/>
+ <Setter Property="VerticalAlignment" Value="Center"/>
+ </Style>
+
+ <Style x:Key="MiniCoordBoxStyle" TargetType="TextBox">
+ <Setter Property="VerticalAlignment" Value="Center"/>
+ <Setter Property="HorizontalAlignment" Value="Stretch"/>
+ <Setter Property="FontSize" Value="16"/>
+ <Setter Property="FontWeight" Value="Regular"/>
+ <Setter Property="FontFamily" Value="Consolas, 'Courier New', monospace"/>
+ <Setter Property="Padding" Value="0,0,10,0"/>
+ <Setter Property="TextAlignment" Value="Right"/>
+ <Setter Property="Background" Value="#FF2D3D2D"/>
+ <Setter Property="Foreground" Value="#FF4CAF50"/>
+ <Setter Property="BorderBrush" Value="#FF4CAF50"/>
+ <Setter Property="BorderThickness" Value="1"/>
+ <Setter Property="Height" Value="32"/>
+ <Setter Property="MinWidth" Value="80"/>
+ <Setter Property="IsReadOnly" Value="True"/>
+ </Style>
+ 
+ <!-- Machine variant: same box, blue foreground/border -->
+ <Style x:Key="MiniCoordBoxMachineStyle" TargetType="TextBox" BasedOn="{StaticResource MiniCoordBoxStyle}">
+ <Setter Property="Foreground" Value="#FF2196F3"/>
+ <Setter Property="BorderBrush" Value="#FF2196F3"/>
+ </Style>
+ </Window.Resources>
+ <Border CornerRadius="14" Background="#FF656568" BorderBrush="#D3D3D3" BorderThickness="2" Padding="0" SnapsToDevicePixels="True">
+ <Border.Effect>
+ <DropShadowEffect Color="#000000" BlurRadius="16" ShadowDepth="0" Opacity="0.6"/>
+ </Border.Effect>
+ <Grid Margin="0">
+ <Grid.RowDefinitions>
+ <RowDefinition Height="Auto"/>
+ <RowDefinition Height="*"/>
+ </Grid.RowDefinitions>
+
+ <!-- Header -->
+ <Border x:Name="HeaderBorder" Grid.Row="0" Background="#FF3D3D40" Padding="18,14" CornerRadius="14,14,0,0" MouseLeftButtonDown="HeaderBorder_MouseLeftButtonDown" Cursor="SizeAll" BorderBrush="Black">
+ <DockPanel>
+ <Ellipse Width="10" Height="10" Fill="#FF4CAF50" VerticalAlignment="Center"/>
+ <TextBlock Margin="10,0,0,0" Text="G-CODE ROTATION" Foreground="White" FontSize="22"/>
+ </DockPanel>
+ </Border>
+
+ <!-- Content row: left panel and right panel (right panel height + close button height == left panel height) -->
+ <Grid Grid.Row="1">
+ <Grid.ColumnDefinitions>
+ <ColumnDefinition/>
+ <ColumnDefinition Width="260"/>
+ </Grid.ColumnDefinitions>
+
+ <!-- Left panel (stretch) -->
+ <Border Grid.Column="0" Background="#FF1E1E20" Margin="22,16,10,16" CornerRadius="8" BorderBrush="#FF555555" BorderThickness="2" VerticalAlignment="Stretch">
+ <Grid>
+ <Grid.RowDefinitions>
+ <RowDefinition Height="Auto"/>
+ <RowDefinition Height="*"/>
+ <RowDefinition Height="50"/>
+ </Grid.RowDefinitions>
+ <Border Grid.Row="0" Background="#FF444444" Height="28" CornerRadius="6,6,0,0">
+ <TextBlock Text="TOP VIEW (X-Y) - ROTATION PREVIEW" Foreground="#FFAAAAAA" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+ </Border>
+ <Grid Grid.Row="1" x:Name="TopViewHost" Margin="5" ClipToBounds="True" Loaded="TopViewHost_Loaded" SizeChanged="TopViewHost_SizeChanged">
+ <Canvas x:Name="TopViewCanvas" ClipToBounds="True" Background="#FF1E1E20" TouchDown="TopViewCanvas_TouchDown" MouseLeftButtonDown="TopViewCanvas_MouseLeftButtonDown"/>
+ <Canvas x:Name="TopViewOverlayCanvas" IsHitTestVisible="False" ClipToBounds="True" Background="Transparent"/>
+ </Grid>
+ <Border Grid.Row="2" CornerRadius="6" Margin="0" Padding="0" Background="#FF3E3E40">
+ <Slider x:Name="RotationSlider" Orientation="Horizontal" Minimum="-180" Maximum="180" Value="0" Style="{StaticResource RotationSliderStyle}" ValueChanged="RotationSlider_ValueChanged" IsMoveToPointEnabled="True" IsSnapToTickEnabled="False" TickFrequency="15" SmallChange="0.5" LargeChange="15" Background="#FF19374F"/>
+ </Border>
+ </Grid>
+ </Border>
+
+ <!-- Right panel and Close button inside DockPanel -->
+ <DockPanel Grid.Column="1" Margin="0,16,22,16" LastChildFill="True" VerticalAlignment="Stretch">
+ <!-- Close button bottom -->
+ <Button x:Name="CloseButton" DockPanel.Dock="Bottom" Content="Close" Width="Auto" Height="50" Style="{StaticResource RedActionButtonStyle}" FontSize="14" Click="CloseButton_Click" Margin="0,14,0,0"/>
+ <!-- Info panel fills remaining height above close -->
+ <Border Background="#FF1E1E20" CornerRadius="8" BorderBrush="#FF4A4A4C" BorderThickness="2" Padding="0" DockPanel.Dock="Top">
+ <Grid>
+ <Grid.RowDefinitions>
+ <RowDefinition Height="Auto"/>
+ <RowDefinition Height="*"/>
+ </Grid.RowDefinitions>
+ <Border Background="#FF3A3A3C" Height="28" CornerRadius="6,6,0,0">
+ <TextBlock Text="ROTATION INFO" Foreground="#FFBBBBBB" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+ </Border>
+ <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+ <Grid Margin="10">
+ <Grid.RowDefinitions>
+ <RowDefinition Height="Auto"/> <!--0 ANGLE -->
+ <RowDefinition Height="Auto"/> <!--1 FIT -->
+ <RowDefinition Height="Auto"/> <!--2 Sep -->
+ <RowDefinition Height="Auto"/> <!--3 X coords -->
+ <RowDefinition Height="Auto"/> <!--4 Y coords -->
+ <RowDefinition Height="Auto"/> <!--5 Z coords -->
+ <RowDefinition Height="Auto"/> <!--6 Sep -->
+ <RowDefinition Height="Auto"/> <!--7 Auto-zero text -->
+ <RowDefinition Height="Auto"/> <!--8 Sep -->
+ <RowDefinition Height="Auto"/> <!--9 GoTo button -->
+ <RowDefinition Height="Auto"/> <!--10 Sep -->
+ <RowDefinition Height="Auto"/> <!--11 Apply -->
+ <RowDefinition Height="Auto"/> <!--12 Reset -->
+ </Grid.RowDefinitions>
+ <Grid.ColumnDefinitions>
+ <ColumnDefinition Width="*"/>
+ <ColumnDefinition Width="*"/>
+ </Grid.ColumnDefinitions>
+
+ <!-- Angle / Fit -->
+ <TextBlock Grid.Row="0" Grid.Column="0" Text="ANGLE" FontSize="10" Foreground="YellowGreen"/>
+ <TextBlock Grid.Row="0" Grid.Column="1" x:Name="AngleValueText" Text="0.0°" FontSize="16" Foreground="#FFDDDDDD" HorizontalAlignment="Right"/>
+ <TextBlock Grid.Row="1" Grid.Column="0" Text="FIT" FontSize="10" Foreground="#FFAAAAAA"/>
+ <TextBlock Grid.Row="1" Grid.Column="1" x:Name="FitLiveStatusText" Text="-" FontFamily="Segoe UI Symbol" FontSize="18" Foreground="#FFDDDDDD" HorizontalAlignment="Right"/>
+ <Separator Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,8" Background="#FF555555"/>
+
+ <!-- Coordinate Boxes -->
+ <Border Grid.Row="3" Grid.ColumnSpan="2" Background="#FF2A2A2C" CornerRadius="4" Padding="6" Margin="3,5,3,5">
+ <Grid>
+ <Grid.ColumnDefinitions>
+ <ColumnDefinition Width="Auto"/> <!-- Axis -->
+ <ColumnDefinition Width="*"/> <!-- Work -->
+ <ColumnDefinition Width="*"/> <!-- Machine -->
+ </Grid.ColumnDefinitions>
+ <Grid.RowDefinitions>
+ <RowDefinition Height="Auto"/> <!-- Header -->
+ <RowDefinition Height="Auto"/> <!-- X -->
+ <RowDefinition Height="Auto"/> <!-- Y -->
+ <RowDefinition Height="Auto"/> <!-- Z -->
+ </Grid.RowDefinitions>
+ 
+ <!-- Header labels -->
+ <TextBlock Grid.Row="0" Grid.Column="1" Text="Work" FontSize="12" FontWeight="Bold" Foreground="#FF4BAA4F" Margin="0,0,3,3"/>
+ <TextBlock Grid.Row="0" Grid.Column="2" Text="Machine" FontSize="12" FontWeight="Bold" Foreground="#FF2196F3" Margin="3,0,0,3"/>
+ 
+ <!-- Row1: X -->
+ <TextBlock Grid.Row="1" Grid.Column="0" Text="X" FontSize="12" FontWeight="Bold" Foreground="#FFDDDDDD" Margin="0,0,8,5" VerticalAlignment="Center"/>
+ <TextBox Grid.Row="1" Grid.Column="1" x:Name="WorkXValueText" Style="{StaticResource MiniCoordBoxStyle}" Text="0.000" Margin="0,0,3,5"/>
+ <TextBox Grid.Row="1" Grid.Column="2" x:Name="MachineXValueText" Style="{StaticResource MiniCoordBoxMachineStyle}" Text="0.000" Margin="3,0,0,5"/>
+ 
+ <!-- Row2: Y -->
+ <TextBlock Grid.Row="2" Grid.Column="0" Text="Y" FontSize="12" FontWeight="Bold" Foreground="#FFDDDDDD" Margin="0,0,8,5" VerticalAlignment="Center"/>
+ <TextBox Grid.Row="2" Grid.Column="1" x:Name="WorkYValueText" Style="{StaticResource MiniCoordBoxStyle}" Text="0.000" Margin="0,0,3,5"/>
+ <TextBox Grid.Row="2" Grid.Column="2" x:Name="MachineYValueText" Style="{StaticResource MiniCoordBoxMachineStyle}" Text="0.000" Margin="3,0,0,5"/>
+ 
+ <!-- Row3: Z -->
+ <TextBlock Grid.Row="3" Grid.Column="0" Text="Z" FontSize="12" FontWeight="Bold" Foreground="#FFDDDDDD" Margin="0,0,8,0" VerticalAlignment="Center"/>
+ <TextBox Grid.Row="3" Grid.Column="1" x:Name="WorkZValueText" Style="{StaticResource MiniCoordBoxStyle}" Text="0.000" Margin="0,0,3,0"/>
+ <TextBox Grid.Row="3" Grid.Column="2" x:Name="MachineZValueText" Style="{StaticResource MiniCoordBoxMachineStyle}" Text="0.000" Margin="3,0,0,0"/>
+ </Grid>
+ </Border>
+ 
+ <Separator Grid.Row="6" Grid.ColumnSpan="2" Margin="0,8,0,8" Background="#FF555555"/>
+
+ <Separator Grid.Row="8" Grid.ColumnSpan="2" Margin="0,8,0,8" Background="#FF555555"/>
+
+ <Button Grid.Row="9" Grid.ColumnSpan="2" x:Name="GotoTouchedCoordButton" Content="Go to yellow marker with G00" Height="40" Style="{StaticResource YellowActionButtonStyle}" FontSize="14" IsEnabled="False" Click="GotoTouchedCoordButton_Click" Margin="0,10,0,10"/>
+
+ <Separator Grid.Row="10" Grid.ColumnSpan="2" Margin="0,8,0,8" Background="#FF555555"/>
+
+ <Button Grid.Row="11" Grid.ColumnSpan="2" x:Name="ApplyButton" Content="Apply Rotation" Height="40" Style="{StaticResource BlueActionButtonStyle}" FontSize="14" Click="ApplyButton_Click" Margin="0,10,0,5" IsEnabled="False"/>
+ <Button Grid.Row="12" Grid.ColumnSpan="2" x:Name="ResetButton" Content="Reset" Height="40" Margin="0,6,0,0" Style="{StaticResource BlueSecondaryActionButtonStyle}" FontSize="14" Click="ResetButton_Click" IsEnabled="False"/>
+ </Grid>
+ </ScrollViewer>
+ </Grid> <!-- end info grid -->
+ </Border> <!-- end info panel border -->
+ </DockPanel> <!-- end right DockPanel -->
+ </Grid> <!-- end content row -->
+ </Grid> <!-- end outer grid -->
+ </Border> <!-- end outer border -->
+</Window>

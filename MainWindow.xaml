@@ -1,0 +1,949 @@
+﻿<Window x:Class="CncControlApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CncControlApp" 
+        mc:Ignorable="d"
+        Title="CNC Kontrol Arayüzü"
+        WindowState="Maximized"
+        WindowStartupLocation="CenterScreen"
+        Background="#FF4F4F4F"
+        ResizeMode="CanResize" d:DesignWidth="1817.208" d:DesignHeight="955">
+
+    <Window.Resources>
+        <!-- Base styles (only if you DON'T already have StatusLEDStyle / StatusTextStyle) -->
+        <!-- Remove this block if you already defined them elsewhere -->
+        <Style x:Key="StatusLEDStyle" TargetType="Ellipse">
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Stroke" Value="#66000000"/>
+            <Setter Property="StrokeThickness" Value="1"/>
+            <Setter Property="Fill" Value="#FF9E9E9E"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+        </Style>
+        <Style x:Key="StatusTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#FF34C759"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Add BooleanToVisibilityConverter -->
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+        <!-- NEW: Alarm-aware LED style -->
+        <Style x:Key="StatusLEDAlarmStyle" TargetType="Ellipse" BasedOn="{StaticResource StatusLEDStyle}">
+            <Setter Property="Fill" Value="#FF9E9E9E"/> <!-- Disconnected default -->
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Normal">
+                    <Setter Property="Fill" Value="#FF34C759"/> <!-- Green -->
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Alarm">
+                    <Setter Property="Fill" Value="#FFFFC107"/> <!-- Amber -->
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Error">
+                    <Setter Property="Fill" Value="#FFFF3B30"/> <!-- Red -->
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Disconnected">
+                    <Setter Property="Fill" Value="#FF9E9E9E"/> <!-- Gray -->
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- NEW: Status text color changes (optional) -->
+        <Style x:Key="StatusTextAlarmStyle" TargetType="TextBlock" BasedOn="{StaticResource StatusTextStyle}">
+            <Setter Property="Text" Value="{Binding MachineStatus}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Normal">
+                    <Setter Property="Foreground" Value="#FF34C759"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Alarm">
+                    <Setter Property="Foreground" Value="#FFFFC107"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Error">
+                    <Setter Property="Foreground" Value="#FFFF3B30"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Disconnected">
+                    <Setter Property="Foreground" Value="#FF9E9E9E"/>
+                    <Setter Property="Text" Value="Disconnected"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+            <!-- Probe Panel Style - CoordinatesView ile aynı boyut -->
+            <Style x:Key="ProbePanelStyle" TargetType="Border">
+                <Setter Property="Background" Value="#FF626262"/>
+                <Setter Property="BorderBrush" Value="#FF4CAF50"/>
+                <Setter Property="BorderThickness" Value="2"/>
+                <Setter Property="CornerRadius" Value="15"/>
+                <Setter Property="Padding" Value="15"/>
+                <Setter Property="Margin" Value="5"/>
+            </Style>
+
+            <!-- Probe Button Style: uniform size across all probe buttons -->
+            <Style x:Key="ProbeActionButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="#FF4CAF50"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderBrush" Value="#FF388E3C"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="FontSize" Value="16"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Height" Value="52"/>
+                <Setter Property="Padding" Value="18,8"/>  <!-- consistent inner size -->
+                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Margin" Value="5"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="10">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#FF66BB6A"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Background" Value="#FF2E7D32"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Probe Checkbox Style -->
+            <Style x:Key="ProbeCheckBoxStyle" TargetType="CheckBox">
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Margin" Value="5"/>
+            </Style>
+
+            <!-- Coordinate Text Style -->
+            <Style x:Key="CoordinateTextStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="#FF4CAF50"/>
+                <Setter Property="FontFamily" Value="Consolas, 'Courier New', monospace"/>
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+            </Style>
+
+            <!-- Probe Point Coordinate Label Style -->
+            <Style x:Key="ProbePointLabelStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="#FFFFFF"/>
+                <Setter Property="FontFamily" Value="Consolas, 'Courier New', monospace"/>
+                <Setter Property="FontSize" Value="8"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Background" Value="#AA000000"/>
+                <Setter Property="Padding" Value="2"/>
+            </Style>
+
+            <!-- DarkCoordButtonStyle copied from CoordinatesView for consistency -->
+            <Style x:Key="DarkCoordButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="#FF3E3E40"/>
+                <Setter Property="BorderBrush" Value="#FF2A2A2C"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Foreground" Value="#FFDDDDDD"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Padding" Value="10,6"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Root"
+                                    CornerRadius="10"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}">
+                                <Grid>
+                                    <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                    <Border x:Name="HoverOverlay"
+                                            CornerRadius="10"
+                                            Background="#10FFFFFF"
+                                            Visibility="Collapsed"/>
+                                    <Border x:Name="PressedOverlay"
+                                            CornerRadius="10"
+                                            Background="#33000000"
+                                            Visibility="Collapsed"/>
+                                </Grid>
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="2" BlurRadius="6" Opacity="0.25" Color="#000000"/>
+                                </Border.Effect>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="HoverOverlay" Property="Visibility" Value="Visible"/>
+                                    <Setter TargetName="Root" Property="Background" Value="#FF4A4A4C"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="HoverOverlay" Property="Visibility" Value="Collapsed"/>
+                                    <Setter TargetName="PressedOverlay" Property="Visibility" Value="Visible"/>
+                                    <Setter TargetName="Root" Property="Background" Value="#FF2D2D2F"/>
+                                    <Setter TargetName="Root" Property="BorderBrush" Value="#FF1E1E20"/>
+                                    <Setter TargetName="Root" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                                    <Setter TargetName="Root" Property="RenderTransform">
+                                        <Setter.Value>
+                                            <ScaleTransform ScaleX="0.97" ScaleY="0.97"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="Root" Property="Opacity" Value="0.55"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Probe Mode RadioButton Style: clearly show selected/hover states -->
+            <Style x:Key="ProbeModeRadioStyle" TargetType="RadioButton">
+                <Setter Property="Foreground" Value="#FFDDDDDD"/>
+                <Setter Property="Background" Value="#FF3E3E40"/>
+                <Setter Property="BorderBrush" Value="#FF2A2A2C"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="14,6"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="RadioButton">
+                            <Border x:Name="Root"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="10"
+                                    SnapsToDevicePixels="True">
+                                <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="2" BlurRadius="6" Opacity="0.25" Color="#000000"/>
+                                </Border.Effect>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Root" Property="Background" Value="#FF4A4A4C"/>
+                                </Trigger>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="Root" Property="Background" Value="#FF4CAF50"/>
+                                    <Setter TargetName="Root" Property="BorderBrush" Value="#FF388E3C"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="Root" Property="Opacity" Value="0.6"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </Window.Resources>
+
+    <Grid Background="#FF626262">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+            <ColumnDefinition Width="655.797"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header Panel with Status and Logo -->
+        <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
+                Background="#FF2D2D30"
+                CornerRadius="12"
+                Padding="20,8"
+                Margin="15,15,10,0" Height="100" VerticalAlignment="Top" BorderBrush="#FFA2A2A4">
+            <Border.Effect>
+                <DropShadowEffect Color="Black" BlurRadius="8" ShadowDepth="3" Opacity="0.4"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left - Status -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Left">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="StatusLED"
+                                 Style="{StaticResource StatusLEDAlarmStyle}"
+                                 Margin="0,0,15,0"/>
+                        <TextBlock x:Name="StatusText"
+                                   Style="{StaticResource StatusTextAlarmStyle}"/>
+
+                        <!-- NEW: Clear Alarm button (visible only when MachineStatus == Alarm) -->
+                        <Button x:Name="ClearAlarmTopButton"
+                                Content="Clear Alarm"
+                                Click="ClearAlarmTopButton_Click"
+                                Margin="15,0,0,0"
+                                Padding="12,4"
+                                Foreground="White"
+                                Cursor="Hand">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Setter Property="Background" Value="#FFFF7043"/>
+                                    <Setter Property="BorderBrush" Value="#FFBF360C"/>
+                                    <Setter Property="BorderThickness" Value="1"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Height" Value="28"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding MachineStatus}" Value="Alarm">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Center - Logo ve Title Birlikte -->
+                <StackPanel Grid.Column="1" 
+                           Orientation="Horizontal" 
+                           VerticalAlignment="Center" 
+                           HorizontalAlignment="Center">
+                    <!-- Logo -->
+                    <Border Background="#FFD9D9D9"
+                            CornerRadius="12"
+                            Padding="4"
+                            BorderBrush="#FF3C3C3E"
+                            BorderThickness="1"
+                            Height="80"
+                            Margin="0,0,20,0"
+                            SnapsToDevicePixels="True">
+                        <Viewbox Stretch="Uniform" StretchDirection="Both">
+                            <Image Source="pack://application:,,,/Images/logo-seffaf.png"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   SnapsToDevicePixels="True"
+                                   Stretch="Uniform"/>
+                        </Viewbox>
+                    </Border>
+                    
+                    <!-- Title -->
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="CNC CONTROL SYSTEM" 
+                                   FontSize="18" 
+                                   FontWeight="Bold" 
+                                   Foreground="White" 
+                                   HorizontalAlignment="Left"/>
+                        <TextBlock Text="Professional CNC Management Interface" 
+                                   FontSize="12" 
+                                   Foreground="#FFB0BEC5" 
+                                   HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Right - Emergency Stop Button -->
+                <Button x:Name="EmergencyStopButton"
+                        Grid.Column="2"
+                        Style="{StaticResource EmergencyStopImageStyle}"
+                        Click="EmergencyButton_Click"
+                        VerticalAlignment="Top"
+                        HorizontalAlignment="Right"
+                        Margin="0,7,5,0"
+                        ClipToBounds="False"/>
+            </Grid>
+        </Border>
+
+        <!-- MenuView - Aligned top (5) and bottom (10) like Coordinates / MainContent -->
+        <local:MenuView Grid.Row="1"
+                        Grid.Column="2"
+                        x:Name="MainMenuView"
+                        Margin="5,5,5,10"/>
+
+        <!-- Main Content -->
+        <ContentControl Grid.Row="1" 
+                        x:Name="MainContent" Grid.ColumnSpan="1" Margin="20,5,5,10" Height="Auto" Background="#FF2D2D30" />
+
+        <!-- CoordinatesView ve Probe Panel Container -->
+        <Grid Grid.Row="1" Grid.Column="1" Margin="5,5,0,10">
+            <!-- Show original coordinates panel by default -->
+            <local:CoordinatesView Grid.Row="0" 
+                                   x:Name="MainCoordinatesView"
+                                   SnapsToDevicePixels="True" />
+
+            <!-- Probe Panel (restored full content) -->
+            <Border x:Name="MainProbePanel" 
+                    Grid.Row="0" 
+                    Style="{StaticResource ProbePanelStyle}"
+                    Visibility="Collapsed">
+                <Grid Margin="15,15,15,10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="291"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="160"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- TOP: Coordinates (Local, spacer, Machine, spacer, Buttons) -->
+                <Border Grid.Row="0"
+                        CornerRadius="10"
+                        Padding="15,10"
+                        BorderBrush="#FFA2A2A4"
+                        BorderThickness="1"
+                        Background="#FF2D2D30"
+                        Margin="0,0,0,5">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="30"/>
+                            <ColumnDefinition Width="160"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Headers -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="LOCAL" FontSize="12" FontWeight="Bold" Foreground="#FFB0BEC5" Margin="0,0,0,6"/>
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="MACHINE" FontSize="12" FontWeight="Bold" Foreground="#FFB0BEC5" Margin="0,0,0,6"/>
+                        <TextBlock Grid.Row="0" Grid.Column="4" Text="ACTIONS" FontSize="12" FontWeight="Bold" Foreground="#FFB0BEC5" Margin="0,0,0,6"/>
+
+                        <!-- Local rows -->
+                        <Border Grid.Row="1" Grid.Column="0" Background="#FF2D3D2D" BorderBrush="#FF4CAF50" BorderThickness="1" CornerRadius="5" Padding="10,6" Margin="0,0,0,6" VerticalAlignment="Stretch">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="X:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
+                                <TextBlock Grid.Column="2" Text="{Binding MStatus.WorkX, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF4CAF50" HorizontalAlignment="Right" TextAlignment="Right"/>
+                            </Grid>
+                        </Border>
+                        <Border Grid.Row="2" Grid.Column="0" Background="#FF2D3D2D" BorderBrush="#FF4CAF50" BorderThickness="1" CornerRadius="5" Padding="10,6" Margin="0,0,0,6" VerticalAlignment="Stretch">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Y:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
+                                <TextBlock Grid.Column="2" Text="{Binding MStatus.WorkY, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF4CAF50" HorizontalAlignment="Right" TextAlignment="Right"/>
+                            </Grid>
+                        </Border>
+                        <Border Grid.Row="3" Grid.Column="0" Background="#FF2D3D2D" BorderBrush="#FF4CAF50" BorderThickness="1" CornerRadius="5" Padding="10,6" Margin="0,0,0,6" VerticalAlignment="Stretch">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Z:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
+                                <TextBlock Grid.Column="2" Text="{Binding MStatus.WorkZ, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF4CAF50" HorizontalAlignment="Right" TextAlignment="Right"/>
+                            </Grid>
+                        </Border>
+                        <Border Grid.Row="4" Grid.Column="0" Background="#FF2D3D2D" BorderBrush="#FF4CAF50" BorderThickness="1" CornerRadius="5" Padding="10,6" VerticalAlignment="Stretch" Visibility="{Binding IsAAxisAvailable, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="A:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
+                                <TextBlock Grid.Column="2" Text="{Binding MStatus.WorkA, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF4CAF50" HorizontalAlignment="Right" TextAlignment="Right"/>
+                                <TextBlock Grid.Column="3" Text="°" FontSize="22" Foreground="#FF4CAF50" Margin="2,0,0,0"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Machine rows -->
+                        <Border Grid.Row="1" Grid.Column="2" Background="#FF2D3D2D" BorderBrush="#FF2196F3" BorderThickness="1" CornerRadius="5" Padding="10,6" Margin="0,0,0,6" VerticalAlignment="Stretch">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="X:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
+                                <TextBlock Grid.Column="2" Text="{Binding MStatus.X, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF42A5F5" HorizontalAlignment="Right" TextAlignment="Right"/>
+                            </Grid>
+                        </Border>
+                        <Border Grid.Row="2" Grid.Column="2" Background="#FF2D3D2D" BorderBrush="#FF2196F3" BorderThickness="1" CornerRadius="5" Padding="10,6" Margin="0,0,0,6" VerticalAlignment="Stretch">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Y:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
+                                <TextBlock Grid.Column="2" Text="{Binding MStatus.Y, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF42A5F5" HorizontalAlignment="Right" TextAlignment="Right"/>
+                            </Grid>
+                        </Border>
+                        <Border Grid.Row="3" Grid.Column="2" Background="#FF2D3D2D" BorderBrush="#FF2196F3" BorderThickness="1" CornerRadius="5" Padding="10,6" Margin="0,0,0,6" VerticalAlignment="Stretch">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Z:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
+                                <TextBlock Grid.Column="2" Text="{Binding MStatus.Z, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF42A5F5" HorizontalAlignment="Right" TextAlignment="Right"/>
+                            </Grid>
+                        </Border>
+                        <Border Grid.Row="4" Grid.Column="2" Background="#FF2D3D2D" BorderBrush="#FF2196F3" BorderThickness="1" CornerRadius="5" Padding="10,6" VerticalAlignment="Stretch" Visibility="{Binding IsAAxisAvailable, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="A:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
+                                <TextBlock Grid.Column="2" Text="{Binding MStatus.A, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF42A5F5" HorizontalAlignment="Right" TextAlignment="Right"/>
+                                <TextBlock Grid.Column="3" Text="°" FontSize="22" Foreground="#FF42A5F5" Margin="2,0,0,0"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Buttons aligned -->
+                        <Button Grid.Row="1" Grid.Column="4" Content="Set Zero X" Style="{StaticResource DarkCoordButtonStyle}" Margin="0,0,0,6" Click="ProbeSetZeroButton_Click" Tag="X" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" FontSize="13" Foreground="#FFFDD0"/>
+                        <Button Grid.Row="2" Grid.Column="4" Content="Set Zero Y" Style="{StaticResource DarkCoordButtonStyle}" Margin="0,0,0,6" Click="ProbeSetZeroButton_Click" Tag="Y" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" FontSize="13" Foreground="#FFFDD0"/>
+                        <Button Grid.Row="3" Grid.Column="4" Content="Set Zero Z" Style="{StaticResource DarkCoordButtonStyle}" Margin="0,0,0,6" Click="ProbeSetZeroButton_Click" Tag="Z" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" FontSize="13" Foreground="#FFFDD0"/>
+                        <Button Grid.Row="4" Grid.Column="4" Content="Set Zero A" Style="{StaticResource DarkCoordButtonStyle}" Click="ProbeSetZeroButton_Click" Tag="A" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" FontSize="13" Foreground="#FFFDD0" Visibility="{Binding IsAAxisAvailable, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"/>
+                    </Grid>
+                </Border>
+
+                <!-- Mode selector (radio-like buttons) -->
+                <Border Grid.Row="1"
+                        Background="#FF2D2D30"
+                        CornerRadius="10"
+                        Padding="8"
+                        BorderThickness="1"
+                        BorderBrush="#FFA2A2A4"
+                        Margin="0,0,0,8">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <RadioButton x:Name="ProbeModeRadio" GroupName="ProbeModes" IsChecked="True"
+                                      Content="Probe" Margin="6,0"
+                                      Style="{StaticResource ProbeModeRadioStyle}"/>
+                        <RadioButton x:Name="CenterOuterModeRadio" GroupName="ProbeModes"
+                                      Content="Center From Outer edges" Margin="6,0"
+                                      Style="{StaticResource ProbeModeRadioStyle}"/>
+                        <RadioButton x:Name="CenterInnerModeRadio" GroupName="ProbeModes"
+                                      Content="Center from inner edges" Margin="6,0"
+                                      Style="{StaticResource ProbeModeRadioStyle}"/>
+                        <RadioButton x:Name="FindCornerModeRadio" GroupName="ProbeModes"
+                                      Content="Find Corner" Margin="6,0"
+                                      Style="{StaticResource ProbeModeRadioStyle}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Mode content container -->
+                <Border Grid.Row="2"
+                        Background="#FF2D2D30"
+                        CornerRadius="10"
+                        Padding="10"
+                        BorderThickness="1"
+                        BorderBrush="#FFA2A2A4"
+                        Margin="0,0,0,10">
+                    <Grid>
+                        <!-- PROBE MODE: original button grid -->
+                        <Grid x:Name="ProbeButtonsGrid" Visibility="{Binding IsChecked, ElementName=ProbeModeRadio, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="30"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="30"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- X+/X- -->
+                            <Button Grid.Row="0" Grid.Column="0" Content="+X"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    Margin="0,0,0,6"
+                                    Click="PlusXProbeButton_Click"/>
+                            <Button Grid.Row="1" Grid.Column="0" Content="-X"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    Margin="0,6,0,0"
+                                    Click="MinusXProbeButton_Click"/>
+
+                            <!-- Y+/Y- -->
+                            <Button Grid.Row="0" Grid.Column="2" Content="+Y"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    Margin="0,0,0,6"
+                                    Click="PlusYProbeButton_Click"/>
+                            <Button Grid.Row="1" Grid.Column="2" Content="-Y"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    Margin="0,6,0,0"
+                                    Click="MinusYProbeButton_Click"/>
+
+                            <!-- Z Probe spanning2 rows -->
+                            <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="4" Content="Z Probe"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    Click="ZProbeButton_Click"/>
+                        </Grid>
+
+                        <!-- CENTER FROM OUTER EDGES MODE -->
+                        <Grid x:Name="CenterOuterButtonsGrid" Visibility="{Binding IsChecked, ElementName=CenterOuterModeRadio, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="30"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="30"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Row="0" Grid.Column="0"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    Click="CenterXOuter_Click">
+                                <Button.Content>
+                                    <TextBlock Text="Center X" TextAlignment="Center" TextWrapping="Wrap"/>
+                                </Button.Content>
+                            </Button>
+
+                            <Button Grid.Row="0" Grid.Column="2"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    Click="CenterYOuter_Click">
+                                <Button.Content>
+                                    <TextBlock Text="Center Y" TextAlignment="Center" TextWrapping="Wrap"/>
+                                </Button.Content>
+                            </Button>
+
+                            <!-- NEW: Center XY (Outer edges) button: runs X center then Y center -->
+                            <Button Grid.Row="0" Grid.Column="4"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    Click="CenterXYOuter_Click">
+                                <Button.Content>
+                                    <TextBlock Text="Center XY" TextAlignment="Center" TextWrapping="Wrap"/>
+                                </Button.Content>
+                            </Button>
+                        </Grid>
+
+                        <!-- CENTER FROM INNER EDGES MODE -->
+                        <Grid x:Name="CenterInnerButtonsGrid" Visibility="{Binding IsChecked, ElementName=CenterInnerModeRadio, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="30"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="30"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Row="0" Grid.Column="0"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                <Button.Content>
+                                    <TextBlock Text="Center XY" TextAlignment="Center" TextWrapping="Wrap"/>
+                                </Button.Content>
+                            </Button>
+                            <Button Grid.Row="0" Grid.Column="2"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                <Button.Content>
+                                    <TextBlock Text="Center X" TextAlignment="Center" TextWrapping="Wrap"/>
+                                </Button.Content>
+                            </Button>
+                            <Button Grid.Row="0" Grid.Column="4"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                <Button.Content>
+                                    <TextBlock Text="Center Y" TextAlignment="Center" TextWrapping="Wrap"/>
+                                </Button.Content>
+                            </Button>
+                        </Grid>
+
+                        <!-- FIND CORNER MODE -->
+                        <Grid x:Name="FindCornerButtonsGrid" Visibility="{Binding IsChecked, ElementName=FindCornerModeRadio, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="30"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="30"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="30"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Row="0" Grid.Column="0"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                <Button.Content>
+                                    <TextBlock Text="Corner NW" TextAlignment="Center" TextWrapping="Wrap"/>
+                                </Button.Content>
+                            </Button>
+                            <Button Grid.Row="0" Grid.Column="2"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                <Button.Content>
+                                    <TextBlock Text="Corner NE" TextAlignment="Center" TextWrapping="Wrap"/>
+                                </Button.Content>
+                            </Button>
+                            <Button Grid.Row="0" Grid.Column="4"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                <Button.Content>
+                                    <TextBlock Text="Corner SW" TextAlignment="Center" TextWrapping="Wrap"/>
+                                </Button.Content>
+                            </Button>
+                            <Button Grid.Row="0" Grid.Column="6"
+                                    Style="{StaticResource UnifiedJogButtonStyle}"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                <Button.Content>
+                                    <TextBlock Text="Corner SE" TextAlignment="Center" TextWrapping="Wrap"/>
+                                </Button.Content>
+                            </Button>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- BOTTOM: Canvas + Info side panel -->
+                <Grid Grid.Row="3">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="0.85*"/>
+                    <ColumnDefinition Width="0.15*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Canvas Area -->
+                <Border Grid.Column="0" Background="Black" BorderBrush="#FF4CAF50" BorderThickness="2" CornerRadius="10" ClipToBounds="True" Margin="0,0,8,0">
+                    <Grid ClipToBounds="True">
+                        <Canvas x:Name="MainGridLinesCanvas" IsHitTestVisible="False" Opacity="0.4" ClipToBounds="True"/>
+                        <Canvas x:Name="MainProbeCoordinatesCanvas" Background="Transparent" Margin="5" ClipToBounds="True"/>
+                        <Canvas x:Name="MainCrosshairCanvas" IsHitTestVisible="False" Opacity="0.8" ClipToBounds="True"/>
+
+                        <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Margin="10" Background="#AA000000">
+                            <TextBlock Text="LAST PROBE COORDINATES" Foreground="#FF4CAF50" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" Margin="5,5,5,2"/>
+                            <TextBlock x:Name="MainProbeXCoordinate" Text="X:0.000" Style="{StaticResource CoordinateTextStyle}" Margin="5,0,5,0"/>
+                            <TextBlock x:Name="MainProbeYCoordinate" Text="Y:0.000" Style="{StaticResource CoordinateTextStyle}" Margin="5,0,5,0"/>
+                            <TextBlock x:Name="MainProbeZCoordinate" Text="Z:0.000" Style="{StaticResource CoordinateTextStyle}" Margin="5,0,5,5"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Info Panel -->
+                <Border Grid.Column="1" Background="#FF2D2D30" BorderBrush="#FFA2A2A4" BorderThickness="1" CornerRadius="10" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="PROBE INFO" FontSize="14" FontWeight="Bold" Foreground="#FF4CAF50" Margin="0,0,0,10"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="Feed:" FontSize="12" FontWeight="Bold" Foreground="#FFB0BEC5" Margin="0,0,6,0"/>
+                            <TextBlock Text="{Binding MStatus.CurrentFeed, StringFormat=F0}" FontSize="12" FontFamily="Consolas" Foreground="#FF4CAF50"/>
+                            <TextBlock Text=" mm/min" FontSize="12" Foreground="#FFB0BEC5" Margin="4,0,0,0"/>
+                        </StackPanel>
+                        <TextBlock Text="Probe işlemi sırasında anlık feed burada gösterilir." TextWrapping="Wrap" FontSize="11" Foreground="#FFDDDDDD"/>
+                    </StackPanel>
+                </Border>
+                </Grid>
+                </Grid>
+            </Border>
+
+            <!-- Remove hidden placeholders (now actual canvases exist) -->
+
+            <!-- Empty placeholder panel (used on Settings page) -->
+            <Border x:Name="RightBlankPanel"
+                    Grid.Row="0"
+                    Background="#FF2D2D30"
+                    BorderBrush="#FFA2A2A4"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="16"
+                    Visibility="Collapsed">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Top: Company Logo (max width) -->
+                    <Border Grid.Row="0" Background="#FFD9D9D9" CornerRadius="10" Padding="10" BorderBrush="#FF3C3C3E" BorderThickness="1">
+                        <Viewbox StretchDirection="DownOnly" Stretch="Uniform" MaxHeight="160">
+                            <Image Source="pack://application:,,,/Images/logo-seffaf.png"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   SnapsToDevicePixels="True"
+                                   Stretch="Uniform"/>
+                        </Viewbox>
+                    </Border>
+
+                    <!-- Bottom: Contact and Company Info -->
+                    <Border Grid.Row="1" Margin="0,12,0,0" Background="#FF2D2D30" CornerRadius="10" Padding="14" BorderBrush="#FFA2A2A4" BorderThickness="1">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="İletişim" FontSize="14" FontWeight="Bold" Foreground="#FF4CAF50" Margin="0,0,0,8"/>
+
+                                <!-- Website -->
+                                <TextBlock Foreground="#FFB0BEC5" FontSize="12">
+                                    <Run Text="Web: "/>
+                                    <Hyperlink NavigateUri="https://www.raptorextech.com" RequestNavigate="Hyperlink_RequestNavigate">
+                                        <Run Text="www.raptorextech.com"/>
+                                    </Hyperlink>
+                                </TextBlock>
+
+                                <!-- Address -->
+                                <TextBlock Foreground="#FFB0BEC5" FontSize="12" Margin="0,4,0,0">
+                                    <Run Text="Adres: "/>
+                                    <Run Text="[Firma adresi buraya]"/>
+                                </TextBlock>
+
+                                <!-- Phone -->
+                                <TextBlock Foreground="#FFB0BEC5" FontSize="12" Margin="0,4,0,8">
+                                    <Run Text="Telefon: "/>
+                                    <Run Text="[0 (xxx) xxx xx xx]"/>
+                                </TextBlock>
+
+                                <Separator Margin="0,4,0,8"/>
+
+                                <!-- System Information -->
+                                <TextBlock Text="Sistem Bilgileri" FontSize="14" FontWeight="Bold" Foreground="#FF00D9FF" Margin="0,0,0,8"/>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="8"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="8"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Firmware Name -->
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Firmware:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding FirmwareName}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- Firmware Version -->
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Versiyon:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding FirmwareVersion}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- Board Name -->
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Kart:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding BoardName}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- Config Name -->
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Konfigurasyon:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ConfigName}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- Detected Axis Count -->
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Eksen Sayısı:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding DetectedAxisCount, Mode=OneWay}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- FluidNC -->
+                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="FluidNC:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding IsFluidNC}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- Spacer -->
+                                    <TextBlock Grid.Row="6" Grid.ColumnSpan="2" Height="1"/>
+
+                                    <!-- Connection subsection -->
+                                    <TextBlock Grid.Row="7" Grid.ColumnSpan="2" Text="Bağlantı" FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50" Margin="0,6,0,4"/>
+                                    <TextBlock Grid.Row="8" Grid.Column="0" Text="Port:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding ConnectionPort}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="9" Grid.Column="0" Text="Açıklama:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding ConnectionDescription}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="10" Grid.Column="0" Text="Üretici:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="10" Grid.Column="1" Text="{Binding ConnectionManufacturer}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="11" Grid.Column="0" Text="PNP ID:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="11" Grid.Column="1" Text="{Binding ConnectionPnpId}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Row="12" Grid.Column="0" Text="Taşıma:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="12" Grid.Column="1" Text="{Binding ConnectionTransport}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- Spacer -->
+                                    <TextBlock Grid.Row="13" Grid.ColumnSpan="2" Height="1"/>
+
+                                    <!-- Serial subsection -->
+                                    <TextBlock Grid.Row="14" Grid.ColumnSpan="2" Text="Seri" FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50" Margin="0,6,0,4"/>
+                                    <TextBlock Grid.Row="15" Grid.Column="0" Text="Baud:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="15" Grid.Column="1" Text="{Binding SerialBaud}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="16" Grid.Column="0" Text="Veri/Parity/Stop:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="16" Grid.Column="1" Text="{Binding SerialFormat}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="17" Grid.Column="0" Text="Handshake:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="17" Grid.Column="1" Text="{Binding SerialHandshake}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="18" Grid.Column="0" Text="Kodlama:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="18" Grid.Column="1" Text="{Binding SerialEncoding}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="19" Grid.Column="0" Text="Zaman Aşımı (R/W):" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="19" Grid.Column="1" Text="{Binding SerialTimeouts}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="20" Grid.Column="0" Text="Buffer (R/W):" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="20" Grid.Column="1" Text="{Binding SerialBuffers}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                </Grid>
+
+                                <Separator Margin="0,8,0,8"/>
+
+                                <!-- About -->
+                                <TextBlock Text="Hakkımızda" FontSize="14" FontWeight="Bold" Foreground="#FF4CAF50"/>
+                                <TextBlock Foreground="#FFDDDDDD" TextWrapping="Wrap" Margin="0,4,0,0">
+                                    RaptorexTech, CNC otomasyon ve üretim süreçleri için yüksek performanslı çözümler geliştirir. Bu uygulama, makinenizi güvenle kontrol etmeniz ve verimli çalışmanız için tasarlanmıştır.
+                                </TextBlock>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Modal Overlay for NumberPad - Should be on top of everything -->
+        <Border x:Name="NumberPadOverlay" 
+                Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" Grid.ColumnSpan="3"
+                Background="Black" 
+                Opacity="0.5"
+                Visibility="Collapsed"
+                IsHitTestVisible="True" />
+    </Grid>
+</Window>

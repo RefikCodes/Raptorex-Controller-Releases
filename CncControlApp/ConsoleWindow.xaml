@@ -1,0 +1,542 @@
+﻿<Window x:Class="CncControlApp.ConsoleWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Simple Console Application Window"
+        Height="650" Width="1100"
+        WindowStartupLocation="CenterScreen"
+        Background="#FF2D2D30"
+        ResizeMode="CanResize"
+        MinHeight="600" MinWidth="1000">
+
+    <Window.Resources>
+        <!-- Console Button Style -->
+        <Style x:Key="ConsoleButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#FF4CAF50"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#FF388E3C"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="MinWidth" Value="60"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#FF66BB6A"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#FF388E3C"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#FF757575"/>
+                                <Setter Property="Foreground" Value="#FFBDBDBD"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Standard Key Style -->
+        <Style x:Key="StandardKeyStyle" TargetType="Button" BasedOn="{StaticResource ConsoleButtonStyle}">
+            <Setter Property="Background" Value="#FF37474F"/>
+            <Setter Property="BorderBrush" Value="#FF546E7A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="MinWidth" Value="50"/>
+            <Setter Property="MinHeight" Value="50"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="2"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FF455A64"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#FF263238"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Special Key Style -->
+        <Style x:Key="SpecialKeyStyle" TargetType="Button" BasedOn="{StaticResource StandardKeyStyle}">
+            <Setter Property="Background" Value="#FF607D8B"/>
+            <Setter Property="BorderBrush" Value="#FF455A64"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FF78909C"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#FF455A64"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Symbol Key Style -->
+        <Style x:Key="SymbolKeyStyle" TargetType="Button" BasedOn="{StaticResource StandardKeyStyle}">
+            <Setter Property="Background" Value="#FF9C27B0"/>
+            <Setter Property="BorderBrush" Value="#FF7B1FA2"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FFBA68C8"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#FF7B1FA2"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Number Key Style -->
+        <Style x:Key="NumberKeyStyle" TargetType="Button" BasedOn="{StaticResource StandardKeyStyle}">
+            <Setter Property="Background" Value="#FF2E7D32"/>
+            <Setter Property="BorderBrush" Value="#FF1B5E20"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FF388E3C"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#FF1B5E20"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Delete Key Style -->
+        <Style x:Key="DeleteKeyStyle" TargetType="Button" BasedOn="{StaticResource SpecialKeyStyle}">
+            <Setter Property="Background" Value="#FFF44336"/>
+            <Setter Property="BorderBrush" Value="#FFD32F2F"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FFE57373"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#FFD32F2F"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ListBox Style -->
+        <Style x:Key="ConsoleListBoxStyle" TargetType="ListBox">
+            <Setter Property="Background" Value="#FF424242"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#FF616161"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontFamily" Value="Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="SelectionMode" Value="Extended"/>
+        </Style>
+
+        <!-- TextBox Style -->
+        <Style x:Key="ConsoleTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="#FF616161"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#FF9E9E9E"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="FontFamily" Value="Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="SelectionBrush" Value="#FF2196F3"/>
+            <Style.Triggers>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#FF4CAF50"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="#FF424242" CornerRadius="10" Margin="10">
+        <Grid Margin="15">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <!-- Header -->
+                <RowDefinition Height="2*"/>
+                <!-- Console Output (ListBox) -->
+                <RowDefinition Height="Auto"/>
+                <!-- Input Section -->
+                <RowDefinition Height="Auto"/>
+                <!-- Touch Keyboard -->
+                <RowDefinition Height="Auto"/>
+                <!-- Footer Buttons -->
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" 
+                    Background="#FF2F405A" 
+                    CornerRadius="8" 
+                    Padding="15,10" 
+                    Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="CLEAN CONSOLE APPLICATION" 
+                               FontSize="18" 
+                               FontWeight="Bold" 
+                               Foreground="White" 
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Clean Touch Keyboard Interface" 
+                               FontSize="12" 
+                               Foreground="#FFB0BEC5" 
+                               HorizontalAlignment="Center"
+                               Margin="0,5,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Console Output Area (ListBox) -->
+            <Border Grid.Row="1" 
+                    Background="#FF616161" 
+                    CornerRadius="8" 
+                    Padding="10"
+                    Margin="0,0,0,10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Console Output Header -->
+                    <TextBlock Grid.Row="0"
+                               Text="📺 CONSOLE OUTPUT"
+                               FontSize="14"
+                               FontWeight="Bold"
+                               Foreground="#FFE0E0E0"
+                               Margin="0,0,0,10"/>
+
+                    <!-- Console Output ListBox -->
+                    <ListBox Grid.Row="1"
+                             x:Name="ConsoleOutputListBox"
+                             Style="{StaticResource ConsoleListBoxStyle}"
+                             KeyDown="ConsoleListBox_KeyDown"
+                             MouseRightButtonUp="ConsoleListBox_MouseRightButtonUp">
+                        <ListBox.ContextMenu>
+                            <ContextMenu Background="#FF424242" Foreground="White">
+                                <MenuItem Header="📋 Kopyala" Click="CopySelectedConsoleOutput_Click"/>
+                                <MenuItem Header="📄 Tümünü Seç" Click="SelectAllConsoleOutput_Click"/>
+                                <MenuItem Header="🗑️ Temizle" Click="ClearConsoleOutput_Click"/>
+                                <Separator/>
+                                <MenuItem Header="💾 Dışa Aktar" Click="ExportConsoleOutput_Click"/>
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- Input Section -->
+            <Border Grid.Row="2"
+                    Background="#FF2F405A"
+                    CornerRadius="8"
+                    Padding="10"
+                    Margin="0,0,0,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Command Prompt -->
+                    <TextBlock Grid.Column="0"
+                               Text="cmd>"
+                               FontSize="14"
+                               FontWeight="Bold"
+                               Foreground="#FF4CAF50"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0"/>
+
+                    <!-- Command Input TextBox -->
+                    <TextBox Grid.Column="1"
+                             x:Name="CommandInputTextBox"
+                             Style="{StaticResource ConsoleTextBoxStyle}"
+                             Height="40"
+                             VerticalContentAlignment="Center"
+                             KeyDown="CommandInputTextBox_KeyDown"
+                             GotFocus="CommandInputTextBox_GotFocus"
+                             LostFocus="CommandInputTextBox_LostFocus"/>
+
+                    <!-- Send Button -->
+                    <Button Grid.Column="2"
+                            x:Name="SendCommandButton"
+                            Content="SEND"
+                            Style="{StaticResource ConsoleButtonStyle}"
+                            Click="SendCommandButton_Click"
+                            Height="40"
+                            Width="80"
+                            Margin="10,0,0,0"/>
+
+                    <!-- Keyboard Toggle Button -->
+                    <Button Grid.Column="3"
+                            x:Name="KeyboardToggleButton"
+                            Content="⌨️"
+                            Style="{StaticResource ConsoleButtonStyle}"
+                            Click="KeyboardToggleButton_Click"
+                            Height="40"
+                            Width="60"
+                            Margin="10,0,0,0"
+                            ToolTip="Clean Touch Keyboard"/>
+                </Grid>
+            </Border>
+
+            <!-- Clean Touch Keyboard -->
+            <Border Grid.Row="3"
+                    x:Name="TouchKeyboardPanel"
+                    Background="#FF263238"
+                    CornerRadius="8"
+                    Padding="15"
+                    Margin="0,0,0,10"
+                    Visibility="Collapsed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <!-- Main Keyboard -->
+                        <ColumnDefinition Width="Auto"/>
+                        <!-- Spacer -->
+                        <ColumnDefinition Width="Auto"/>
+                        <!-- NumPad -->
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Clean Keyboard (LETTERS ALWAYS UPPERCASE) -->
+                    <StackPanel Grid.Column="0" Orientation="Vertical">
+                        <!-- Keyboard Header -->
+                        <TextBlock Text="⌨️ CLEAN KEYBOARD (UPPERCASE)"
+                                   FontSize="12"
+                                   FontWeight="Bold"
+                                   Foreground="#FFB0BEC5"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,10"/>
+
+                        <!-- Symbol Row ($ ?) -->
+                        <Grid Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="8*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="$" Style="{StaticResource SymbolKeyStyle}" Click="KeyboardKey_Click" ToolTip="Dollar Sign"/>
+                            <Button Grid.Column="1" Content="?" Style="{StaticResource SymbolKeyStyle}" Click="KeyboardKey_Click" ToolTip="Question Mark"/>
+                        </Grid>
+
+                        <!-- First Letter Row (QWERTY) -->
+                        <Grid Margin="0,0,0,3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.5*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="TAB" Style="{StaticResource SpecialKeyStyle}" Click="TabKey_Click"/>
+                            <Button Grid.Column="1" Content="Q" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="2" Content="W" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="3" Content="E" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="4" Content="R" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="5" Content="T" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="6" Content="Y" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="7" Content="U" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="8" Content="I" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="9" Content="O" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="10" Content="P" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="11" Content="🗑️ DELETE" Style="{StaticResource DeleteKeyStyle}" Click="DeleteKey_Click" ToolTip="Delete All"/>
+                        </Grid>
+
+                        <!-- Second Letter Row (ASDF) -->
+                        <Grid Margin="0,0,0,3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="A" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="1" Content="S" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="2" Content="D" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="3" Content="F" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="4" Content="G" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="5" Content="H" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="6" Content="J" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="7" Content="K" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="8" Content="L" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="9" Content=";" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="10" Content="'" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="11" Content="⌫ BACK" Style="{StaticResource SpecialKeyStyle}" Click="BackspaceKey_Click" ToolTip="Backspace"/>
+                        </Grid>
+
+                        <!-- Third Letter Row (ZXCV) -->
+                        <Grid Margin="0,0,0,3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="Z" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="1" Content="X" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="2" Content="C" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="3" Content="V" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="4" Content="B" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="5" Content="N" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="6" Content="M" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="7" Content="," Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="8" Content="." Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="9" Content="-" Style="{StaticResource StandardKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="10" Content="↵ ENTER" Style="{StaticResource SpecialKeyStyle}" Click="EnterKey_Click"/>
+                        </Grid>
+
+                        <!-- Bottom Row (Space and Arrow Keys) -->
+                        <Grid Margin="0,0,0,3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="6*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="SPACE" Style="{StaticResource SpecialKeyStyle}" Click="SpaceKey_Click"/>
+                            <Button Grid.Column="1" Content="◄" Style="{StaticResource SpecialKeyStyle}" Click="ArrowKey_Click" Tag="Left"/>
+                            <Button Grid.Column="2" Content="▲" Style="{StaticResource SpecialKeyStyle}" Click="ArrowKey_Click" Tag="Up"/>
+                            <Button Grid.Column="3" Content="▼" Style="{StaticResource SpecialKeyStyle}" Click="ArrowKey_Click" Tag="Down"/>
+                            <Button Grid.Column="4" Content="►" Style="{StaticResource SpecialKeyStyle}" Click="ArrowKey_Click" Tag="Right"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Spacer -->
+                    <Rectangle Grid.Column="1" Width="20" Fill="Transparent"/>
+
+                    <!-- Clean NumPad -->
+                    <StackPanel Grid.Column="2" Orientation="Vertical">
+                        <!-- NumPad Header -->
+                        <TextBlock Text="🔢 CLEAN NUMPAD"
+                                   FontSize="12"
+                                   FontWeight="Bold"
+                                   Foreground="#FFB0BEC5"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,10"/>
+
+                        <!-- NumPad Top Row (Plus/Minus only) -->
+                        <UniformGrid Rows="1" Columns="2" Margin="0,0,0,3">
+                            <Button Content="+" Style="{StaticResource NumberKeyStyle}" Click="KeyboardKey_Click" FontSize="18"/>
+                            <Button Content="-" Style="{StaticResource NumberKeyStyle}" Click="KeyboardKey_Click" FontSize="18"/>
+                        </UniformGrid>
+
+                        <!-- NumPad Number Rows -->
+                        <UniformGrid Rows="1" Columns="3" Margin="0,0,0,3">
+                            <Button Content="7" Style="{StaticResource NumberKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Content="8" Style="{StaticResource NumberKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Content="9" Style="{StaticResource NumberKeyStyle}" Click="KeyboardKey_Click"/>
+                        </UniformGrid>
+
+                        <UniformGrid Rows="1" Columns="3" Margin="0,0,0,3">
+                            <Button Content="4" Style="{StaticResource NumberKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Content="5" Style="{StaticResource NumberKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Content="6" Style="{StaticResource NumberKeyStyle}" Click="KeyboardKey_Click"/>
+                        </UniformGrid>
+
+                        <UniformGrid Rows="1" Columns="3" Margin="0,0,0,3">
+                            <Button Content="1" Style="{StaticResource NumberKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Content="2" Style="{StaticResource NumberKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Content="3" Style="{StaticResource NumberKeyStyle}" Click="KeyboardKey_Click"/>
+                        </UniformGrid>
+
+                        <!-- NumPad Bottom Row -->
+                        <Grid Margin="0,0,0,3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="0" Style="{StaticResource NumberKeyStyle}" Click="KeyboardKey_Click"/>
+                            <Button Grid.Column="1" Content="." Style="{StaticResource NumberKeyStyle}" Click="KeyboardKey_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Footer with Buttons -->
+            <Border Grid.Row="4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Status Info -->
+                    <TextBlock Grid.Column="0"
+                               x:Name="StatusTextBlock"
+                               Text="✅ Clean Console Ready - Simple Layout"
+                               FontSize="12"
+                               Foreground="#FFB0BEC5"
+                               VerticalAlignment="Center"
+                               Margin="10,0"/>
+
+                    <!-- Clear Console Button -->
+                    <Button Grid.Column="1"
+                            x:Name="ClearConsoleButton"
+                            Content="CLEAR"
+                            Style="{StaticResource ConsoleButtonStyle}"
+                            Click="ClearConsoleButton_Click"
+                            Background="#FFFF9800"
+                            BorderBrush="#FFF57C00"
+                            ToolTip="Console çıktısını temizle"/>
+
+                    <!-- Export Button -->
+                    <Button Grid.Column="2"
+                            x:Name="ExportButton"
+                            Content="EXPORT"
+                            Style="{StaticResource ConsoleButtonStyle}"
+                            Click="ExportButton_Click"
+                            Background="#FF9C27B0"
+                            BorderBrush="#FF7B1FA2"
+                            ToolTip="Console geçmişini dışa aktar"/>
+
+                    <!-- Close Button -->
+                    <Button Grid.Column="3"
+                            x:Name="CloseButton"
+                            Content="CLOSE"
+                            Style="{StaticResource ConsoleButtonStyle}"
+                            Click="CloseButton_Click"
+                            Background="#FFF44336"
+                            BorderBrush="#FFD32F2F"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

@@ -1,0 +1,312 @@
+﻿<UserControl x:Class="CncControlApp.CoordinatesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:CncControlApp"
+             mc:Ignorable="d" 
+             d:DesignHeight="1070" d:DesignWidth="715" 
+             Margin="5,10,5,10" Foreground="{x:Null}">
+
+    <UserControl.Resources>
+        <!-- Unified Coordinate TextBox Style - Büyütülmüş boyutlar -->
+        <Style x:Key="UnifiedCoordinateStyle" TargetType="TextBox">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="34"/>
+            <Setter Property="FontWeight" Value="Regular"/>
+            <Setter Property="FontFamily" Value="Consolas, 'Courier New', monospace"/>
+            <Setter Property="Padding" Value="0,0,10,0"/>
+            <Setter Property="TextAlignment" Value="Right"/>
+            <Setter Property="Background" Value="#FF2D3D2D"/>
+            <Setter Property="Foreground" Value="#FF4CAF50"/>
+            <Setter Property="BorderBrush" Value="#FF4CAF50"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Style.Triggers>
+                <!-- Sadece editable text box'lar için focus trigger'ı -->
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="IsFocused" Value="True"/>
+                        <Condition Property="IsReadOnly" Value="False"/>
+                    </MultiTrigger.Conditions>
+                    <Setter Property="BorderBrush" Value="#FFFF6600"/>
+                    <Setter Property="BorderThickness" Value="2"/>
+                </MultiTrigger>
+                <!-- Sadece editable text box'lar için mouse over trigger'ı -->
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="IsMouseOver" Value="True"/>
+                        <Condition Property="IsReadOnly" Value="False"/>
+                    </MultiTrigger.Conditions>
+                    <Setter Property="BorderBrush" Value="#FF70D03A"/>
+                </MultiTrigger>
+                <!-- Read-only text box'lar için özel stil -->
+                <Trigger Property="IsReadOnly" Value="True">
+                    <Setter Property="Background" Value="#FF2D3D2D"/>
+                    <Setter Property="Foreground" Value="#FF4CAF50"/>
+                    <Setter Property="BorderBrush" Value="#FF4CAF50"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Panel Header Style -->
+        <Style x:Key="PanelHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,10,0,20"/>
+        </Style>
+
+        <!-- Local Panel Style -->
+        <Style x:Key="LocalPanelStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FF424242"/>
+            <Setter Property="BorderBrush" Value="#FF4CAF50"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Margin" Value="5"/>
+        </Style>
+
+        <!-- Machine Panel Style -->
+        <Style x:Key="MachinePanelStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FF424242"/>
+            <Setter Property="BorderBrush" Value="#FF2196F3"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Margin" Value="5"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Background="#FF626262" CornerRadius="15" Margin="0,0,0,30">
+        <!-- Remove ScrollViewer to eliminate scroll bars -->
+        <StackPanel Orientation="Vertical" Margin="15,10,15,10">
+
+            <!-- LOCAL COORDINATES PANEL -->
+            <Border Style="{StaticResource LocalPanelStyle}" Background="#FF424242" BorderThickness="1,1,1,1" BorderBrush="LightGray" Margin="5,5,5,5">
+                <StackPanel>
+                    <TextBlock Text="LOCAL COORDINATES" Style="{StaticResource PanelHeaderStyle}" Margin="0,5,0,15"/>
+
+                    <Grid HorizontalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                            <Label Content="X" Style="{StaticResource AxisLabelStyle}" Height="60" Margin="0,0,0,15"/>
+                            <Label Content="Y" Style="{StaticResource AxisLabelStyle}" Height="60" Margin="0,0,0,15"/>
+                            <Label Content="Z" Style="{StaticResource AxisLabelStyle}" Height="60" Margin="0,0,0,15"/>
+                            <Label Content="A" Style="{StaticResource AxisLabelStyle}" Height="60" Margin="0,0,0,15"/>
+                            <Label Content="B" Style="{StaticResource AxisLabelStyle}" Height="60" Margin="0,0,0,15"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="0,0,20,0">
+                            <TextBox x:Name="TextBoxX" 
+                                     Text="{Binding TargetX, UpdateSourceTrigger=PropertyChanged}" 
+                                     Style="{StaticResource UnifiedCoordinateStyle}" 
+                                     Height="60" Width="200" Margin="0,0,0,15" 
+                                     TextChanged="CoordinateTextBox_TextChanged" 
+                                     PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                     PreviewKeyDown="NumericTextBox_PreviewKeyDown"
+                                     Tag="X" HorizontalAlignment="Left"/>
+                            <TextBox x:Name="TextBoxY" 
+                                     Text="{Binding TargetY, UpdateSourceTrigger=PropertyChanged}" 
+                                     Style="{StaticResource UnifiedCoordinateStyle}" 
+                                     Height="60" Width="200" Margin="0,0,0,15" 
+                                     TextChanged="CoordinateTextBox_TextChanged" 
+                                     PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                     PreviewKeyDown="NumericTextBox_PreviewKeyDown"
+                                     Tag="Y"/>
+                            <TextBox x:Name="TextBoxZ" 
+                                     Text="{Binding TargetZ, UpdateSourceTrigger=PropertyChanged}" 
+                                     Style="{StaticResource UnifiedCoordinateStyle}" 
+                                     Height="60" Width="200" Margin="0,0,0,15" 
+                                     TextChanged="CoordinateTextBox_TextChanged" 
+                                     PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                     PreviewKeyDown="NumericTextBox_PreviewKeyDown"
+                                     Tag="Z"/>
+                            <TextBox x:Name="TextBoxA" 
+                                     Text="{Binding TargetA, UpdateSourceTrigger=PropertyChanged}" 
+                                     Style="{StaticResource UnifiedCoordinateStyle}" 
+                                     Height="60" Width="200" Margin="0,0,0,15" 
+                                     TextChanged="CoordinateTextBox_TextChanged" 
+                                     PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                     PreviewKeyDown="NumericTextBox_PreviewKeyDown"
+                                     Tag="A"/>
+                            <TextBox x:Name="TextBoxB" 
+                                     Text="{Binding TargetB, UpdateSourceTrigger=PropertyChanged}" 
+                                     Style="{StaticResource UnifiedCoordinateStyle}" 
+                                     Height="60" Width="200" Margin="0,0,0,15" 
+                                     TextChanged="CoordinateTextBox_TextChanged" 
+                                     PreviewTextInput="NumericTextBox_PreviewTextInput"
+                                     PreviewKeyDown="NumericTextBox_PreviewKeyDown"
+                                     Tag="B"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="60"/>
+                                    <RowDefinition Height="15"/>
+                                    <RowDefinition Height="60"/>
+                                    <RowDefinition Height="15"/>
+                                    <RowDefinition Height="60"/>
+                                    <RowDefinition Height="15"/>
+                                    <RowDefinition Height="60"/>
+                                    <RowDefinition Height="15"/>
+                                    <RowDefinition Height="60"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="15"/>
+                                    <ColumnDefinition Width="140"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- X Ekseni Butonları - Sadece Set Zero -->
+                                <Button Grid.Row="0" Grid.Column="0" Content="Set Zero X" Style="{StaticResource YellowButtonStyle}" Click="SetZeroButton_Click" Tag="X"/>
+
+                                <!-- Y Ekseni Butonları - Sadece Set Zero -->
+                                <Button Grid.Row="2" Grid.Column="0" Content="Set Zero Y" Style="{StaticResource YellowButtonStyle}" Click="SetZeroButton_Click" Tag="Y"/>
+
+                                <!-- Z Ekseni Butonları - Sadece Set Zero -->
+                                <Button Grid.Row="4" Grid.Column="0" Content="Set Zero Z" Style="{StaticResource YellowButtonStyle}" Click="SetZeroButton_Click" Tag="Z"/>
+
+                                <!-- A Ekseni Butonları - Sadece Set Zero -->
+                                <Button Grid.Row="6" Grid.Column="0" Content="Set Zero A" Style="{StaticResource YellowButtonStyle}" Click="SetZeroButton_Click" Tag="A"/>
+
+                                <!-- B Ekseni Butonları - Sadece Set Zero -->
+                                <Button Grid.Row="8" Grid.Column="0" Content="Set Zero B" Style="{StaticResource YellowButtonStyle}" Click="SetZeroButton_Click" Tag="B"/>
+
+                                <!-- XYZ Set Zero Butonu -->
+                                <Button Grid.Row="0" Grid.RowSpan="5" Grid.Column="2" 
+                                        Content="Set XYZ Zero" 
+                                        Style="{StaticResource YellowButtonStyle}" 
+                                        Click="SetZeroButton_Click" 
+                                        FontSize="12"
+                                        FontWeight="Normal">
+                                    <Button.LayoutTransform>
+                                        <RotateTransform Angle="0"/>
+                                    </Button.LayoutTransform>
+                                </Button>
+
+                                <!-- Local Home butonu -->
+                                <Button Grid.Row="6" Grid.RowSpan="3" Grid.Column="2" 
+                                        Style="{StaticResource PastelBlueButtonStyle}" 
+                                        Click="HomeXYZButton_Click" 
+                                        FontSize="11"
+                                        FontWeight="Bold"
+                                        ToolTip="Local Coordinates - X, Y, Z eksenleri (0,0,0) pozisyonuna gider">
+                                    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <!-- Home İkonu -->
+                                        <Viewbox Width="25" Height="25" Margin="0,0,0,3">
+                                            <Canvas Width="24" Height="24">
+                                                <!-- Home Icon Path -->
+                                                <Path Fill="DarkRed" 
+                                                      Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/>
+                                            </Canvas>
+                                        </Viewbox>
+                                        <!-- Home Text -->
+                                        <TextBlock Text="Local" 
+                                                   FontSize="9" 
+                                                   FontWeight="Bold" 
+                                                   HorizontalAlignment="Center"
+                                                   Foreground="Black"
+                                                   Margin="0,0,0,1"/>
+                                        <TextBlock Text="Home XYZ" 
+                                                   FontSize="10" 
+                                                   FontWeight="Normal" 
+                                                   HorizontalAlignment="Center"
+                                                   Foreground="Black"/>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- MACHINE COORDINATES PANEL -->
+            <Border Style="{StaticResource MachinePanelStyle}" BorderThickness="1,1,1,1" Margin="5,5,5,5" Padding="15,15,15,10">
+                <Border.BorderBrush>
+                    <SolidColorBrush Color="LightGray"/>
+                </Border.BorderBrush>
+                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <TextBlock Text="MACHINE COORDINATES" Style="{StaticResource PanelHeaderStyle}" Margin="0,5,0,15"/>
+
+                    <Grid HorizontalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                            <Label Content="X" Style="{StaticResource AxisLabelStyle}" Height="60" Margin="0,0,0,15"/>
+                            <Label Content="Y" Style="{StaticResource AxisLabelStyle}" Height="60" Margin="0,0,0,15"/>
+                            <Label Content="Z" Style="{StaticResource AxisLabelStyle}" Height="60" Margin="0,0,0,15"/>
+                            <Label Content="A" Style="{StaticResource AxisLabelStyle}" Height="60" Margin="0,0,0,15"/>
+                            <Label Content="B" Style="{StaticResource AxisLabelStyle}" Height="60" Margin="0,0,0,15"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="0,0,20,0">
+                            <TextBox Text="{Binding MStatus.X, StringFormat=F3}" 
+                                     Style="{StaticResource UnifiedCoordinateStyle}" 
+                                     Height="60" Width="200" Margin="0,0,0,15" 
+                                     IsReadOnly="True"/>
+                            <TextBox Text="{Binding MStatus.Y, StringFormat=F3}" 
+                                     Style="{StaticResource UnifiedCoordinateStyle}" 
+                                     Height="60" Width="200" Margin="0,0,0,15" 
+                                     IsReadOnly="True"/>
+                            <TextBox Text="{Binding MStatus.Z, StringFormat=F3}" 
+                                     Style="{StaticResource UnifiedCoordinateStyle}" 
+                                     Height="60" Width="200" Margin="0,0,0,15" 
+                                     IsReadOnly="True"/>
+                            <TextBox Text="{Binding MStatus.A, StringFormat=F3}" 
+                                     Style="{StaticResource UnifiedCoordinateStyle}" 
+                                     Height="60" Width="200" Margin="0,0,0,15" 
+                                     IsReadOnly="True"/>
+                            <TextBox Text="{Binding MStatus.B, StringFormat=F3}" 
+                                     Style="{StaticResource UnifiedCoordinateStyle}" 
+                                     Height="60" Width="200" Margin="0,0,0,15" 
+                                     IsReadOnly="True"/>
+                        </StackPanel>
+
+                        <!-- Machine Home Button -->
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                            <Button Style="{StaticResource PastelBlueButtonStyle}" 
+                                    Click="FluidNCHomeAllButton_Click" 
+                                    Height="225"
+                                    Width="140"
+                                    FontSize="12"
+                                    FontWeight="Bold"
+                                    VerticalAlignment="Center"
+                                    ToolTip="FluidNC $H - X, Y, Z eksenleri limit switch'lere gider (Machine Home)">
+                                <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <!-- Machine Home İkonu -->
+                                    <Viewbox Width="35" Height="35" Margin="0,0,0,5">
+                                        <Canvas Width="24" Height="24">
+                                            <!-- Machine/Limit Switch Icon -->
+                                            <Path Fill="DarkRed" 
+                                                Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Canvas>
+                                    </Viewbox>
+                                    <!-- FluidNC Text -->
+                                    <TextBlock Text="Machine Home" 
+                                               FontSize="11" 
+                                               FontWeight="Normal" 
+                                               HorizontalAlignment="Center"
+                                               Foreground="White"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Border>
+</UserControl>

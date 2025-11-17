@@ -1,0 +1,117 @@
+﻿<UserControl x:Class="CncControlApp.StatusView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:CncControlApp"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800"
+             Margin="5,10,5,10" Foreground="{x:Null}">
+
+    <Border Background="#FF626262" CornerRadius="15">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="60"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Connection Controls Panel -->
+            <Grid Grid.Row="0" Margin="10,10,10,5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Port Selection ComboBox -->
+                <ComboBox Grid.Column="0"
+                          ItemsSource="{Binding AvailablePorts}"
+                          SelectedItem="{Binding SelectedPort}"
+                          IsEnabled="{Binding IsDisconnected}"
+                          VerticalAlignment="Center"
+                          HorizontalAlignment="Stretch"
+                          Height="32"
+                          Margin="0,0,10,0"
+                          FontSize="14"
+                          Background="White"
+                          BorderBrush="#FF4CAF50"
+                          BorderThickness="2"/>
+
+                <!-- Connect/Disconnect Button -->
+                <Button Grid.Column="1"
+                        x:Name="ConnectButton"
+                        Content="{Binding ConnectButtonText}"
+                        Style="{StaticResource RoundedMenuStyle}"
+                        Command="{Binding ConnectCommand}"
+                        VerticalAlignment="Center"
+                        Height="32"
+                        Width="120"
+                        FontSize="14"
+                        FontWeight="Bold"/>
+            </Grid>
+
+            <!-- TabControl for Log and Settings -->
+            <TabControl Grid.Row="1"
+                        Margin="5,0,4,30" 
+                        Style="{StaticResource PastelBlueTabControlStyle}"
+                        ItemContainerStyle="{StaticResource PastelBlueTabItemStyle}">
+                <TabItem Header="Log">
+                    <Grid Background="#FFE5E5E5">
+                        <!-- ListBox - Seçilebilir ve kopyalanabilir -->
+                        <ListBox x:Name="LogListBox"
+                                 ItemsSource="{Binding LogMessages}"
+                                 Style="{StaticResource StatusListBoxStyle}"
+                                 FontSize="16"
+                                 IsTextSearchEnabled="True"
+                                 Focusable="True"
+                                 IsHitTestVisible="True"
+                                 SelectionMode="Extended"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                 KeyDown="LogListBox_KeyDown"
+                                 MouseRightButtonUp="LogListBox_MouseRightButtonUp" Background="#FF2F405A" BorderBrush="#FFE3E0E0">
+                            <!-- Context Menu -->
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Kopyala (Ctrl+C)" 
+                                              Click="CopySelectedLogs_Click"
+                                              InputGestureText="Ctrl+C">
+                                        <MenuItem.Icon>
+                                            <TextBlock Text="📋" FontSize="12"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+                                    <MenuItem Header="Tümünü Seç (Ctrl+A)" 
+                                              Click="SelectAllLogs_Click"
+                                              InputGestureText="Ctrl+A">
+                                        <MenuItem.Icon>
+                                            <TextBlock Text="📝" FontSize="12"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+                                    <Separator/>
+                                    <MenuItem Header="Logları Temizle" 
+                                              Click="ClearLogs_Click">
+                                        <MenuItem.Icon>
+                                            <TextBlock Text="🗑️" FontSize="12"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
+                        </ListBox>
+                    </Grid>
+                </TabItem>
+                <TabItem Header="Ayarlar">
+                    <!-- ListView için stil uygulayın -->
+                    <ListView ItemsSource="{Binding Settings}"
+                              Style="{StaticResource StatusListViewStyle}">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="ID" DisplayMemberBinding="{Binding Id}" Width="50"/>
+                                <GridViewColumn Header="Değer" DisplayMemberBinding="{Binding Value}" Width="100"/>
+                                <GridViewColumn Header="Açıklama" DisplayMemberBinding="{Binding KnownMeaning}" Width="Auto"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </TabItem>
+            </TabControl>
+        </Grid>
+    </Border>
+</UserControl>
