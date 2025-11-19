@@ -68,6 +68,16 @@
  </Setter>
  </Style>
 
+ <!-- Unified style for all probe action buttons (match +X look) -->
+ <Style x:Key="UnifiedJogButtonStyle" TargetType="Button" BasedOn="{StaticResource DarkCoordButtonStyle}">
+ <Setter Property="FontSize" Value="16"/>
+ <Setter Property="Padding" Value="18,8"/>
+ <Setter Property="BorderBrush" Value="#FFDA9E8F"/>
+ <Setter Property="BorderThickness" Value="1"/>
+ <Setter Property="HorizontalAlignment" Value="Stretch"/>
+ <Setter Property="VerticalAlignment" Value="Center"/>
+ </Style>
+
  <Style x:Key="ProbeModeRadioStyle" TargetType="RadioButton">
  <Setter Property="Foreground" Value="#FFDDDDDD"/>
  <Setter Property="Background" Value="#FF3E3E40"/>
@@ -120,188 +130,44 @@
  </UserControl.Resources>
 
  <Border x:Name="RootBorder"
- Background="#FF626262"
- BorderBrush="#FF4CAF50"
  BorderThickness="2"
  CornerRadius="15"
- Padding="15"
- Margin="5"
  Visibility="Visible">
- <Grid Margin="15,15,15,10">
+ <Grid Margin="0,10,0,10">
  <Grid.RowDefinitions>
- <RowDefinition Height="291"/>
  <RowDefinition Height="Auto"/>
  <RowDefinition Height="160"/>
- <RowDefinition Height="*"/>
+ <RowDefinition/>
  </Grid.RowDefinitions>
 
  <!-- TOP: Coordinates (Local, spacer, Machine, spacer, Buttons) -->
- <Border Grid.Row="0"
- CornerRadius="10"
- Padding="15,10"
- BorderBrush="#FFA2A2A4"
- BorderThickness="1"
- Background="#FF2D2D30"
- Margin="0,0,0,5">
- <Grid>
- <Grid.ColumnDefinitions>
- <ColumnDefinition Width="*"/>
- <ColumnDefinition Width="20"/>
- <ColumnDefinition Width="*"/>
- <ColumnDefinition Width="30"/>
- <ColumnDefinition Width="160"/>
- </Grid.ColumnDefinitions>
- <Grid.RowDefinitions>
- <RowDefinition Height="Auto"/>
- <RowDefinition Height="*"/>
- <RowDefinition Height="*"/>
- <RowDefinition Height="*"/>
- <RowDefinition Height="*"/>
- </Grid.RowDefinitions>
-
- <!-- Headers -->
- <TextBlock Grid.Row="0" Grid.Column="0" Text="LOCAL" FontSize="12" FontWeight="Bold" Foreground="#FFB0BEC5" Margin="0,0,0,6"/>
- <TextBlock Grid.Row="0" Grid.Column="2" Text="MACHINE" FontSize="12" FontWeight="Bold" Foreground="#FFB0BEC5" Margin="0,0,0,6"/>
- <TextBlock Grid.Row="0" Grid.Column="4" Text="ACTIONS" FontSize="12" FontWeight="Bold" Foreground="#FFB0BEC5" Margin="0,0,0,6"/>
-
- <!-- Local rows -->
- <Border Grid.Row="1" Grid.Column="0" Background="#FF2D3D2D" BorderBrush="#FF4CAF50" BorderThickness="1" CornerRadius="5" Padding="10,6" Margin="0,0,0,6" VerticalAlignment="Stretch">
- <Grid VerticalAlignment="Center">
- <Grid.ColumnDefinitions>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="*"/>
- </Grid.ColumnDefinitions>
- <TextBlock Grid.Column="0" Text="X:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
- <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
- <TextBlock Grid.Column="2" Text="{Binding MStatus.WorkX, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF4CAF50" HorizontalAlignment="Right" TextAlignment="Right"/>
- </Grid>
- </Border>
- <Border Grid.Row="2" Grid.Column="0" Background="#FF2D3D2D" BorderBrush="#FF4CAF50" BorderThickness="1" CornerRadius="5" Padding="10,6" Margin="0,0,0,6" VerticalAlignment="Stretch">
- <Grid VerticalAlignment="Center">
- <Grid.ColumnDefinitions>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="*"/>
- </Grid.ColumnDefinitions>
- <TextBlock Grid.Column="0" Text="Y:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
- <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
- <TextBlock Grid.Column="2" Text="{Binding MStatus.WorkY, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF4CAF50" HorizontalAlignment="Right" TextAlignment="Right"/>
- </Grid>
- </Border>
- <Border Grid.Row="3" Grid.Column="0" Background="#FF2D3D2D" BorderBrush="#FF4CAF50" BorderThickness="1" CornerRadius="5" Padding="10,6" Margin="0,0,0,6" VerticalAlignment="Stretch">
- <Grid VerticalAlignment="Center">
- <Grid.ColumnDefinitions>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="*"/>
- </Grid.ColumnDefinitions>
- <TextBlock Grid.Column="0" Text="Z:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
- <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
- <TextBlock Grid.Column="2" Text="{Binding MStatus.WorkZ, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF4CAF50" HorizontalAlignment="Right" TextAlignment="Right"/>
- </Grid>
- </Border>
- <Border Grid.Row="4" Grid.Column="0" Background="#FF2D3D2D" BorderBrush="#FF4CAF50" BorderThickness="1" CornerRadius="5" Padding="10,6" VerticalAlignment="Stretch" Visibility="{Binding IsAAxisAvailable, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
- <Grid VerticalAlignment="Center">
- <Grid.ColumnDefinitions>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="*"/>
- <ColumnDefinition Width="Auto"/>
- </Grid.ColumnDefinitions>
- <TextBlock Grid.Column="0" Text="A:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
- <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
- <TextBlock Grid.Column="2" Text="{Binding MStatus.WorkA, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF4CAF50" HorizontalAlignment="Right" TextAlignment="Right"/>
- <TextBlock Grid.Column="3" Text="°" FontSize="22" Foreground="#FF4CAF50" Margin="2,0,0,0"/>
- </Grid>
- </Border>
-
- <!-- Machine rows -->
- <Border Grid.Row="1" Grid.Column="2" Background="#FF2D3D2D" BorderBrush="#FF2196F3" BorderThickness="1" CornerRadius="5" Padding="10,6" Margin="0,0,0,6" VerticalAlignment="Stretch">
- <Grid VerticalAlignment="Center">
- <Grid.ColumnDefinitions>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="*"/>
- </Grid.ColumnDefinitions>
- <TextBlock Grid.Column="0" Text="X:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
- <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
- <TextBlock Grid.Column="2" Text="{Binding MStatus.X, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF42A5F5" HorizontalAlignment="Right" TextAlignment="Right"/>
- </Grid>
- </Border>
- <Border Grid.Row="2" Grid.Column="2" Background="#FF2D3D2D" BorderBrush="#FF2196F3" BorderThickness="1" CornerRadius="5" Padding="10,6" Margin="0,0,0,6" VerticalAlignment="Stretch">
- <Grid VerticalAlignment="Center">
- <Grid.ColumnDefinitions>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="*"/>
- </Grid.ColumnDefinitions>
- <TextBlock Grid.Column="0" Text="Y:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
- <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
- <TextBlock Grid.Column="2" Text="{Binding MStatus.Y, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF42A5F5" HorizontalAlignment="Right" TextAlignment="Right"/>
- </Grid>
- </Border>
- <Border Grid.Row="3" Grid.Column="2" Background="#FF2D3D2D" BorderBrush="#FF2196F3" BorderThickness="1" CornerRadius="5" Padding="10,6" Margin="0,0,0,6" VerticalAlignment="Stretch">
- <Grid VerticalAlignment="Center">
- <Grid.ColumnDefinitions>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="*"/>
- </Grid.ColumnDefinitions>
- <TextBlock Grid.Column="0" Text="Z:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
- <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
- <TextBlock Grid.Column="2" Text="{Binding MStatus.Z, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF42A5F5" HorizontalAlignment="Right" TextAlignment="Right"/>
- </Grid>
- </Border>
- <Border Grid.Row="4" Grid.Column="2" Background="#FF2D3D2D" BorderBrush="#FF2196F3" BorderThickness="1" CornerRadius="5" Padding="10,6" VerticalAlignment="Stretch" Visibility="{Binding IsAAxisAvailable, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
- <Grid VerticalAlignment="Center">
- <Grid.ColumnDefinitions>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="Auto"/>
- <ColumnDefinition Width="*"/>
- <ColumnDefinition Width="Auto"/>
- </Grid.ColumnDefinitions>
- <TextBlock Grid.Column="0" Text="A:" FontSize="24" Foreground="White" Margin="0,0,8,0"/>
- <TextBlock Grid.Column="1" Text=" " FontFamily="Consolas, 'Courier New', monospace"/>
- <TextBlock Grid.Column="2" Text="{Binding MStatus.A, StringFormat=F3}" FontSize="24" FontFamily="Consolas, 'Courier New', monospace" Foreground="#FF42A5F5" HorizontalAlignment="Right" TextAlignment="Right"/>
- <TextBlock Grid.Column="3" Text="°" FontSize="22" Foreground="#FF42A5F5" Margin="2,0,0,0"/>
- </Grid>
- </Border>
-
- <!-- Buttons aligned -->
- <Button Grid.Row="1" Grid.Column="4" Content="Set Zero X" Style="{StaticResource DarkCoordButtonStyle}" Margin="0,0,0,6" Click="SetZeroX_Click" Tag="X" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" FontSize="13" Foreground="#FFFDD0"/>
- <Button Grid.Row="2" Grid.Column="4" Content="Set Zero Y" Style="{StaticResource DarkCoordButtonStyle}" Margin="0,0,0,6" Click="SetZeroY_Click" Tag="Y" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" FontSize="13" Foreground="#FFFDD0"/>
- <Button Grid.Row="3" Grid.Column="4" Content="Set Zero Z" Style="{StaticResource DarkCoordButtonStyle}" Margin="0,0,0,6" Click="SetZeroZ_Click" Tag="Z" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" FontSize="13" Foreground="#FFFDD0"/>
- <Button Grid.Row="4" Grid.Column="4" Content="Set Zero A" Style="{StaticResource DarkCoordButtonStyle}" Click="SetZeroA_Click" Tag="A" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" FontSize="13" Foreground="#FFFDD0" Visibility="{Binding IsAAxisAvailable, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"/>
- </Grid>
- </Border>
 
  <!-- Mode selector (radio-like buttons) -->
- <Border Grid.Row="1"
+ <Border
  Background="#FF2D2D30"
  CornerRadius="10"
- Padding="8"
+ Padding="0,8,0,8"
  BorderThickness="1"
  BorderBrush="#FFA2A2A4"
  Margin="0,0,0,8">
- <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+ <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Height="50">
  <RadioButton x:Name="ProbeModeRadio" GroupName="ProbeModes" IsChecked="True"
  Content="Probe" Margin="6,0"
- Style="{StaticResource ProbeModeRadioStyle}"/>
+ Style="{StaticResource ProbeModeRadioStyle}" BorderBrush="#FF34BD2D"/>
  <RadioButton x:Name="CenterOuterModeRadio" GroupName="ProbeModes"
  Content="Center From Outer edges" Margin="6,0"
- Style="{StaticResource ProbeModeRadioStyle}"/>
+ Style="{StaticResource ProbeModeRadioStyle}" BorderBrush="#FF34BD2D"/>
  <RadioButton x:Name="CenterInnerModeRadio" GroupName="ProbeModes"
  Content="Center from inner edges" Margin="6,0"
- Style="{StaticResource ProbeModeRadioStyle}"/>
+ Style="{StaticResource ProbeModeRadioStyle}" BorderBrush="#FF34BD2D"/>
  <RadioButton x:Name="FindCornerModeRadio" GroupName="ProbeModes"
  Content="Find Corner" Margin="6,0"
- Style="{StaticResource ProbeModeRadioStyle}"/>
+ Style="{StaticResource ProbeModeRadioStyle}" BorderBrush="#FF34BD2D"/>
  </StackPanel>
  </Border>
 
  <!-- Mode content container -->
- <Border Grid.Row="2"
+ <Border Grid.Row="1"
  Background="#FF2D2D30"
  CornerRadius="10"
  Padding="10"
@@ -326,32 +192,29 @@
  <!-- X+/X- -->
  <Button Grid.Row="0" Grid.Column="0" Content="+X"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
- Margin="0,0,0,6"
- Click="PlusXProbeButton_Click"/>
+ Margin="25,5,25,5"
+ Click="PlusXProbeButton_Click" Width="NaN" Height="NaN"/>
  <Button Grid.Row="1" Grid.Column="0" Content="-X"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
- Margin="0,6,0,0"
- Click="MinusXProbeButton_Click"/>
+ Margin="25,5,25,5"
+ Click="MinusXProbeButton_Click" Width="NaN" Height="NaN"/>
 
  <!-- Y+/Y- -->
  <Button Grid.Row="0" Grid.Column="2" Content="+Y"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
- Margin="0,0,0,6"
- Click="PlusYProbeButton_Click"/>
+ Margin="25,5,25,5"
+ HorizontalAlignment="Stretch" VerticalAlignment="Center"
+ Click="PlusYProbeButton_Click" Width="NaN" Height="NaN"/>
  <Button Grid.Row="1" Grid.Column="2" Content="-Y"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
- Margin="0,6,0,0"
- Click="MinusYProbeButton_Click"/>
+ Margin="25,5,25,5"
+ HorizontalAlignment="Stretch" VerticalAlignment="Center"
+ Click="MinusYProbeButton_Click" Width="NaN" Height="NaN"/>
 
  <!-- Z Probe spanning2 rows -->
- <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="4" Content="Z Probe"
+ <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="4" Content="- Z"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
- Click="ZProbeButton_Click"/>
+ Click="ZProbeButton_Click" Height="NaN" Width="NaN" Margin="25,35,25,35"/>
  </Grid>
 
  <!-- CENTER FROM OUTER EDGES MODE -->
@@ -369,7 +232,9 @@
 
  <Button Grid.Row="0" Grid.Column="0"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+ Margin="25,5,25,5"
+ HorizontalAlignment="Stretch" VerticalAlignment="Center"
+ Width="NaN" Height="NaN"
  Click="CenterXOuter_Click">
  <Button.Content>
  <TextBlock Text="Center X" TextAlignment="Center" TextWrapping="Wrap"/>
@@ -378,7 +243,9 @@
 
  <Button Grid.Row="0" Grid.Column="2"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+ Margin="25,5,25,5"
+ HorizontalAlignment="Stretch" VerticalAlignment="Center"
+ Width="NaN" Height="NaN"
  Click="CenterYOuter_Click">
  <Button.Content>
  <TextBlock Text="Center Y" TextAlignment="Center" TextWrapping="Wrap"/>
@@ -387,7 +254,9 @@
 
  <Button Grid.Row="0" Grid.Column="4"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+ Margin="25,5,25,5"
+ HorizontalAlignment="Stretch" VerticalAlignment="Center"
+ Width="NaN" Height="NaN"
  Click="CenterXYOuter_Click">
  <Button.Content>
  <TextBlock Text="Center XY" TextAlignment="Center" TextWrapping="Wrap"/>
@@ -410,21 +279,27 @@
 
  <Button Grid.Row="0" Grid.Column="0"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+ Margin="25,5,25,5"
+ HorizontalAlignment="Stretch" VerticalAlignment="Center"
+ Width="NaN" Height="NaN">
  <Button.Content>
  <TextBlock Text="Center XY" TextAlignment="Center" TextWrapping="Wrap"/>
  </Button.Content>
  </Button>
  <Button Grid.Row="0" Grid.Column="2"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+ Margin="25,5,25,5"
+ HorizontalAlignment="Stretch" VerticalAlignment="Center"
+ Width="NaN" Height="NaN">
  <Button.Content>
  <TextBlock Text="Center X" TextAlignment="Center" TextWrapping="Wrap"/>
  </Button.Content>
  </Button>
  <Button Grid.Row="0" Grid.Column="4"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+ Margin="25,5,25,5"
+ HorizontalAlignment="Stretch" VerticalAlignment="Center"
+ Width="NaN" Height="NaN">
  <Button.Content>
  <TextBlock Text="Center Y" TextAlignment="Center" TextWrapping="Wrap"/>
  </Button.Content>
@@ -448,28 +323,36 @@
 
  <Button Grid.Row="0" Grid.Column="0"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+ Margin="25,5,25,5"
+ HorizontalAlignment="Stretch" VerticalAlignment="Center"
+ Width="NaN" Height="NaN">
  <Button.Content>
  <TextBlock Text="Corner NW" TextAlignment="Center" TextWrapping="Wrap"/>
  </Button.Content>
  </Button>
  <Button Grid.Row="0" Grid.Column="2"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+ Margin="25,5,25,5"
+ HorizontalAlignment="Stretch" VerticalAlignment="Center"
+ Width="NaN" Height="NaN">
  <Button.Content>
  <TextBlock Text="Corner NE" TextAlignment="Center" TextWrapping="Wrap"/>
  </Button.Content>
  </Button>
  <Button Grid.Row="0" Grid.Column="4"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+ Margin="25,5,25,5"
+ HorizontalAlignment="Stretch" VerticalAlignment="Center"
+ Width="NaN" Height="NaN">
  <Button.Content>
  <TextBlock Text="Corner SW" TextAlignment="Center" TextWrapping="Wrap"/>
  </Button.Content>
  </Button>
  <Button Grid.Row="0" Grid.Column="6"
  Style="{StaticResource UnifiedJogButtonStyle}"
- HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+ Margin="25,5,25,5"
+ HorizontalAlignment="Stretch" VerticalAlignment="Center"
+ Width="NaN" Height="NaN">
  <Button.Content>
  <TextBlock Text="Corner SE" TextAlignment="Center" TextWrapping="Wrap"/>
  </Button.Content>
@@ -479,7 +362,7 @@
  </Border>
 
  <!-- BOTTOM: Canvas + Info side panel -->
- <Grid Grid.Row="3">
+ <Grid Grid.Row="2">
  <Grid.ColumnDefinitions>
  <ColumnDefinition Width="0.85*"/>
  <ColumnDefinition Width="0.15*"/>

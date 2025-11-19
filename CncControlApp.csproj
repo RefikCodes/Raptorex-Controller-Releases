@@ -161,6 +161,9 @@
     <Compile Include="CncControlApp\Helpers\TouchEventHelper.cs" />
     <Compile Include="CncControlApp\Helpers\UiHelper.cs" />
     <Compile Include="CncControlApp\Helpers\WorkspaceTransform.cs" />
+    <Compile Include="CncControlApp\HomeZeroPanelView.xaml.cs">
+      <DependentUpon>HomeZeroPanelView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="CncControlApp\JogView.xaml.cs">
       <DependentUpon>JogView.xaml</DependentUpon>
     </Compile>
@@ -258,6 +261,9 @@
     <Page Include="CncControlApp\GCodeView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="CncControlApp\HomeZeroPanelView.xaml">
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="CncControlApp\JogView.xaml">
       <Generator>MSBuild:Compile</Generator>

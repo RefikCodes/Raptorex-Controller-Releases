@@ -107,6 +107,9 @@ namespace CncControlApp
             panel.SetZeroYClicked -= ProbeSetZeroButton_Click;
             panel.SetZeroZClicked -= ProbeSetZeroButton_Click;
             panel.SetZeroAClicked -= ProbeSetZeroButton_Click;
+            panel.CenterXOuterClicked -= Panel_CenterXOuterClicked;
+            panel.CenterYOuterClicked -= Panel_CenterYOuterClicked;
+            panel.CenterXYOuterClicked -= Panel_CenterXYOuterClicked;
 
             panel.ZProbeClicked += ZProbeButton_Click;
             panel.PlusXProbeClicked += PlusXProbeButton_Click;
@@ -117,6 +120,9 @@ namespace CncControlApp
             panel.SetZeroYClicked += ProbeSetZeroButton_Click;
             panel.SetZeroZClicked += ProbeSetZeroButton_Click;
             panel.SetZeroAClicked += ProbeSetZeroButton_Click;
+            panel.CenterXOuterClicked += Panel_CenterXOuterClicked;
+            panel.CenterYOuterClicked += Panel_CenterYOuterClicked;
+            panel.CenterXYOuterClicked += Panel_CenterXYOuterClicked;
         }
 
         // Proxies to canvases and labels inside ProbePanelView
@@ -144,16 +150,24 @@ namespace CncControlApp
             try
             {
                 if (_probePanelVisible) return;
-                if (MainProbePanel != null && MainCoordinatesView != null)
+                if (MainProbePanel != null)
                 {
-                    MainCoordinatesView.Visibility = Visibility.Collapsed;
+                    // Keep coordinates visible in probe view
+                    if (MainCoordinatesView != null)
+                        MainCoordinatesView.Visibility = Visibility.Visible;
+
+                    // Hide Home/Zero actions while probing
+                    if (HomeZeroActionsPanel != null)
+                        HomeZeroActionsPanel.Visibility = Visibility.Collapsed;
+
+                    // Show probe panel (bottom row)
                     MainProbePanel.Visibility = Visibility.Visible;
                     _probePanelVisible = true;
 
                     Dispatcher.BeginInvoke(new Action(InitializeProbePanel),
                         System.Windows.Threading.DispatcherPriority.Loaded);
 
-                    LogProbe("> 🟢 Probe panel opened");
+                    LogProbe("> 🟢 Probe panel opened (coordinates kept visible)");
                 }
             }
             catch (Exception ex)
@@ -1086,6 +1100,56 @@ namespace CncControlApp
         }
 
         // Center probe event handlers will be added here
+        private async void Panel_CenterXOuterClicked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                App.MainController?.AddLogMessage("> ▶ Center X (outer edges) başlatılıyor – Z probe ile başlar");
+                await CenterXOuterSequenceAsync();
+            }
+            catch (Exception ex)
+            {
+                App.MainController?.AddLogMessage($"> ❌ Center X (outer) hata: {ex.Message}");
+            }
+        }
+
+        private async void Panel_CenterYOuterClicked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                App.MainController?.AddLogMessage("> ▶ Center Y (outer edges) başlatılıyor – Z probe ile başlar");
+                await CenterYOuterSequenceAsync();
+            }
+            catch (Exception ex)
+            {
+                App.MainController?.AddLogMessage($"> ❌ Center Y (outer) hata: {ex.Message}");
+            }
+        }
+
+        private async void Panel_CenterXYOuterClicked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                App.MainController?.AddLogMessage("> ▶ Center XY (outer edges) başlatılıyor – her eksen Z probe ile başlar");
+                var okX = await CenterXOuterSequenceAsync();
+                if (!okX)
+                {
+                    App.MainController?.AddLogMessage("> ❌ Center XY: X aşaması başarısız");
+                    return;
+                }
+                var okY = await CenterYOuterSequenceAsync();
+                if (!okY)
+                {
+                    App.MainController?.AddLogMessage("> ❌ Center XY: Y aşaması başarısız");
+                    return;
+                }
+                App.MainController?.AddLogMessage("> ✅ Center XY (outer) tamamlandı");
+            }
+            catch (Exception ex)
+            {
+                App.MainController?.AddLogMessage($"> ❌ Center XY (outer) hata: {ex.Message}");
+            }
+        }
 
         private void FitToScreen()
         {
@@ -1126,42 +1190,49 @@ namespace CncControlApp
 
         private void NavigateToPage(MenuPage page)
         {
-            switch (page)
-            {
-                case MenuPage.Status:
-                    MainContent.Content = _statusView;
-                    if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Collapsed;
-                    if (MainProbePanel != null) MainProbePanel.Visibility = Visibility.Collapsed;
-                    ToggleRightBlank(true);
-                    break;
-                case MenuPage.GCode:
-                    MainContent.Content = _gcodeView;
-                    if (MainProbePanel != null) MainProbePanel.Visibility = Visibility.Collapsed;
-                    if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Visible;
-                    ToggleRightBlank(false);
-                    break;
-                case MenuPage.Jog:
-                    MainContent.Content = _jogView;
-                    if (MainProbePanel != null) MainProbePanel.Visibility = Visibility.Collapsed;
-                    if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Visible;
-                    ToggleRightBlank(false);
-                    break;
-                case MenuPage.Console:
-                    MainContent.Content = _consoleView;
-                    if (MainProbePanel != null) MainProbePanel.Visibility = Visibility.Collapsed;
-                    if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Visible;
-                    ToggleRightBlank(false);
-                    break;
-                case MenuPage.Probe:
-                    // Use Jog host but open probe overlay
-                    MainContent.Content = _jogView;
-                    if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Collapsed;
-                    if (MainProbePanel != null) MainProbePanel.Visibility = Visibility.Visible;
-                    ToggleRightBlank(false);
-                    Dispatcher.BeginInvoke(new Action(InitializeProbePanel), System.Windows.Threading.DispatcherPriority.Loaded);
-                    break;
-            }
-        }
+ switch (page)
+ {
+ case MenuPage.Status:
+ MainContent.Content = _statusView;
+ if (MainProbePanel != null) MainProbePanel.Visibility = Visibility.Collapsed;
+ if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Collapsed;
+ if (HomeZeroActionsPanel != null) HomeZeroActionsPanel.Visibility = Visibility.Collapsed;
+ ToggleRightBlank(true);
+ break;
+ case MenuPage.GCode:
+ MainContent.Content = _gcodeView;
+ if (MainProbePanel != null) MainProbePanel.Visibility = Visibility.Collapsed;
+ if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Visible;
+ if (HomeZeroActionsPanel != null) HomeZeroActionsPanel.Visibility = Visibility.Visible;
+ ToggleRightBlank(false);
+ break;
+ case MenuPage.Jog:
+ MainContent.Content = _jogView;
+ if (MainProbePanel != null) MainProbePanel.Visibility = Visibility.Collapsed;
+ if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Visible;
+ if (HomeZeroActionsPanel != null) HomeZeroActionsPanel.Visibility = Visibility.Visible;
+ ToggleRightBlank(false);
+ break;
+ case MenuPage.Console:
+ MainContent.Content = _consoleView;
+ if (MainProbePanel != null) MainProbePanel.Visibility = Visibility.Collapsed;
+ if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Visible;
+ if (HomeZeroActionsPanel != null) HomeZeroActionsPanel.Visibility = Visibility.Collapsed;
+ ToggleRightBlank(false);
+ break;
+ case MenuPage.Probe:
+ MainContent.Content = _jogView; // host jog for background controls
+ if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Visible; // keep coordinates panel
+ if (HomeZeroActionsPanel != null) HomeZeroActionsPanel.Visibility = Visibility.Collapsed; // hide home/zero panel
+ if (MainProbePanel != null)
+ {
+ MainProbePanel.Visibility = Visibility.Visible; // show probe UI in bottom row
+ }
+ ToggleRightBlank(false);
+ Dispatcher.BeginInvoke(new Action(InitializeProbePanel), System.Windows.Threading.DispatcherPriority.Loaded);
+ break;
+ }
+ }
 
         private void ToggleRightBlank(bool show)
         {
