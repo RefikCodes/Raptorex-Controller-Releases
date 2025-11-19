@@ -1197,6 +1197,9 @@ namespace CncControlApp
  if (MainProbePanel != null) MainProbePanel.Visibility = Visibility.Collapsed;
  if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Collapsed;
  if (HomeZeroActionsPanel != null) HomeZeroActionsPanel.Visibility = Visibility.Collapsed;
+            // Hide canvas in Settings view
+      var canvas1 = FindName("MainPanelJogCanvas") as FrameworkElement;
+      if (canvas1 != null) canvas1.Visibility = Visibility.Collapsed;
  ToggleRightBlank(true);
  break;
  case MenuPage.GCode:
@@ -1204,6 +1207,9 @@ namespace CncControlApp
  if (MainProbePanel != null) MainProbePanel.Visibility = Visibility.Collapsed;
  if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Visible;
  if (HomeZeroActionsPanel != null) HomeZeroActionsPanel.Visibility = Visibility.Visible;
+    // Show canvas in GCode view
+         var canvas2 = FindName("MainPanelJogCanvas") as FrameworkElement;
+          if (canvas2 != null) canvas2.Visibility = Visibility.Visible;
  ToggleRightBlank(false);
  break;
  case MenuPage.Jog:
@@ -1211,6 +1217,9 @@ namespace CncControlApp
  if (MainProbePanel != null) MainProbePanel.Visibility = Visibility.Collapsed;
  if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Visible;
  if (HomeZeroActionsPanel != null) HomeZeroActionsPanel.Visibility = Visibility.Visible;
+           // Show canvas in Jog view
+          var canvas3 = FindName("MainPanelJogCanvas") as FrameworkElement;
+   if (canvas3 != null) canvas3.Visibility = Visibility.Visible;
  ToggleRightBlank(false);
  break;
  case MenuPage.Console:
@@ -1218,12 +1227,18 @@ namespace CncControlApp
  if (MainProbePanel != null) MainProbePanel.Visibility = Visibility.Collapsed;
  if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Visible;
  if (HomeZeroActionsPanel != null) HomeZeroActionsPanel.Visibility = Visibility.Collapsed;
+      // Show canvas in Console view
+      var canvas4 = FindName("MainPanelJogCanvas") as FrameworkElement;
+       if (canvas4 != null) canvas4.Visibility = Visibility.Visible;
  ToggleRightBlank(false);
  break;
  case MenuPage.Probe:
  MainContent.Content = _jogView; // host jog for background controls
  if (MainCoordinatesView != null) MainCoordinatesView.Visibility = Visibility.Visible; // keep coordinates panel
  if (HomeZeroActionsPanel != null) HomeZeroActionsPanel.Visibility = Visibility.Collapsed; // hide home/zero panel
+        // Hide canvas when probe panel is active
+        var canvas5 = FindName("MainPanelJogCanvas") as FrameworkElement;
+     if (canvas5 != null) canvas5.Visibility = Visibility.Collapsed;
  if (MainProbePanel != null)
  {
  MainProbePanel.Visibility = Visibility.Visible; // show probe UI in bottom row

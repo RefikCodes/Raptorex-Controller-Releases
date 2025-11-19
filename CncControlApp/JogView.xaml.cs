@@ -283,6 +283,21 @@ EventHandlerHelper.SafeHandle(() => _sliderHandler?.HandleSpindleSpeedSliderTouc
         private void JogSpeedSlider_MouseUp(object sender, MouseButtonEventArgs e) =>
  EventHandlerHelper.SafeHandle(() => _sliderHandler?.HandleJogSpeedSliderMouseUp(sender, e), "JogSpeed_MouseUp", Log);
         
+/// <summary>
+        /// Reset jog speed to 50%
+        /// </summary>
+   private void JogSpeedResetButton_Click(object sender, RoutedEventArgs e)
+        {
+            EventHandlerHelper.SafeHandle(() =>
+            {
+          if (App.MainController != null)
+{
+       App.MainController.JogSpeedPercentage = 50;
+   Log($"> ✅ Jog hızı %50 olarak sıfırlandı");
+      }
+        }, "JogSpeed_Reset", Log);
+        }
+
         #endregion
 
         #region Step Controls - 🆕 REFACTORED: Using EventHandlerHelper pattern

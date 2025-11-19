@@ -42,6 +42,10 @@ namespace CncControlApp.Controls
         // ✅ ADD: Helper method for logging (eliminates nullable method group issues)
         private void Log(string message) => App.MainController?.AddLogMessage(message);
 
+        // Constant values
+        private const double SafeZLiftMm = 5.0; // Z lift before XY rapid if near surface
+        private const double TouchArrivalThresholdMm = 0.5; // distance to consider arrived at touched point
+
         public RotationPopup(CncControlApp.GCodeView gcodeView)
         {
             InitializeComponent();
@@ -553,125 +557,228 @@ namespace CncControlApp.Controls
         {
             try
             {
-                if (_lastTouchedMachineX.HasValue && _lastTouchedMachineY.HasValue && App.MainController?.IsConnected == true)
+                // NEW: Homing guard – block jog if machine not homed yet
+                if (!(App.MainController?.HasHomed ?? false))
                 {
-                    // Start machine position animation
-                    StartMachinePositionUpdateTimer();
-
-                    string cmd = string.Format(CultureInfo.InvariantCulture, "G53 G00 X{0:F3} Y{1:F3}", _lastTouchedMachineX.Value, _lastTouchedMachineY.Value);
-                    Log($"> Rotation popup G53 jog: {cmd}");
-                    bool ok = await App.MainController.SendGCodeCommandWithConfirmationAsync(cmd);
-
-                    // Small deterministic wait, then wait idle
-                    await System.Threading.Tasks.Task.Delay(200);
-                    await WaitForIdleState();
-
-                    StopMachinePositionUpdateTimer();
-
-                    // ✅ ALWAYS show zero popup after G00 completes
-                    bool auto = true; // Always show zero popup (no toggle)
-                    Log($"> Post-G00: Auto-zero ALWAYS enabled, cmdOk={ok}");
-
-                    // Show zero popup if not already awaiting
-                    if (auto && !_awaitingZeroPrompt)
+                    Log("> ⚠️ Homing yapılmamış – G53 jog engellendi");
+                    bool startHome = false;
+                    try
                     {
-                        _awaitingZeroPrompt = true;
+                        // Use existing MessageDialog if available
+                        startHome = Controls.MessageDialog.ShowConfirm(
+                            "Homing Gerekli",
+                            "Makine henüz HOMING ($H) yapılmamış.\n\n" +
+                            "G53 ile makine koordinatlarında güvenli hareket için önce Homing tamamlanmalı.\n\n" +
+                            "Homing işlemini şimdi başlatmak ister misiniz? (Limit switch'lere gidecek)");
+                    }
+                    catch { }
+
+                    if (startHome && App.MainController?.IsConnected == true)
+                    {
                         try
                         {
-                            bool userConfirmed = await ShowZeroConfirmationDialog();
-                            if (userConfirmed)
+                            Log("> 🏠 Homing başlatılıyor ($H)...");
+                            bool homed = await App.MainController.HomeAllAsync();
+                            Log(homed ? "> ✅ Homing tamamlandı – jog tekrar deneyebilirsiniz" : "> ❌ Homing başarısız – jog iptal edildi");
+                        }
+                        catch (Exception hx) { Log($"> ❌ Homing hata: {hx.Message}"); }
+                    }
+                    else
+                    {
+                        // Optionally show blocking popup window if user did not start homing
+                        try
+                        {
+                            var existing = Application.Current.Windows.OfType<CncControlApp.HomingRequiredPopup>().FirstOrDefault();
+                            if (existing == null)
                             {
-                                Log("> User confirmed zero; sending G10 L20 P0 X0 Y0");
-                                string zeroCmd = "G10 L20 P0 X0 Y0";
-                                bool zeroSuccess = await App.MainController.SendGCodeCommandWithConfirmationAsync(zeroCmd);
-                                if (zeroSuccess)
+                                var mw = Application.Current.MainWindow;
+                                var popup = new CncControlApp.HomingRequiredPopup { Owner = mw, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+                                popup.Show();
+                                Log("> ⚠️ HomingRequiredPopup gösterildi (RotationPopup)");
+                            }
+                        }
+                        catch { }
+                    }
+                    return; // Do not proceed with jog until homed
+                }
+
+                if (_lastTouchedMachineX.HasValue && _lastTouchedMachineY.HasValue && App.MainController?.IsConnected == true)
+                    if (!_lastTouchedMachineX.HasValue || !_lastTouchedMachineY.HasValue)
+                    {
+                        // Start machine position animation
+                        Log("> ⚠️ No touched point set – ignoring jog request");
+                        return;
+                    }
+                if (App.MainController?.IsConnected != true)
+                {
+                    Log("> ❌ Not connected – cannot jog");
+                    return;
+                }
+
+                // Current status snapshot
+                var mStatus = App.MainController.MStatus;
+                double currentMachineX = mStatus?.X ??0; // machine coords
+                double currentMachineY = mStatus?.Y ??0;
+                double currentWorkX = mStatus?.WorkX ??0; // work coords
+                double currentWorkY = mStatus?.WorkY ??0;
+                double currentWorkZ = mStatus?.WorkZ ??0;
+
+                // Selected point assumed MACHINE coordinates (produced by WorkspaceTransform.ToMachine)
+                double targetMachineX = _lastTouchedMachineX.Value;
+                double targetMachineY = _lastTouchedMachineY.Value;
+
+                // Clamp to table limits (settings $130/$131)
+                double tableMaxX = double.MaxValue;
+                double tableMaxY = double.MaxValue;
+                try
+                {
+                    var xLimit = App.MainController.Settings?.FirstOrDefault(s => s.Id ==130);
+                    var yLimit = App.MainController.Settings?.FirstOrDefault(s => s.Id ==131);
+                    if (xLimit != null && double.TryParse(xLimit.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double limX)) tableMaxX = limX;
+                    if (yLimit != null && double.TryParse(yLimit.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double limY)) tableMaxY = limY;
+                }
+                catch { }
+
+                if (targetMachineX <0) { Log($"> ⚠️ Clamping X {targetMachineX:F3} to0"); targetMachineX =0; }
+                if (targetMachineY <0) { Log($"> ⚠️ Clamping Y {targetMachineY:F3} to0"); targetMachineY =0; }
+                if (targetMachineX > tableMaxX) { Log($"> ⚠️ Clamping X {targetMachineX:F3} to {tableMaxX:F3}"); targetMachineX = tableMaxX; }
+                if (targetMachineY > tableMaxY) { Log($"> ⚠️ Clamping Y {targetMachineY:F3} to {tableMaxY:F3}"); targetMachineY = tableMaxY; }
+
+                Log($"> Jog target (machine): X={targetMachineX:F3} Y={targetMachineY:F3} | Current MPos: X={currentMachineX:F3} Y={currentMachineY:F3} | WPos: X={currentWorkX:F3} Y={currentWorkY:F3}");
+
+                // Ensure absolute mode before issuing rapid (G53 uses machine but we still normalize modal state)
+                bool modalOk = await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+                if (!modalOk) Log("> ⚠️ Failed to enforce G90 (absolute) – continuing anyway");
+
+                // Optional safe Z lift if near work surface (simple heuristic)
+                if (currentWorkZ <1.0)
+                {
+                    string liftCmd = $"G91 G00 Z{SafeZLiftMm:F3}"; // relative lift
+                    Log($"> Performing safe Z lift: {liftCmd}");
+                    bool liftOk = await App.MainController.SendGCodeCommandWithConfirmationAsync(liftCmd);
+                    await System.Threading.Tasks.Task.Delay(100);
+                    // Return to absolute mode (for following commands) – G53 unaffected by G91 but be explicit
+                    await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+                    if (!liftOk) Log("> ⚠️ Safe Z lift failed");
+                }
+
+                // Build machine rapid command using G53 (machine coordinate system)
+                string cmd = string.Format(CultureInfo.InvariantCulture, "G53 G00 X{0:F3} Y{1:F3}", targetMachineX, targetMachineY);
+                Log($"> Rotation popup G53 rapid: {cmd}");
+
+                // Start animation timer BEFORE sending so we show motion
+                StartMachinePositionUpdateTimer();
+
+                bool ok = await App.MainController.SendGCodeCommandWithConfirmationAsync(cmd);
+                if (!ok)
+                {
+                    Log("> ❌ Jog command failed – aborting zero prompt");
+                    StopMachinePositionUpdateTimer();
+                    return;
+                }
+
+                // If machine status stayed Idle (very short move) skip long idle wait
+                if (App.MainController.MachineStatus?.StartsWith("Idle", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    await System.Threading.Tasks.Task.Delay(250); // brief stabilization
+                }
+                else
+                {
+                    // Deterministic short pause then wait until machine returns Idle
+                    await System.Threading.Tasks.Task.Delay(200);
+                    await WaitForIdleState();
+                }
+
+                StopMachinePositionUpdateTimer();
+
+                // Decide zero prompt based on toggle field
+                if (_autoZeroEnabled && !_awaitingZeroPrompt)
+                {
+                    _awaitingZeroPrompt = true;
+                    try
+                    {
+                        bool userConfirmed = await ShowZeroConfirmationDialog();
+                        if (userConfirmed)
+                        {
+                            Log("> User confirmed zero; sending G10 L20 P0 X0 Y0");
+                            string zeroCmd = "G10 L20 P0 X0 Y0";
+                            bool zeroSuccess = await App.MainController.SendGCodeCommandWithConfirmationAsync(zeroCmd);
+                            if (zeroSuccess)
+                            {
+                                await System.Threading.Tasks.Task.Delay(300);
+                                try
                                 {
-                                    await System.Threading.Tasks.Task.Delay(300);
-                                    try
-                                    {
-                                        await App.MainController.SendGCodeCommandAsync("?");
-                                        Log("> Status requested after zeroing");
-                                        await System.Threading.Tasks.Task.Delay(200);
-                                    }
-                                    catch (Exception statusEx) { Log($"> ⚠️ ERROR sending status request: {statusEx.Message}"); }
-                                    try
-                                    {
-                                        var disp = Application.Current?.Dispatcher;
-                                        disp?.Invoke(new Action(() =>
-                                        {
-                                            try
-                                            {
-                                                var field = _gcodeView?.GetType().GetField("_fileService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                                                var fileService = field?.GetValue(_gcodeView);
-                                                var redrawMethod = fileService?.GetType().GetMethod("RedrawAllViewports");
-                                                redrawMethod?.Invoke(fileService, null);
-                                                Log("> ✅ Main view redrawn");
-                                            }
-                                            catch (Exception innerEx) { Log($"> ⚠️ Main view redraw error: {innerEx.Message}"); }
-                                        }), DispatcherPriority.Send);
-                                    }
-                                    catch (Exception redrawEx) { Log($"> ⚠️ Main view redraw error: {redrawEx.Message}"); }
-                                    try
-                                    {
-                                        var disp2 = Application.Current?.Dispatcher;
-                                        disp2?.Invoke(new Action(() =>
-                                        {
-                                            if (TopViewCanvas != null && TopViewOverlayCanvas != null)
-                                            {
-                                                _gcodeView?.RedrawPopupTopView(TopViewCanvas, TopViewOverlayCanvas);
-                                                Log("> ✅ Popup view redrawn");
-                                            }
-                                        }), DispatcherPriority.Send);
-                                    }
-                                    catch (Exception popupRedrawEx) { Log($"> ⚠️ Popup view redraw error: {popupRedrawEx.Message}"); }
+                                    await App.MainController.SendGCodeCommandAsync("?");
+                                    Log("> Status requested after zeroing");
+                                    await System.Threading.Tasks.Task.Delay(150);
                                 }
-                                else
+                                catch (Exception statusEx) { Log($"> ⚠️ Status request error: {statusEx.Message}"); }
+
+                                // Redraw main viewports
+                                try
                                 {
-                                    Log($"> ❌ Failed to set X and Y to zero");
+                                    var disp = Application.Current?.Dispatcher;
+                                    disp?.Invoke(new Action(() =>
+                                    {
+                                        try
+                                        {
+                                            var field = _gcodeView?.GetType().GetField("_fileService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                                            var fileService = field?.GetValue(_gcodeView);
+                                            var redrawMethod = fileService?.GetType().GetMethod("RedrawAllViewports");
+                                            redrawMethod?.Invoke(fileService, null);
+                                            Log("> ✅ Main viewports redrawn");
+                                        }
+                                        catch (Exception innerEx) { Log($"> ⚠️ Main view redraw error: {innerEx.Message}"); }
+                                    }), DispatcherPriority.Send);
                                 }
+                                catch (Exception redrawEx) { Log($"> ⚠️ Main view redraw dispatch error: {redrawEx.Message}"); }
+
+                                // Redraw popup
+                                try
+                                {
+                                    if (TopViewCanvas != null && TopViewOverlayCanvas != null)
+                                    {
+                                        _gcodeView?.RedrawPopupTopView(TopViewCanvas, TopViewOverlayCanvas);
+                                        Log("> ✅ Popup view redrawn");
+                                    }
+                                }
+                                catch (Exception popupEx) { Log($"> ⚠️ Popup redraw error: {popupEx.Message}"); }
                             }
                             else
                             {
-                                Log($"> User cancelled zero setting");
+                                Log("> ❌ Failed to set X/Y zero (G10)");
                             }
                         }
-                        finally
+                        else
                         {
-                            _awaitingZeroPrompt = false;
+                            Log("> User cancelled zero");
                         }
                     }
-
-                    // Redraw canvas after movement completes
-                    // ✅ REFACTORED: Use UiHelper.RunOnUi() instead of Dispatcher.InvokeAsync
-                    UiHelper.RunOnUi(() =>
+                    catch (Exception zeroPromptEx)
                     {
-                        if (TopViewCanvas != null && TopViewOverlayCanvas != null)
-                        {
-                            Log($"> Redrawing popup canvas after G53 movement");
-                            _gcodeView?.RedrawPopupTopView(TopViewCanvas, TopViewOverlayCanvas);
-                        }
-                    });
-
-                    // Redraw canvas after movement completes
-                    var disp3 = Application.Current?.Dispatcher;
-                    try
-                    {
-                        disp3?.Invoke(new Action(() =>
-                        {
-                            if (TopViewCanvas != null && TopViewOverlayCanvas != null)
-                            {
-                                Log("> Redrawing popup canvas after G53 movement");
-                                _gcodeView?.RedrawPopupTopView(TopViewCanvas, TopViewOverlayCanvas);
-                            }
-                        }), DispatcherPriority.Send);
+                        Log($"> ❌ Zero dialog error: {zeroPromptEx.Message}");
                     }
-                    catch (Exception invEx) { Log($"> ⚠️ Redraw invoke error: {invEx.Message}"); }
+                    finally
+                    {
+                        _awaitingZeroPrompt = false; // always release gate
+                    }
                 }
+
+                // Final popup redraw (single occurrence – removed duplicates)
+                UiHelper.RunOnUi(() =>
+                {
+                    if (TopViewCanvas != null && TopViewOverlayCanvas != null)
+                    {
+                        Log("> Final redraw after jog");
+                        _gcodeView?.RedrawPopupTopView(TopViewCanvas, TopViewOverlayCanvas);
+                    }
+                });
             }
             catch (Exception ex)
             {
                 StopMachinePositionUpdateTimer();
-                Log($"> ❌ ERROR: Rotation popup G53 jog - {ex.Message}");
+                _awaitingZeroPrompt = false; // ensure gate released on unexpected errors
+                Log($"> ❌ ERROR during jog sequence: {ex.Message}");
             }
         }
 
@@ -828,7 +935,7 @@ namespace CncControlApp.Controls
                     {
                         double dx = Math.Abs(currentX - _lastTouchedMachineX.Value);
                         double dy = Math.Abs(currentY - _lastTouchedMachineY.Value);
-                        if (Math.Sqrt(dx * dx + dy * dy) <0.5)
+                        if (Math.Sqrt(dx * dx + dy * dy) < TouchArrivalThresholdMm)
                         {
                             ClearTouchPointMarker();
                             _lastTouchedMachineX = null; _lastTouchedMachineY = null;

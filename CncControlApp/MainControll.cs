@@ -913,6 +913,8 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
                         if (_timerTickCount >=400) _timerTickCount =0;
                     }
                 }
+
+                TryAutoCompleteIfIdle();
             }
             catch (Exception ex)
             {
@@ -920,6 +922,37 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
             }
         }
         private async Task<bool> QueryStatusOnce(int? requestedIntervalMs = null) => await StatusQueryService.QueryStatusOnce(requestedIntervalMs);
+
+        private void TryAutoCompleteIfIdle()
+        {
+            try
+            {
+                if (_gCodeManager == null) return;
+                if (!isGCodeRunning) return; // already not running
+                var status = MachineStatus ?? string.Empty;
+                if (!status.StartsWith("Idle", StringComparison.OrdinalIgnoreCase)) return;
+                var lines = _gCodeManager.GCodeLines;
+                if (lines == null || lines.Count ==0) return;
+                if (_gCodeManager.LastCompletedLineIndex == lines.Count -1)
+                {
+                    FinishSuccessfulRun();
+                }
+            }
+            catch { }
+        }
+
+        private void FinishSuccessfulRun()
+        {
+            try
+            {
+                if (!isGCodeRunning) return;
+                isGCodeRunning = false;
+                OnPropertyChanged(nameof(IsGCodeRunning));
+                // Notify execution completed success
+                OnGCodeExecutionCompleted(_gCodeManager, true);
+            }
+            catch { }
+        }
 
         // Buffer helpers
         private void ClearBuffer() { try { _dataProcessingManager?.ClearBuffer(); AddLogMessage("> 🧹 Buffer cleared"); } catch (Exception ex) { AddLogMessage($"> ❌ Buffer clear error: {ex.Message}"); } }

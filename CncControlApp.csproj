@@ -96,6 +96,9 @@
     <Compile Include="CncControlApp\Controls\MessageDialog.xaml.cs">
       <DependentUpon>MessageDialog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="CncControlApp\Controls\PanelJogCanvasView.xaml.cs">
+      <DependentUpon>PanelJogCanvasView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="CncControlApp\Controls\PanelJogView.xaml.cs">
       <DependentUpon>PanelJogView.xaml</DependentUpon>
     </Compile>
@@ -229,6 +232,9 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="CncControlApp\Controls\MessageDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="CncControlApp\Controls\PanelJogCanvasView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="CncControlApp\Controls\PanelJogView.xaml">

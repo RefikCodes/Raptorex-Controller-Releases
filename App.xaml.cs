@@ -43,7 +43,7 @@ namespace CncControlApp
             catch (Exception ex)
             {
                 var logPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log");
-                var message = $"STARTUP ERROR:\n{ex.ToString()}\n\nStack Trace:\n{ex.StackTrace}\n";
+                var message = $"STARTUP ERROR:\n{ex}\n\nStack Trace:\n{ex.StackTrace}\n";
                 System.IO.File.WriteAllText(logPath, message);
                 MessageBox.Show($"Startup Error: {ex.Message}\n\nDetails logged to: {logPath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown(1);
@@ -68,6 +68,26 @@ namespace CncControlApp
                 }
             });
 #endif
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            try
+            {
+                var mc = MainController;
+                if (mc?.IsConnected == true && mc.IsGCodeRunning)
+                {
+                    mc.AddLogMessage("> ⚠️ Application exiting while G-Code is still running – issuing feed hold + soft reset to stop machine.");
+                    // Feed hold '!' then soft reset (Ctrl-X0x18) to clear planner
+                    try { mc.SendControlCharacterAsync('!').GetAwaiter().GetResult(); } catch { }
+                    // small delay to let controller enter Hold
+                    System.Threading.Thread.Sleep(250);
+                    try { mc.SendControlCharacterAsync((char)0x18).GetAwaiter().GetResult(); } catch { }
+                    mc.AddLogMessage("> 🛑 Emergency stop sequence sent during exit.");
+                }
+            }
+            catch { }
+            base.OnExit(e);
         }
     }
 }

@@ -375,43 +375,53 @@
         <ContentControl Grid.Row="1" 
                         x:Name="MainContent" Grid.ColumnSpan="1" Margin="20,5,5,10" Height="Auto" Background="#FF2D2D30" />
 
-        <!-- Right side: Coordinates + Actions + Probe/Blank container (final) -->
-        <Grid Grid.Row="1" Grid.Column="1" Margin="5,5,0,10">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+        <!-- Right side: Coordinates + Actions + Canvas + Probe container -->
+      <Grid Grid.Row="1" Grid.Column="1" Margin="5,5,0,10">
+         <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+     <RowDefinition Height="Auto"/>
+     <RowDefinition Height="*"/>
+  </Grid.RowDefinitions>
 
-            <!-- Coordinates panel (top, natural size) -->
-            <local:CoordinatesView x:Name="MainCoordinatesView"
-                                   Grid.Row="0"
-                                   SnapsToDevicePixels="True"
-                                   Margin="5,0,5,5"
-                                   VerticalAlignment="Top" />
+  <!-- Coordinates panel (top, natural size) -->
+   <local:CoordinatesView x:Name="MainCoordinatesView"
+   Grid.Row="0"
+           SnapsToDevicePixels="True"
+  Margin="5,0,5,5"
+     VerticalAlignment="Top" />
 
-            <!-- Home / Zero All panel (below coordinates, hidden by default) -->
-            <local:HomeZeroPanelView x:Name="HomeZeroActionsPanel"
-                                      Grid.Row="1"
-                                      Margin="5,0,5,0"
-                                      VerticalAlignment="Top"
-                                      Visibility="Collapsed" />
+        <!-- Home / Zero All panel (below coordinates, hidden by default) -->
+     <local:HomeZeroPanelView x:Name="HomeZeroActionsPanel"
+    Grid.Row="1"
+   Margin="5,0,5,5"
+     VerticalAlignment="Top"
+        Visibility="Collapsed" />
 
-            <!-- Probe panel sits in bottom row during Probe menu -->
-            <ctrls:ProbePanelView x:Name="MainProbePanel"
-                                            Grid.Row="1"
-                                            Margin="5,0,5,0"
-                                            Visibility="Collapsed" />
+     <!-- NEW: Workspace Canvas (expands to fill remaining space) -->
+     <ctrls:PanelJogCanvasView x:Name="MainPanelJogCanvas"
+  Grid.Row="2"
+        Margin="5,0,5,0"
+       VerticalAlignment="Stretch"
+   HorizontalAlignment="Stretch"
+   Visibility="Visible" />
 
-            <!-- Settings/Status blank panel overlays both rows when visible -->
-            <Border x:Name="RightBlankPanel"
-                    Grid.Row="0"
-                    Grid.RowSpan="2"
-                    Background="#FF2D2D30"
-                    BorderBrush="#FFA2A2A4"
-                    BorderThickness="1"
-                    CornerRadius="10"
-                    Padding="16"
-                    Visibility="Collapsed">
+ <!-- Probe panel sits in bottom row during Probe menu -->
+  <ctrls:ProbePanelView x:Name="MainProbePanel"
+    Grid.Row="1"
+        Grid.RowSpan="2"
+  Margin="5,0,5,0"
+  Visibility="Collapsed" />
+
+  <!-- Settings/Status blank panel overlays all rows when visible -->
+     <Border x:Name="RightBlankPanel"
+        Grid.Row="0"
+       Grid.RowSpan="3"
+    Background="#FF2D2D30"
+           BorderBrush="#FFA2A2A4"
+    BorderThickness="1"
+     CornerRadius="10"
+     Padding="16"
+        Visibility="Collapsed">
                 <!-- existing blank content remains unchanged -->
                 <Grid>
                     <Grid.RowDefinitions>

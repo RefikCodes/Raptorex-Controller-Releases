@@ -127,7 +127,7 @@ namespace CncControlApp
    }
   }
      
-     // ✅ CRITICAL: Detect execution completion when machine goes Idle after running
+     // CRITICAL: Detect execution completion when machine goes Idle after running
    if (e.PropertyName == nameof(MainControll.MachineStatus) && 
    running && 
      state.StartsWith("Idle", StringComparison.OrdinalIgnoreCase))
@@ -137,32 +137,15 @@ namespace CncControlApp
    
       if (allLinesSent)
      {
-       App.MainController?.AddLogMessage("> ✅ Machine Idle + All lines sent = Execution Complete!");
+       App.MainController?.AddLogMessage("> ✅ Detected Idle with all lines completed – marking execution finished.");
           
- // Set IsGCodeRunning to false
-       try 
-         { 
-var prop = mgr.GetType().GetProperty("IsGCodeRunning", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
-    if (prop != null && prop.CanWrite)
-  {
- prop.SetValue(mgr, false);
-  }
-  } 
-   catch { }
-         
-    // Fire ExecutionCompleted event
-             try
-           {
-                 var eventField = mgr.GetType().GetField("ExecutionCompleted", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-      if (eventField != null)
-      {
-      var eventDelegate = (EventHandler<bool>)eventField.GetValue(mgr);
-           eventDelegate?.Invoke(mgr, true);
-       }
-             }
-         catch { }
-             
-   App.MainController?.AddLogMessage("> 🎉 ExecutionCompleted event fired!");
+ // Set controller run flag false
+       try { typeof(MainControll).GetField("isGCodeRunning", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(App.MainController, false); } catch { }
+ // Reset manager internal running flag if present
+       try { typeof(Managers.GCodeExecutionManager).GetField("_isGCodeRunning", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(mgr, false); } catch { }
+ // Invoke completion handler without reflection hack if event helper exists
+       try { OnExecutionCompleted(mgr, true); } catch { }
+             UpdateExecutionControlButtons();
    }
  }
      
@@ -224,50 +207,24 @@ _updateScheduled = false;
         {
  try
 {
-        Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+ Application.Current.Dispatcher.BeginInvoke(new Action(() =>
  {
-// 1) GCode display flags reset
  ResetAllLineStatus();
-
-// 2) Manager counters reset (ensure visuals reflect zero state)
-      var mgr = App.MainController?.GCodeManager;
+ var mgr = App.MainController?.GCodeManager;
  mgr?.ResetExecutionState();
-
-       // 3) UI counters/texts
-  if (ProgressTextBlock != null) ProgressTextBlock.Text = "0.0%";
-         if (ExecutionTimeTextBlock != null) ExecutionTimeTextBlock.Text = "00:00:00";
-         if (RemainingTimeTextBlock != null) RemainingTimeTextBlock.Text = "--:--:--";
-   if (StatusTextBlock != null)
-   {
-       StatusTextBlock.Text = "Ready";
-   StatusTextBlock.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(52, 199, 89));
-    }
-
-        // 4) Focus top of list
-  if (GCodeListBox != null && GCodeListBox.Items.Count > 0)
-  {
-   try
-      {
-     _suppressSelectionChanged = true;
-   GCodeListBox.SelectedIndex = 0;
-    GCodeListBox.ScrollIntoView(GCodeListBox.Items[0]);
-   }
-finally { _suppressSelectionChanged = false; }
+ if (ProgressTextBlock != null) ProgressTextBlock.Text = "0.0%";
+ if (ExecutionTimeTextBlock != null) ExecutionTimeTextBlock.Text = "00:00:00";
+ if (RemainingTimeTextBlock != null) RemainingTimeTextBlock.Text = "--:--:--";
+ if (StatusTextBlock != null)
+ { StatusTextBlock.Text = "Ready"; StatusTextBlock.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(52,199,89)); }
+ if (GCodeListBox != null && GCodeListBox.Items.Count >0)
+ { try { _suppressSelectionChanged = true; GCodeListBox.SelectedIndex =0; GCodeListBox.ScrollIntoView(GCodeListBox.Items[0]); } finally { _suppressSelectionChanged = false; } }
+ UpdateExecutionControlButtons();
+ UpdateOverridesFromExecutionManager();
+ StopExecutionModalUpdates();
+ ClearLiveTrace();
+ }), DispatcherPriority.Background);
  }
-
-// 5) Ensure Run button returns to RUN state
-  UpdateExecutionControlButtons();
-      
-    // 6) Reset override state since program is stopped
-    UpdateOverridesFromExecutionManager();
-     
-        // 7) Ensure execution updates are stopped
-         StopExecutionModalUpdates();
-        
-    // 8) ✅ Clear live trace
-         ClearLiveTrace();
-      }), DispatcherPriority.Background);
-          }
 catch { }
         }
    
