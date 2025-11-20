@@ -254,7 +254,7 @@ namespace CncControlApp.Controls
             try
             {
                 double angle = _pendingAngle;
-                bool hasRotation = Math.Abs(angle) >0.0001;
+                bool hasRotation = Math.Abs(angle) > 0.0001;
                 if (ApplyButton != null) ApplyButton.IsEnabled = hasRotation;
                 if (ResetButton != null) ResetButton.IsEnabled = hasRotation;
             }
@@ -332,7 +332,7 @@ namespace CncControlApp.Controls
             {
                 _redrawDebounceTimer.Stop(); // Stop any pending redraws
                 RotationSlider.Value = 0;
-                _pendingAngle =0;
+                _pendingAngle = 0;
                 _gcodeView?.ResetRotation();
 
                 // Immediate redraw on reset
@@ -365,7 +365,7 @@ namespace CncControlApp.Controls
 
                 // Clear any transient transform and reset angle
                 if (TopViewCanvas != null) TopViewCanvas.RenderTransform = null;
-                RotationSlider.Value =0; // will update angle text and pending angle via ValueChanged
+                RotationSlider.Value = 0; // will update angle text and pending angle via ValueChanged
                 _pendingAngle = 0;
 
                 // Redraw popup canvas from fresh data
@@ -557,55 +557,11 @@ namespace CncControlApp.Controls
         {
             try
             {
-                // NEW: Homing guard – block jog if machine not homed yet
-                if (!(App.MainController?.HasHomed ?? false))
-                {
-                    Log("> ⚠️ Homing yapılmamış – G53 jog engellendi");
-                    bool startHome = false;
-                    try
-                    {
-                        // Use existing MessageDialog if available
-                        startHome = Controls.MessageDialog.ShowConfirm(
-                            "Homing Gerekli",
-                            "Makine henüz HOMING ($H) yapılmamış.\n\n" +
-                            "G53 ile makine koordinatlarında güvenli hareket için önce Homing tamamlanmalı.\n\n" +
-                            "Homing işlemini şimdi başlatmak ister misiniz? (Limit switch'lere gidecek)");
-                    }
-                    catch { }
-
-                    if (startHome && App.MainController?.IsConnected == true)
-                    {
-                        try
-                        {
-                            Log("> 🏠 Homing başlatılıyor ($H)...");
-                            bool homed = await App.MainController.HomeAllAsync();
-                            Log(homed ? "> ✅ Homing tamamlandı – jog tekrar deneyebilirsiniz" : "> ❌ Homing başarısız – jog iptal edildi");
-                        }
-                        catch (Exception hx) { Log($"> ❌ Homing hata: {hx.Message}"); }
-                    }
-                    else
-                    {
-                        // Optionally show blocking popup window if user did not start homing
-                        try
-                        {
-                            var existing = Application.Current.Windows.OfType<CncControlApp.HomingRequiredPopup>().FirstOrDefault();
-                            if (existing == null)
-                            {
-                                var mw = Application.Current.MainWindow;
-                                var popup = new CncControlApp.HomingRequiredPopup { Owner = mw, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-                                popup.Show();
-                                Log("> ⚠️ HomingRequiredPopup gösterildi (RotationPopup)");
-                            }
-                        }
-                        catch { }
-                    }
-                    return; // Do not proceed with jog until homed
-                }
+                // Homing kontrolü kaldırıldı: HOMING yapılmamış olsa da hareket engellenmeyecek
 
                 if (_lastTouchedMachineX.HasValue && _lastTouchedMachineY.HasValue && App.MainController?.IsConnected == true)
                     if (!_lastTouchedMachineX.HasValue || !_lastTouchedMachineY.HasValue)
                     {
-                        // Start machine position animation
                         Log("> ⚠️ No touched point set – ignoring jog request");
                         return;
                     }
@@ -617,11 +573,11 @@ namespace CncControlApp.Controls
 
                 // Current status snapshot
                 var mStatus = App.MainController.MStatus;
-                double currentMachineX = mStatus?.X ??0; // machine coords
-                double currentMachineY = mStatus?.Y ??0;
-                double currentWorkX = mStatus?.WorkX ??0; // work coords
-                double currentWorkY = mStatus?.WorkY ??0;
-                double currentWorkZ = mStatus?.WorkZ ??0;
+                double currentMachineX = mStatus?.X ?? 0; // machine coords
+                double currentMachineY = mStatus?.Y ?? 0;
+                double currentWorkX = mStatus?.WorkX ?? 0; // work coords
+                double currentWorkY = mStatus?.WorkY ?? 0;
+                double currentWorkZ = mStatus?.WorkZ ?? 0;
 
                 // Selected point assumed MACHINE coordinates (produced by WorkspaceTransform.ToMachine)
                 double targetMachineX = _lastTouchedMachineX.Value;
@@ -632,15 +588,15 @@ namespace CncControlApp.Controls
                 double tableMaxY = double.MaxValue;
                 try
                 {
-                    var xLimit = App.MainController.Settings?.FirstOrDefault(s => s.Id ==130);
-                    var yLimit = App.MainController.Settings?.FirstOrDefault(s => s.Id ==131);
+                    var xLimit = App.MainController.Settings?.FirstOrDefault(s => s.Id == 130);
+                    var yLimit = App.MainController.Settings?.FirstOrDefault(s => s.Id == 131);
                     if (xLimit != null && double.TryParse(xLimit.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double limX)) tableMaxX = limX;
                     if (yLimit != null && double.TryParse(yLimit.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double limY)) tableMaxY = limY;
                 }
                 catch { }
 
-                if (targetMachineX <0) { Log($"> ⚠️ Clamping X {targetMachineX:F3} to0"); targetMachineX =0; }
-                if (targetMachineY <0) { Log($"> ⚠️ Clamping Y {targetMachineY:F3} to0"); targetMachineY =0; }
+                if (targetMachineX < 0) { Log($"> ⚠️ Clamping X {targetMachineX:F3} to 0"); targetMachineX = 0; }
+                if (targetMachineY < 0) { Log($"> ⚠️ Clamping Y {targetMachineY:F3} to 0"); targetMachineY = 0; }
                 if (targetMachineX > tableMaxX) { Log($"> ⚠️ Clamping X {targetMachineX:F3} to {tableMaxX:F3}"); targetMachineX = tableMaxX; }
                 if (targetMachineY > tableMaxY) { Log($"> ⚠️ Clamping Y {targetMachineY:F3} to {tableMaxY:F3}"); targetMachineY = tableMaxY; }
 
@@ -651,7 +607,7 @@ namespace CncControlApp.Controls
                 if (!modalOk) Log("> ⚠️ Failed to enforce G90 (absolute) – continuing anyway");
 
                 // Optional safe Z lift if near work surface (simple heuristic)
-                if (currentWorkZ <1.0)
+                if (currentWorkZ < 1.0)
                 {
                     string liftCmd = $"G91 G00 Z{SafeZLiftMm:F3}"; // relative lift
                     Log($"> Performing safe Z lift: {liftCmd}");
@@ -677,19 +633,22 @@ namespace CncControlApp.Controls
                     return;
                 }
 
-                // If machine status stayed Idle (very short move) skip long idle wait
-                if (App.MainController.MachineStatus?.StartsWith("Idle", StringComparison.OrdinalIgnoreCase) == true)
-                {
-                    await System.Threading.Tasks.Task.Delay(250); // brief stabilization
-                }
-                else
-                {
-                    // Deterministic short pause then wait until machine returns Idle
-                    await System.Threading.Tasks.Task.Delay(200);
-                    await WaitForIdleState();
-                }
+                // Always wait deterministically for Idle after movement completes
+                await WaitForIdleState();
 
                 StopMachinePositionUpdateTimer();
+
+                // Redraw popup canvas BEFORE asking for Zero confirmation – ensures visual state is final
+                UiHelper.RunOnUi(() =>
+                {
+                    if (TopViewCanvas != null && TopViewOverlayCanvas != null)
+                    {
+                        Log("> Redraw after jog and before zero confirm");
+                        _gcodeView?.RedrawPopupTopView(TopViewCanvas, TopViewOverlayCanvas);
+                        UpdatePopupLiveFitLabel(_pendingAngle);
+                        RepositionMarkersAfterResize();
+                    }
+                }, DispatcherPriority.Send);
 
                 // Decide zero prompt based on toggle field
                 if (_autoZeroEnabled && !_awaitingZeroPrompt)
@@ -852,20 +811,20 @@ namespace CncControlApp.Controls
                 if (TopViewOverlayCanvas == null) return;
                 if (_touchPointMarker != null) TopViewOverlayCanvas.Children.Remove(_touchPointMarker);
                 if (_touchPointLabel != null) TopViewOverlayCanvas.Children.Remove(_touchPointLabel);
-                _touchPointMarker = new Ellipse { Width =20, Height =20, Stroke = new SolidColorBrush(Colors.Gold), StrokeThickness =3, Fill = new SolidColorBrush(Color.FromArgb(100,255,215,0)), IsHitTestVisible = false };
-                Canvas.SetLeft(_touchPointMarker, touchPoint.X -10);
-                Canvas.SetTop(_touchPointMarker, touchPoint.Y -10);
-                Canvas.SetZIndex(_touchPointMarker,1000);
+                _touchPointMarker = new Ellipse { Width = 20, Height = 20, Stroke = new SolidColorBrush(Colors.Gold), StrokeThickness = 3, Fill = new SolidColorBrush(Color.FromArgb(100, 255, 215, 0)), IsHitTestVisible = false };
+                Canvas.SetLeft(_touchPointMarker, touchPoint.X - 10);
+                Canvas.SetTop(_touchPointMarker, touchPoint.Y - 10);
+                Canvas.SetZIndex(_touchPointMarker, 1000);
                 TopViewOverlayCanvas.Children.Add(_touchPointMarker);
                 if (_lastTouchedMachineX.HasValue && _lastTouchedMachineY.HasValue)
                 {
-                    _touchPointLabel = new TextBlock { Text = $"X:{_lastTouchedMachineX.Value:F2}\nY:{_lastTouchedMachineY.Value:F2}", Foreground = new SolidColorBrush(Colors.Gold), FontFamily = new FontFamily("Consolas"), FontSize =12, FontWeight = FontWeights.Bold, Background = new SolidColorBrush(Color.FromArgb(160,0,0,0)), Padding = new Thickness(4), TextAlignment = TextAlignment.Center };
-                    Canvas.SetLeft(_touchPointLabel, touchPoint.X +14);
-                    Canvas.SetTop(_touchPointLabel, touchPoint.Y -6);
-                    Canvas.SetZIndex(_touchPointLabel,1001);
+                    _touchPointLabel = new TextBlock { Text = $"X:{_lastTouchedMachineX.Value:F2}\nY:{_lastTouchedMachineY.Value:F2}", Foreground = new SolidColorBrush(Colors.Gold), FontFamily = new FontFamily("Consolas"), FontSize = 12, FontWeight = FontWeights.Bold, Background = new SolidColorBrush(Color.FromArgb(160, 0, 0, 0)), Padding = new Thickness(4), TextAlignment = TextAlignment.Center };
+                    Canvas.SetLeft(_touchPointLabel, touchPoint.X + 14);
+                    Canvas.SetTop(_touchPointLabel, touchPoint.Y - 6);
+                    Canvas.SetZIndex(_touchPointLabel, 1001);
                     TopViewOverlayCanvas.Children.Add(_touchPointLabel);
                 }
-                var pulseAnimation = new DoubleAnimation { From =1.0, To =0.6, Duration = TimeSpan.FromMilliseconds(500), AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+                var pulseAnimation = new DoubleAnimation { From = 1.0, To = 0.6, Duration = TimeSpan.FromMilliseconds(500), AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
                 _touchPointMarker.BeginAnimation(UIElement.OpacityProperty, pulseAnimation);
             }
             catch { }
@@ -890,10 +849,10 @@ namespace CncControlApp.Controls
                     return;
                 }
                 if (_machineMarker != null) TopViewOverlayCanvas.Children.Remove(_machineMarker);
-                _machineMarker = new Ellipse { Width =18, Height =18, Stroke = new SolidColorBrush(Colors.Lime), StrokeThickness =3, Fill = new SolidColorBrush(Color.FromArgb(120,0,255,0)), IsHitTestVisible = false };
-                Canvas.SetLeft(_machineMarker, machinePoint.Value.X -9);
-                Canvas.SetTop(_machineMarker, machinePoint.Value.Y -9);
-                Canvas.SetZIndex(_machineMarker,999);
+                _machineMarker = new Ellipse { Width = 18, Height = 18, Stroke = new SolidColorBrush(Colors.Lime), StrokeThickness = 3, Fill = new SolidColorBrush(Color.FromArgb(120, 0, 255, 0)), IsHitTestVisible = false };
+                Canvas.SetLeft(_machineMarker, machinePoint.Value.X - 9);
+                Canvas.SetTop(_machineMarker, machinePoint.Value.Y - 9);
+                Canvas.SetZIndex(_machineMarker, 999);
                 TopViewOverlayCanvas.Children.Add(_machineMarker);
             }
             catch { }
