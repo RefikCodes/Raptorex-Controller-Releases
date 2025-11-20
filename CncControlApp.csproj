@@ -149,7 +149,10 @@
     <Compile Include="CncControlApp\GCodeView.xaml.cs">
       <DependentUpon>GCodeView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="CncControlApp\GCodeVisualization.cs" />
+    <Compile Include="CncControlApp\GCodeVisualization.CoreRendering.cs" />
+    <Compile Include="CncControlApp\GCodeVisualization.FitChecking.cs" />
+    <Compile Include="CncControlApp\GCodeVisualization.OtherViewports.cs" />
+    <Compile Include="CncControlApp\GCodeVisualization.ZAnalysis.cs" />
     <Compile Include="CncControlApp\GCodeVisualizationOptimized.cs" />
     <Compile Include="CncControlApp\Handlers\ControlButtonHandler.cs" />
     <Compile Include="CncControlApp\Handlers\JogMovementHandler.cs" />
@@ -325,11 +328,13 @@
     </EmbeddedResource>
     <None Include="A4_WaitForControllerReady_Change.md" />
     <None Include="CENTER_X_PROBE_FIX.md" />
+    <None Include="DRAWING_ISSUES_FIXED_SUMMARY.md" />
     <None Include="Fix-All-Encoding.ps1" />
     <None Include="Fix-Emoji-Characters.ps1" />
     <None Include="Fix-Encoding.ps1" />
     <None Include="GCODEVIEW_FINAL_REFINEMENT_SUMMARY.md" />
     <None Include="GCODEVISUALIZATION_DISPATCHER_REFACTORING.md" />
+    <None Include="GCODE_VISUALIZATION_FIX_INSTRUCTIONS.md" />
     <None Include="HELPER_QUICK_REFERENCE.md" />
     <None Include="JOGVIEW_3AXIS_COMPACT_SOLUTION.md" />
     <None Include="JOGVIEW_REFACTORING_PHASE3.md" />
@@ -350,6 +355,7 @@
     <None Include="ROTATION_POPUP_DISPATCHER_REFACTORING.md" />
     <None Include="ROTATION_POPUP_MANUAL_FIX_INSTRUCTIONS.md" />
     <None Include="ROTATION_POPUP_ZERO_DIALOG_FIX_APPLIED.md" />
+    <None Include="TOPVIEW_DRAWING_ANALYSIS.md" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

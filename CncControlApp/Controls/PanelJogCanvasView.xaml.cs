@@ -17,12 +17,14 @@ namespace CncControlApp.Controls
     public partial class PanelJogCanvasView : UserControl
     {
         private bool _initialized;
-   private double _maxX = 300, _maxY = 200, _maxZ = 100;
-        private double _scale = 1.0;
-      private const double MarginPx = 30.0;
-        private Ellipse _posIndicator;
-        private TextBlock _posLabel;
+    private double _maxX = 300, _maxY = 200, _maxZ = 100;
+    private double _scale = 1.0;
+    private const double MarginPx = 30.0;
+    private Ellipse _posIndicator;
+    private TextBlock _posLabel;
     private bool _settingsLoaded;
+    private System.Collections.Generic.List<GCodeSegment> _lastPreviewSegments; // cached subset
+    private const int MaxPreviewSegments = 5000; // ✅ FIXED: Match TopView limit (was 1500)
 
      public PanelJogCanvasView()
       {
@@ -50,12 +52,19 @@ UpdateCurrentPositionIndicator();
      {
        System.Diagnostics.Debug.WriteLine("⏳ PanelJogCanvas: Waiting for settings to load...");
             }
+            
+            // ✅ SUBSCRIBE: Listen for G-Code preview updates
+            GCodeView.GCodePreviewUpdated -= OnGCodePreviewUpdated; // ensure no duplicate
+            GCodeView.GCodePreviewUpdated += OnGCodePreviewUpdated; // subscribe
+            
+            System.Diagnostics.Debug.WriteLine("✅ PanelJogCanvas: Subscribed to GCodePreviewUpdated event");
   }
 
         private void PanelJogCanvasView_Unloaded(object sender, RoutedEventArgs e)
         {
      UnsubscribeFromSettingsChanges();
    UnsubscribeMposUpdates();
+            GCodeView.GCodePreviewUpdated -= OnGCodePreviewUpdated; // unsubscribe
         }
 
         private void SubscribeToSettingsChanges()
@@ -227,6 +236,10 @@ if (settings != null && settings.Count > 10) // Wait for substantial number of s
    }
 
    DrawWorkspace(w, h);
+   DrawGCodePreview(w, h); // ✅ add miniature preview overlay
+   
+   // ✅ FIX: Always redraw position indicator after canvas refresh
+   UpdateCurrentPositionIndicator();
 }
 
         private void DrawWorkspace(double canvasWidth, double canvasHeight)
@@ -580,5 +593,104 @@ if (lx + 100 > w) lx = cx - 110;
 }
          catch { }
      }
+
+        private void OnGCodePreviewUpdated(System.Collections.Generic.IReadOnlyList<GCodeSegment> segs)
+        {
+            try
+            {
+                if (segs == null || segs.Count == 0)
+                {
+                    _lastPreviewSegments = null;
+                    Redraw(); // clears preview
+                    return;
+                }
+                // cache limited copy for performance
+                _lastPreviewSegments = segs.Take(MaxPreviewSegments).ToList();
+                Redraw(); // triggers preview draw
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Draw G-Code preview using EXACT same method as TopViewCanvas:
+        /// - WorkspaceTransform for scale
+        /// - Place G-code origin at current machine position
+        /// - Use OptimizedGCodeRenderer
+        /// </summary>
+        private void DrawGCodePreview(double canvasWidth, double canvasHeight)
+        {
+            try
+            {
+                if (_lastPreviewSegments == null || _lastPreviewSegments.Count == 0) return;
+
+                // Use same transform as TopView
+                if (!CncControlApp.Helpers.WorkspaceTransform.TryCreateFromSettings(canvasWidth, canvasHeight, out var xf))
+                {
+                    return; // no settings, can't draw
+                }
+
+                // Get current machine position (where spindle is)
+                double currentMachineX = 0;
+                double currentMachineY = 0;
+                if (App.MainController?.MStatus != null)
+                {
+                    currentMachineX = App.MainController.MStatus.X;
+                    currentMachineY = App.MainController.MStatus.Y;
+                }
+
+                // Canvas position of current machine position (G-code origin will be placed here)
+                var machineCanvasPt = xf.ToCanvas(currentMachineX, currentMachineY);
+                double machineCanvasX = machineCanvasPt.X;
+                double machineCanvasY = machineCanvasPt.Y;
+
+                // Z values for color grouping
+                var allZ = _lastPreviewSegments.SelectMany(s => new[] { s.StartPoint.Z, s.EndPoint.Z }).ToList();
+                double minZ = allZ.Min();
+                double maxZ = allZ.Max();
+
+                // Use OptimizedGCodeRenderer (exact same as TopView)
+                OptimizedGCodeRenderer.DrawGCodeOptimized(CrosshairCanvas, _lastPreviewSegments, xf.Scale, 
+                    machineCanvasX, machineCanvasY, minZ, maxZ);
+
+                // Draw origin marker (red crosshair) at machine position
+                double crossSize = 10;
+                double circleRadius = 6;
+
+                var originCircle = new Ellipse
+                {
+                    Width = circleRadius * 2,
+                    Height = circleRadius * 2,
+                    Stroke = new SolidColorBrush(Color.FromRgb(255, 60, 60)),
+                    StrokeThickness = 2,
+                    Fill = new SolidColorBrush(Color.FromArgb(50, 255, 60, 60))
+                };
+                Canvas.SetLeft(originCircle, machineCanvasX - circleRadius);
+                Canvas.SetTop(originCircle, machineCanvasY - circleRadius);
+                CrosshairCanvas.Children.Add(originCircle);
+
+                var crossHorizontal = new Line
+                {
+                    X1 = machineCanvasX - crossSize,
+                    Y1 = machineCanvasY,
+                    X2 = machineCanvasX + crossSize,
+                    Y2 = machineCanvasY,
+                    Stroke = new SolidColorBrush(Color.FromRgb(255, 60, 60)),
+                    StrokeThickness = 2
+                };
+                CrosshairCanvas.Children.Add(crossHorizontal);
+
+                var crossVertical = new Line
+                {
+                    X1 = machineCanvasX,
+                    Y1 = machineCanvasY - crossSize,
+                    X2 = machineCanvasX,
+                    Y2 = machineCanvasY + crossSize,
+                    Stroke = new SolidColorBrush(Color.FromRgb(255, 60, 60)),
+                    StrokeThickness = 2
+                };
+                CrosshairCanvas.Children.Add(crossVertical);
+            }
+            catch { }
+        }
     }
 }

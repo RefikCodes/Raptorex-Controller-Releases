@@ -719,10 +719,59 @@ namespace CncControlApp.Managers
         #region Dynamic Scale Support
 
         /// <summary>
-        /// ✅ SIMPLIFIED: Unified scale sistemi - G-Code scale'i table scale ile aynı olacak
+        /// ✅ OPTIMIZED: Update overlay using provided WorkspaceTransform (NO recalculation)
+        /// This eliminates duplicate scale calculation and uses the same transform as G-code drawing
         /// </summary>
+        public void UpdateWithTransform(CncControlApp.Helpers.WorkspaceTransform xf)
+        {
+            try
+            {
+                if (xf == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠️ UpdateWithTransform: xf is null");
+                    return;
+                }
+
+                // ✅ Use the provided transform's values directly (NO recalculation)
+                _workspaceMaxX = xf.MaxX;
+                _workspaceMaxY = xf.MaxY;
+                _workspaceScale = xf.Scale;
+                _workspaceLimitsLoaded = true;
+
+                // Calculate origin position using the same transform's canvas center
+                double tablePixW = _workspaceMaxX * _workspaceScale;
+                double tablePixH = _workspaceMaxY * _workspaceScale;
+
+                _workspaceOriginCanvasX = xf.CanvasCenterX - (tablePixW / 2);
+                _workspaceOriginCanvasY = xf.CanvasCenterY + (tablePixH / 2);
+
+                System.Diagnostics.Debug.WriteLine($"✅ UpdateWithTransform:");
+                System.Diagnostics.Debug.WriteLine($"   • Using transform scale: {_workspaceScale:F3}");
+                System.Diagnostics.Debug.WriteLine($"   • Table: {_workspaceMaxX:F0}x{_workspaceMaxY:F0}mm");
+                System.Diagnostics.Debug.WriteLine($"   • Origin: ({_workspaceOriginCanvasX:F1},{_workspaceOriginCanvasY:F1})");
+
+                // Refresh overlay with the new transform
+                Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    RefreshOverlay();
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ UpdateWithTransform error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// ✅ DEPRECATED: Use UpdateWithTransform instead
+        /// Kept for backwards compatibility but logs warning
+        /// </summary>
+        [Obsolete("Use UpdateWithTransform(WorkspaceTransform xf) instead to avoid duplicate scale calculation")]
         public void UpdateDynamicScale(double newScale, double canvasWidth, double canvasHeight)
         {
+            System.Diagnostics.Debug.WriteLine("⚠️ UpdateDynamicScale (deprecated) called - consider using UpdateWithTransform");
+            
+            // Fallback implementation
             try
             {
                 if (!_workspaceLimitsLoaded || _workspaceMaxX <= 0 || _workspaceMaxY <= 0)
@@ -731,29 +780,17 @@ namespace CncControlApp.Managers
                     return;
                 }
 
-                System.Diagnostics.Debug.WriteLine($"🔄 UNIFIED SCALE: Using G-Code scale for table: {newScale:F3}");
-
-                // ✅ SIMPLE: G-Code'dan gelen scale'i table için de kullan
                 _workspaceScale = newScale;
 
-                // Table boyutlarını yeniden hesapla
                 double tablePixW = _workspaceMaxX * _workspaceScale;
                 double tablePixH = _workspaceMaxY * _workspaceScale;
 
-                // ✅ CENTER TABLE ON CANVAS
                 double tableCenterX = canvasWidth / 2;
                 double tableCenterY = canvasHeight / 2;
                 
                 _workspaceOriginCanvasX = tableCenterX - (tablePixW / 2);
                 _workspaceOriginCanvasY = tableCenterY + (tablePixH / 2);
 
-                System.Diagnostics.Debug.WriteLine($"🔄 UNIFIED SCALE UPDATE:");
-                System.Diagnostics.Debug.WriteLine($"   • Scale: {_workspaceScale:F3}");
-                System.Diagnostics.Debug.WriteLine($"   • Table canvas size: {tablePixW:F1}x{tablePixH:F1}px");
-                System.Diagnostics.Debug.WriteLine($"   • Table center: ({tableCenterX:F1},{tableCenterY:F1})");
-                System.Diagnostics.Debug.WriteLine($"   • Table origin: ({_workspaceOriginCanvasX:F1},{_workspaceOriginCanvasY:F1})");
-
-                // Overlay'i refresh et
                 Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     RefreshOverlay();

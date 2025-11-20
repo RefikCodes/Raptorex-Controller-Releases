@@ -141,6 +141,10 @@ namespace CncControlApp
  LoadTableDimensionsFromSettings();
 
            ScrollToCurrentLine();
+
+            // ✅ TRIGGER: Notify all subscribers that G-code is loaded
+            RaiseGCodePreviewUpdated();
+            System.Diagnostics.Debug.WriteLine("✅ GCodePreviewUpdated event raised after file load");
                 }
     catch { }
             });

@@ -13,6 +13,20 @@ namespace CncControlApp
 {
     public partial class GCodeView
     {
+        public static event Action<System.Collections.Generic.IReadOnlyList<GCodeSegment>> GCodePreviewUpdated; // ✅ NEW: global preview event
+        private void RaiseGCodePreviewUpdated()
+        {
+            try
+            {
+                var segs = _fileService?.GCodeSegments;
+                if (segs != null && segs.Count > 0)
+                {
+                    GCodePreviewUpdated?.Invoke(segs); // pass live list (read-only usage expected)
+                }
+            }
+            catch { }
+        }
+
         public (bool Fits, string Details) CheckLiveFitAtAngle(double angleDegrees)
  {
          try
@@ -625,61 +639,68 @@ if (start < end) start += 2.0 * Math.PI;
 
         public void RedrawPopupTopView(Canvas targetCanvas, Canvas targetOverlayCanvas)
         {
-       try
-          {
+            try
+            {
                 if (targetCanvas == null || _fileService == null) return;
 
-  var segments = _fileService.GCodeSegments;
-       if (segments == null || segments.Count == 0)
-     {
-      targetCanvas.Children.Clear();
-      targetOverlayCanvas?.Children.Clear();
-    return;
-    }
-
-    if (targetCanvas.ActualWidth < 10 || targetCanvas.ActualHeight < 10)
-              {
-  targetCanvas.Loaded += (s, e) => RedrawPopupTopView(targetCanvas, targetOverlayCanvas);
-        return;
+                var segments = _fileService.GCodeSegments;
+                if (segments == null || segments.Count == 0)
+                {
+                    targetCanvas.Children.Clear();
+                    targetOverlayCanvas?.Children.Clear();
+                    return;
                 }
 
-      Application.Current.Dispatcher.BeginInvoke(new Action(() =>
- {
-        try
-        {
-     var visualization = _fileService.GetVisualization();
-               if (visualization != null)
-         {
-        var method = visualization.GetType().GetMethod("RenderTopViewSimple",
-          System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (targetCanvas.ActualWidth < 10 || targetCanvas.ActualHeight < 10)
+                {
+                    targetCanvas.Loaded += (s, e) => RedrawPopupTopView(targetCanvas, targetOverlayCanvas);
+                    return;
+                }
 
-               if (method != null)
-                 {
-       targetCanvas.Children.Clear();
-     targetOverlayCanvas?.Children.Clear();
+                Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        var visualization = _fileService.GetVisualization();
+                        if (visualization != null)
+                        {
+                            // ✅ FIX: Changed method name from RenderTopViewSimple to RenderTopViewOptimized
+                            var method = visualization.GetType().GetMethod("RenderTopViewOptimized",
+                                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
-             double width = targetCanvas.ActualWidth;
-   double height = targetCanvas.ActualHeight;
+                            if (method != null)
+                            {
+                                targetCanvas.Children.Clear();
+                                targetOverlayCanvas?.Children.Clear();
 
-        method.Invoke(visualization, new object[] { targetCanvas, targetOverlayCanvas, segments, width, height });
+                                double width = targetCanvas.ActualWidth;
+                                double height = targetCanvas.ActualHeight;
 
-        if (targetOverlayCanvas != null && _overlayManager != null)
-    {
-       DrawPopupOverlay(targetOverlayCanvas, width, height);
- }
-       }
-         }
-   }
-              catch (Exception ex)
-     {
-        System.Diagnostics.Debug.WriteLine($"RedrawPopupTopView inner error: {ex.Message}");
-    }
-    }), System.Windows.Threading.DispatcherPriority.Render);
-  }
-   catch (Exception ex)
-   {
-      System.Diagnostics.Debug.WriteLine($"RedrawPopupTopView error: {ex.Message}");
-     }
+                                method.Invoke(visualization, new object[] { targetCanvas, targetOverlayCanvas, segments, width, height });
+
+                                if (targetOverlayCanvas != null && _overlayManager != null)
+                                {
+                                    DrawPopupOverlay(targetOverlayCanvas, width, height);
+                                }
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine("❌ RedrawPopupTopView: RenderTopViewOptimized method not found!");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"RedrawPopupTopView inner error: {ex.Message}");
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Render);
+
+                RaiseGCodePreviewUpdated();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"RedrawPopupTopView error: {ex.Message}");
+            }
         }
 
         private void DrawPopupOverlay(Canvas overlayCanvas, double width, double height)
