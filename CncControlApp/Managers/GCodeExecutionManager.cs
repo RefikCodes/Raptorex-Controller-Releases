@@ -68,8 +68,8 @@ namespace CncControlApp.Managers
         private const int INITIAL_BUFFER_SIZE = 3;
         private const int TARGET_BUFFER_SIZE = 3;
         
-        // Byte-based buffer limit (200 bytes max in flight)
-        private const int MAX_BUFFER_BYTES = 200;
+        // Byte-based buffer limit (120 bytes is safer than 127 to avoid off-by-one errors)
+        private const int MAX_BUFFER_BYTES = 120;
 
         public GCodeExecutionManager(
             ConnectionManager connectionManager,
@@ -478,8 +478,9 @@ CurrentlyExecutingLineIndex = -1;
       
  _internalStreaming = true; _executionCts?.Dispose(); _executionCts = new CancellationTokenSource();
       
+
       // ✅ Execute commands - this queues all commands into buffer and returns when queue is empty
-      bool streamedOk = await ExecuteWithBufferManagement(_executionCts.Token);
+    bool streamedOk = await ExecuteOpenBuildsStreamingAsync(_executionCts.Token);
  _internalStreaming = false;
       
       if (!streamedOk) 
@@ -534,7 +535,7 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
                 bool sent = await _connectionManager.SendGCodeCommandAsync("~"); if (!sent) return false;
                 SetMachineStatusSafe("Run"); if (!IsGCodeRunning) IsGCodeRunning = true;
                 _executionCts?.Dispose(); _executionCts = new CancellationTokenSource(); _internalStreaming = true;
-                _ = Task.Run(() => ExecuteWithBufferManagement(_executionCts.Token));
+                _ = Task.Run(() => ExecuteOpenBuildsStreamingAsync(_executionCts.Token));
                 _log("> ?? Continued (streaming resumed)"); UpdateExecutionProperties(); return true;
             }
             catch (Exception ex) { _logError("ContinueGCode", ex, ErrorHandlingService.ErrorSeverity.Error); return false; }
@@ -556,237 +557,204 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
             _wasStopped = true; if (IsGCodeRunning) IsGCodeRunning = false; CurrentGCodeLineIndex = 0; LastCompletedLineIndex = -1; CurrentlyExecutingLineIndex = -1; UpdateExecutionProperties();
         }
 
-        // Core streaming with robust resume after Hold
-        private async Task<bool> ExecuteWithBufferManagement(CancellationToken ct)
+        // OpenBuilds-style event driven streaming with stall watchdog
+        private async Task<bool> ExecuteOpenBuildsStreamingAsync(CancellationToken ct)
         {
-            var pending = new Queue<(string Command, int LineIndex, bool Placeholder, int ByteSize)>();
-            int realPending = 0; 
-            int pendingBytes = 0; // Track bytes in flight
-            int sent = 0; 
-            int completed = 0; 
+            var inflight = new Queue<(string Cmd, int Line, int Bytes)>();
+            int inflightBytes = 0;
             int errors = 0;
-            var responseHandler = new GCodeResponseHandler();
-            _connectionManager.GcodeSender.ResponseReceived += responseHandler.OnResponseReceived;
-            string recvBuffer = string.Empty;
-            string lastSentCommand = ""; // Track last command for error reporting
+            bool aborted = false;
+            DateTime lastOkTime = DateTime.UtcNow;
+            DateTime lastStallLog = DateTime.MinValue;
+            var allAckTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            object sync = new object();
+
+            const int STALL_THRESHOLD_MS = 2500; // time without OK before considering stall
+            const int STALL_LOG_INTERVAL_MS = 3000; // avoid spamming log
+
+            // Fill buffer while space is available
+            async Task FillAsync()
+            {
+                if (aborted) return;
+
+                // Loop to fill buffer, but yield to UI/Events occasionally
+                while (_internalStreaming && !_wasStopped && !ct.IsCancellationRequested)
+                {
+                    string cmd = null;
+                    int uiIdx = -1;
+                    int bytes = 0;
+
+                    lock (sync)
+                    {
+                        if (CurrentGCodeLineIndex >= GCodeLines.Count) break; // Done sending
+                        
+                        // STRICT PING-PONG: Only 1 command inflight at a time.
+                        // This matches OpenBuilds reliability and prevents buffer overflows.
+                        if (inflight.Count >= 1) break; 
+
+                        // Peek next command to check size
+                        if (!TryGetNextValidCommand(out cmd, out uiIdx))
+                        {
+                            break; // Should not happen if index < count
+                        }
+
+                        // Format command to 3 decimal places to avoid controller precision errors (error:33)
+                        cmd = FormatGCodeLine(cmd);
+
+                        bytes = 0; // Not used in Ping-Pong mode
+
+                        // Optimistically add to inflight to reserve space immediately
+                        inflight.Enqueue((cmd, uiIdx, bytes));
+                        inflightBytes += bytes;
+                        if (inflight.Count == 1) CurrentlyExecutingLineIndex = uiIdx;
+                    }
+
+                    // Send outside lock (I/O operation)
+                    ParseModalValues(cmd);
+                    bool sent = await _connectionManager.SendGCodeCommandAsync(cmd);
+
+                    // USER REQUEST: 15ms delay between sends to allow controller to breathe
+                    await Task.Delay(15);
+
+                    if (!sent)
+                    {
+                        lock (sync)
+                        {
+                            // Sending failed, we must abort
+                            MarkLineError(uiIdx, "send failed");
+                            errors++;
+                            aborted = true;
+                            allAckTcs.TrySetResult(false);
+                        }
+                        return;
+                    }
+
+                    // Yield to allow UI/Events to process, preventing lock starvation
+                    await Task.Yield();
+                }
+
+                lock (sync)
+                {
+                    if (CurrentGCodeLineIndex >= GCodeLines.Count && inflight.Count == 0 && !aborted)
+                    {
+                        allAckTcs.TrySetResult(true);
+                    }
+                }
+            }
+
+            // Response callback
+            void OnResp(string raw)
+            {
+                if (string.IsNullOrEmpty(raw)) return;
+                var lines = raw.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.RemoveEmptyEntries);
+                bool needRefill = false;
+
+                lock (sync)
+                {
+                    foreach (var ln in lines)
+                    {
+                        var line = ln.Trim(); if (line.Length == 0) continue; var low = line.ToLowerInvariant();
+                        if (low == "ok")
+                        {
+                            lastOkTime = DateTime.UtcNow;
+                            if (inflight.Count > 0)
+                            {
+                                var item = inflight.Dequeue(); 
+                                inflightBytes = Math.Max(0, inflightBytes - item.Bytes);
+                                MarkLineCompleted(item.Line); 
+                                LastCompletedLineIndex = item.Line; 
+                                CurrentlyExecutingLineIndex = inflight.Count > 0 ? inflight.Peek().Line : -1;
+                                needRefill = true;
+                            }
+                        }
+                        else if (low.StartsWith("error"))
+                        {
+                            if (inflight.Count > 0)
+                            {
+                                var item = inflight.Dequeue(); 
+                                inflightBytes = Math.Max(0, inflightBytes - item.Bytes);
+                                string detail = line;
+                                if (line.Contains("error:3")) detail = $"error:3 (Unsupported) '{item.Cmd}'";
+                                MarkLineError(item.Line, detail);
+                                needRefill = true;
+                            }
+                            errors++;
+                            // IGNORE ERRORS: Log and continue streaming
+                            _log($"> ⚠️ Error ignored: {line}");
+                        }
+                        else if (low.StartsWith("alarm"))
+                        {
+                            if (inflight.Count > 0) MarkLineError(inflight.Peek().Line, line);
+                            aborted = true; allAckTcs.TrySetResult(false);
+                        }
+                    }
+
+                    // Check completion inside lock
+                    if (CurrentGCodeLineIndex >= GCodeLines.Count && inflight.Count == 0 && !aborted)
+                    {
+                        allAckTcs.TrySetResult(true);
+                    }
+                }
+
+                if (needRefill)
+                {
+                    // Fire and forget refill on thread pool to avoid blocking the event handler
+                    _ = Task.Run(FillAsync);
+                }
+            }
+
+            // Stall watchdog
+            async Task WatchdogAsync()
+            {
+                while (_internalStreaming && !ct.IsCancellationRequested && !aborted && !allAckTcs.Task.IsCompleted)
+                {
+                    await Task.Delay(500, ct).ContinueWith(_ => { });
+                    var now = DateTime.UtcNow;
+                    int pendingCount = 0;
+                    lock (sync) { pendingCount = inflight.Count; }
+
+                    if (pendingCount > 0 && (now - lastOkTime).TotalMilliseconds > STALL_THRESHOLD_MS)
+                    {
+                        if ((now - lastStallLog).TotalMilliseconds > STALL_LOG_INTERVAL_MS)
+                        {
+                            lastStallLog = now;
+                            _log($"> ⚠️ STALL: No 'ok' for {(now - lastOkTime).TotalMilliseconds:F0}ms; inflight={pendingCount}");
+                            // Poke controller with status query
+                            _ = _connectionManager.SendGCodeCommandAsync("?");
+                        }
+                    }
+                }
+            }
+
+            _connectionManager.GcodeSender.ResponseReceived += OnResp;
             try
             {
-                if (ct.IsCancellationRequested || !_internalStreaming) return false;
-                int nextOkIndex = LastCompletedLineIndex + 1;
-                if (CurrentGCodeLineIndex > nextOkIndex)
+                await FillAsync(); // initial fill
+                
+                // Check immediate completion
+                lock (sync)
                 {
-                    int estimatedInflight = CurrentGCodeLineIndex - nextOkIndex;
-                    for (int k = 0; k < estimatedInflight; k++)
+                    if (CurrentGCodeLineIndex >= GCodeLines.Count && inflight.Count == 0 && !aborted)
                     {
-                        int idx = nextOkIndex + k; if (idx >= 0 && idx < GCodeLines.Count) pending.Enqueue((null, idx, true, 0));
+                        allAckTcs.TrySetResult(true);
                     }
-                    if (estimatedInflight > 0) _log($"> [TRACE] Resume seed: estimated inflight={estimatedInflight} (next OK index={nextOkIndex})");
                 }
 
-                // Initial fill - use byte limit instead of line count
-                while (!ct.IsCancellationRequested && _internalStreaming && pendingBytes < MAX_BUFFER_BYTES && CurrentGCodeLineIndex < GCodeLines.Count)
+                var wdTask = WatchdogAsync();
+                using (ct.Register(() => { allAckTcs.TrySetCanceled(); }))
                 {
-                    string cmd; int uiIdx; if (!TryGetNextValidCommand(out cmd, out uiIdx)) break;
-                    
-                    // Parse and track modal values before sending the command
-                    ParseModalValues(cmd);
-                    
-                    int cmdBytes = System.Text.Encoding.UTF8.GetByteCount(cmd) + 1; // +1 for newline
-                    pending.Enqueue((cmd, uiIdx, false, cmdBytes)); 
-                    if (await _connectionManager.SendGCodeCommandAsync(cmd)) 
-                    { 
-                        sent++; 
-                        realPending++; 
-                        pendingBytes += cmdBytes;
-                        lastSentCommand = cmd; // Track for error reporting
-                    } 
-                    else 
-                    { 
-                        MarkLineError(uiIdx, "send failed"); 
-                        return false; 
-                    }
+                    bool success;
+                    try { success = await allAckTcs.Task; } // Wait for ACKs
+                    catch (TaskCanceledException) { success = false; }
+                    if (!success || aborted) return false;
                 }
-
-                while (!ct.IsCancellationRequested && _internalStreaming && (pending.Count > 0 || CurrentGCodeLineIndex < GCodeLines.Count))
-                {
-                    var status = GetMachineStatusSafe();
-                    if (StatusIsAlarm(status)) { foreach (var item in pending) MarkLineNote(item.LineIndex, $"blocked: alarm"); return false; }
-                    if (StatusIsHold(status)) await Task.Delay(150);
-
-                    var resp = await responseHandler.WaitForResponseAsync(3000, ct);
-                    if (ct.IsCancellationRequested || !_internalStreaming) break;
-                    if (resp == null)
-                    {
-                        // Refill buffer using byte limit
-                        while (!ct.IsCancellationRequested && _internalStreaming && pendingBytes < MAX_BUFFER_BYTES && CurrentGCodeLineIndex < GCodeLines.Count)
-                        {
-                            string cmd2; int idx2; if (!TryGetNextValidCommand(out cmd2, out idx2)) break;
-                            
-                            // Parse and track modal values before sending the command
-                            ParseModalValues(cmd2);
-                            
-                            int cmdBytes = System.Text.Encoding.UTF8.GetByteCount(cmd2) + 1;
-                            pending.Enqueue((cmd2, idx2, false, cmdBytes));
-                            if (await _connectionManager.SendGCodeCommandAsync(cmd2)) 
-                            { 
-                                sent++; 
-                                realPending++; 
-                                pendingBytes += cmdBytes;
-                                lastSentCommand = cmd2; // Track for error reporting
-                            } 
-                            else 
-                            { 
-                                errors++; 
-                                MarkLineError(idx2, "send failed"); 
-                                break; 
-                            }
-                        }
-                        continue;
-                    }
-
-                    recvBuffer += resp;
-                    var parts = recvBuffer.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
-                    for (int i = 0; i < parts.Length - 1; i++)
-                    {
-                        var line = (parts[i] ?? string.Empty).Trim(); if (line.Length == 0) continue;
-                        var low = line.ToLowerInvariant();
-                        if (string.Equals(low, "ok", StringComparison.Ordinal))
-                        {
-                            if (pending.Count > 0)
-                            {
-                                var item = pending.Dequeue(); 
-                                if (!item.Placeholder) 
-                                {
-                                    realPending = Math.Max(0, realPending - 1); 
-                                    pendingBytes = Math.Max(0, pendingBytes - item.ByteSize); // Decrement bytes
-                                }
-                                completed++; 
-                                MarkLineCompleted(item.LineIndex); 
-                                LastCompletedLineIndex = item.LineIndex; 
-                                CurrentlyExecutingLineIndex = pending.Count > 0 ? pending.Peek().LineIndex : -1;
-                            }
-                            else { LastCompletedLineIndex = Math.Min(LastCompletedLineIndex + 1, GCodeLines.Count - 1); completed++; }
-
-                            // Refill buffer after OK using byte limit
-                            while (!ct.IsCancellationRequested && _internalStreaming && CurrentGCodeLineIndex < GCodeLines.Count && pendingBytes < MAX_BUFFER_BYTES)
-                            {
-                                string cmd; int uiIdx; 
-                                if (TryGetNextValidCommand(out cmd, out uiIdx)) 
-                                { 
-                                    // Parse and track modal values before sending the command
-                                    ParseModalValues(cmd);
-                                    
-                                    int cmdBytes = System.Text.Encoding.UTF8.GetByteCount(cmd) + 1;
-                                    pending.Enqueue((cmd, uiIdx, false, cmdBytes)); 
-                                    if (await _connectionManager.SendGCodeCommandAsync(cmd) ) 
-                                    { 
-                                        sent++; 
-                                        realPending++;
-                                        pendingBytes += cmdBytes;
-                                        lastSentCommand = cmd; // Track for error reporting
-                                    } 
-                                    else 
-                                    { 
-                                        errors++; 
-                                        MarkLineError(uiIdx, "send failed"); 
-                                        break; 
-                                    } 
-                                } else break;
-                            }
-                        }
-                        else if (low.StartsWith("error", StringComparison.Ordinal))
-                        {
-                            if (pending.Count > 0) 
-                            { 
-                                var bad = pending.Dequeue(); 
-                                if (!bad.Placeholder) 
-                                {
-                                    realPending = Math.Max(0, realPending - 1); 
-                                    pendingBytes = Math.Max(0, pendingBytes - bad.ByteSize);
-                                }
-                                errors++; 
-                                
-                                // Enhanced error logging with command and line context
-                                string errorDetail = line;
-                                if (line.Contains("error:3") || line.Contains("error: 3"))
-                                {
-                                    errorDetail = $"error:3 (Unsupported command) - Command: '{bad.Command}' at line {bad.LineIndex + 1}";
-                                    _log($"> ?? {errorDetail}");
-                                }
-                                
-                                MarkLineError(bad.LineIndex, errorDetail); 
-                                if (errors >= MAX_ERROR_COUNT) 
-                                { 
-                                    foreach (var it in pending) MarkLineNote(it.LineIndex, "aborted due to error limit"); 
-                                    return false; 
-                                } 
-                            }
-                            else { errors++; if (errors >= MAX_ERROR_COUNT) return false; }
-                        }
-                        else if (low.StartsWith("alarm", StringComparison.Ordinal))
-                        {
-                            if (pending.Count > 0) { var bad = pending.Peek(); MarkLineError(bad.LineIndex, line); }
-                            foreach (var rem in pending) MarkLineNote(rem.LineIndex, "aborted due to alarm"); return false;
-                        }
-                        else { /* ignore */ }
-                    }
-                    recvBuffer = parts[parts.Length - 1];
-                    if (completed % 10 == 0) RaiseExecutionStatusChanged();
-                }
-
-                while (!ct.IsCancellationRequested && _internalStreaming && pending.Count > 0)
-                {
-                    var resp = await responseHandler.WaitForResponseAsync(3000, ct); if (ct.IsCancellationRequested || !_internalStreaming) break; if (resp == null && string.IsNullOrEmpty(recvBuffer)) break;
-                    recvBuffer += resp ?? string.Empty; var parts = recvBuffer.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
-                    for (int i = 0; i < parts.Length - 1 && pending.Count > 0; i++)
-                    {
-                        var line = (parts[i] ?? string.Empty).Trim(); if (line.Length == 0) continue; var low = line.ToLowerInvariant();
-                        if (string.Equals(low, "ok", StringComparison.Ordinal)) 
-                        { 
-                            var item = pending.Dequeue(); 
-                            if (!item.Placeholder) 
-                            {
-                                realPending = Math.Max(0, realPending - 1); 
-                                pendingBytes = Math.Max(0, pendingBytes - item.ByteSize);
-                            }
-                            completed++; 
-                            MarkLineCompleted(item.LineIndex); 
-                            LastCompletedLineIndex = item.LineIndex; 
-                        }
-                        else if (low.StartsWith("error", StringComparison.Ordinal)) 
-                        { 
-                            var item = pending.Dequeue(); 
-                            if (!item.Placeholder) 
-                            {
-                                realPending = Math.Max(0, realPending - 1); 
-                                pendingBytes = Math.Max(0, pendingBytes - item.ByteSize);
-                            }
-                            errors++; 
-                            
-                            // Enhanced error logging
-                            string errorDetail = line;
-                            if (line.Contains("error:3") || line.Contains("error: 3"))
-                            {
-                                errorDetail = $"error:3 (Unsupported command) - Command: '{item.Command}' at line {item.LineIndex + 1}";
-                                _log($"> ?? {errorDetail}");
-                            }
-                            
-                            MarkLineError(item.LineIndex, errorDetail); 
-                        }
-                        else if (low.StartsWith("alarm", StringComparison.Ordinal)) { var item = pending.Peek(); MarkLineError(item.LineIndex, line); foreach (var rem in pending) MarkLineNote(rem.LineIndex, "aborted due to alarm"); return false; }
-                    }
-                    recvBuffer = parts[parts.Length - 1];
-                }
-
-                if (pending.Count > 0 && (ct.IsCancellationRequested || errors >= MAX_ERROR_COUNT || !_internalStreaming))
-                {
-                    foreach (var item in pending) MarkLineNote(item.LineIndex, "unconfirmed (stopped)");
-                }
-
-                _log($"> ?? BUFFER STATS: Sent={sent} Completed={completed} Errors={errors} | MaxBytes={MAX_BUFFER_BYTES}");
-                int execIdx = -1; foreach (var it in pending) { execIdx = it.LineIndex; break; } CurrentlyExecutingLineIndex = execIdx; return !ct.IsCancellationRequested && errors < MAX_ERROR_COUNT;
+                _log($"> ✅ OpenBuilds streaming COMPLETED (All OKs received)");
+                return true;
             }
-            finally { _connectionManager.GcodeSender.ResponseReceived -= responseHandler.OnResponseReceived; responseHandler.Dispose(); }
+            finally
+            {
+                _connectionManager.GcodeSender.ResponseReceived -= OnResp;
+            }
         }
 
         // Parse and track modal values from G-code commands
@@ -1099,6 +1067,28 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
                 }
             }
             catch { }
+        }
+        
+        // Helper to format GCode lines to 4 decimal places to match OpenBuilds precision
+        private string FormatGCodeLine(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line)) return line;
+            
+            // Regex to find decimal numbers for axes and feed/speed and round them
+            // Matches X, Y, Z, I, J, K, F, S followed by a number
+            return System.Text.RegularExpressions.Regex.Replace(line, @"([XYZIJKFS])\s*(-?[0-9]*\.?[0-9]+)", m =>
+            {
+                string axis = m.Groups[1].Value;
+                string numberStr = m.Groups[2].Value;
+                
+                if (double.TryParse(numberStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double val))
+                {
+                    // Round to 4 decimal places (OpenBuilds standard)
+                    string rounded = Math.Round(val, 4).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+                    return $"{axis}{rounded}";
+                }
+                return m.Value;
+            }, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         }
     }
 }
