@@ -28,6 +28,8 @@ namespace CncControlApp.Services
  private static readonly TimeSpan ErrorRepeatSuppress = TimeSpan.FromMilliseconds(400);
 
  private GCodeRunLineLogger() { }
+ 
+ private ConnectionManager _cm;
 
  public void Begin(MainControll mc)
  {
@@ -36,6 +38,7 @@ namespace CncControlApp.Services
  if (mc == null) return;
  _mc = mc;
  _mgr = mc.GCodeManager;
+ _cm = mc.ConnectionManagerInstance;
  OpenLogFile();
  _active = true;
  _lastLoggedExecIndex = -1;
@@ -48,6 +51,11 @@ namespace CncControlApp.Services
  if (_mc.LogMessages is INotifyCollectionChanged col)
  {
  try { col.CollectionChanged += OnLogMessagesChanged; } catch { }
+ }
+ // Subscribe to ConnectionManager.LogMessageAdded for direct command logging
+ if (_cm != null)
+ {
+ try { _cm.LogMessageAdded += OnConnectionLogMessage; } catch { }
  }
  WriteHeader();
  }
@@ -71,8 +79,13 @@ namespace CncControlApp.Services
  {
  try { pc.PropertyChanged -= OnManagerPropertyChanged; } catch { }
  }
+ if (_cm != null)
+ {
+ try { _cm.LogMessageAdded -= OnConnectionLogMessage; } catch { }
+ }
  _mc = null;
  _mgr = null;
+ _cm = null;
  }
  catch { }
  finally
@@ -218,6 +231,21 @@ namespace CncControlApp.Services
  return Convert.ToInt32(v);
  }
  catch { return -1; }
+ }
+
+ private void OnConnectionLogMessage(string msg)
+ {
+ if (!_active || _writer == null) return;
+ if (string.IsNullOrWhiteSpace(msg)) return;
+ try
+ {
+ // Log all "Gönderiliyor" (sending) messages directly to file
+ if (msg.Contains("Gönderiliyor:") || msg.Contains("Gonderiliyor:"))
+ {
+ _writer.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] SEND {msg}");
+ }
+ }
+ catch { }
  }
 
  private static ObservableCollection<string> GetStringCollection(object obj, string name)

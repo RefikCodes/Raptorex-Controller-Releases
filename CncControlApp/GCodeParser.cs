@@ -253,28 +253,58 @@ namespace CncControlApp
 
         /// <summary>
         /// 🆕 Calculate arc distance using radius (R parameter)
+        /// Positive R = minor arc (less than 180°), Negative R = major arc (more than 180°)
         /// </summary>
         private double CalculateArcDistanceFromRadius(GCodeSegment segment)
         {
             double radius = Math.Abs(segment.ArcRadius.Value);
+            bool isMajorArc = segment.ArcRadius.Value < 0; // Negative R means major arc
             
-            // Calculate chord length (straight line distance)
-            double chordLength = CalculateLinearDistance(segment.StartPoint, segment.EndPoint);
+            // Calculate chord length (straight line distance in XY plane)
+            double dx = segment.EndPoint.X - segment.StartPoint.X;
+            double dy = segment.EndPoint.Y - segment.StartPoint.Y;
+            double dz = segment.EndPoint.Z - segment.StartPoint.Z;
+            double chordLengthXY = Math.Sqrt(dx * dx + dy * dy);
+            
+            if (chordLengthXY < 0.0001)
+            {
+                // Full circle (start = end in XY, but may have Z movement = helix)
+                double fullCircleLength = 2 * Math.PI * radius;
+                // Add helical component
+                return Math.Sqrt(fullCircleLength * fullCircleLength + dz * dz);
+            }
+            
+            if (chordLengthXY > 2 * radius)
+            {
+                // Invalid: chord cannot be longer than diameter, fallback to linear
+                return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            }
             
             // Calculate central angle using chord length and radius
             // chord = 2 * radius * sin(angle/2)
             // angle = 2 * arcsin(chord / (2 * radius))
+            double halfAngle = Math.Asin(chordLengthXY / (2 * radius));
+            double centralAngle = 2 * halfAngle;
             
-            if (chordLength > 2 * radius)
+            // If major arc, use the larger angle
+            if (isMajorArc)
             {
-                // Invalid: chord cannot be longer than diameter
-                return chordLength; // Fallback to linear distance
+                centralAngle = 2 * Math.PI - centralAngle;
             }
             
-            double centralAngle = 2 * Math.Asin(chordLength / (2 * radius));
+            // 2D Arc length
+            double arcLength2D = radius * centralAngle;
             
-            // Arc length = radius * angle
-            return radius * centralAngle;
+            // For helical arcs, include Z movement (helix)
+            // Total length = sqrt(arcLength2D^2 + dz^2) using helix formula
+            if (Math.Abs(dz) > 0.0001)
+            {
+                // Helix: length = sqrt((2*pi*r*turns)^2 + height^2) but for partial arc
+                // Simplified: treat as hypotenuse of arc length and Z travel
+                return Math.Sqrt(arcLength2D * arcLength2D + dz * dz);
+            }
+            
+            return arcLength2D;
         }
 
         /// <summary>
@@ -282,15 +312,23 @@ namespace CncControlApp
         /// </summary>
         private double CalculateArcDistanceFromCenter(GCodeSegment segment)
         {
-            // Calculate center point
+            // Calculate center point (I,J,K are offsets from start point)
             Point3D center = new Point3D(
                 segment.StartPoint.X + segment.ArcCenterI,
                 segment.StartPoint.Y + segment.ArcCenterJ,
                 segment.StartPoint.Z + segment.ArcCenterK
             );
 
-            // Calculate radius from start point to center
-            double radius = CalculateLinearDistance(segment.StartPoint, center);
+            // Calculate radius from start point to center (in XY plane)
+            double dx1 = segment.StartPoint.X - center.X;
+            double dy1 = segment.StartPoint.Y - center.Y;
+            double radius = Math.Sqrt(dx1 * dx1 + dy1 * dy1);
+            
+            if (radius < 0.0001)
+            {
+                // Invalid radius, fallback to linear distance
+                return CalculateLinearDistance(segment.StartPoint, segment.EndPoint);
+            }
             
             // Calculate start and end angles
             double startAngle = Math.Atan2(
@@ -306,20 +344,46 @@ namespace CncControlApp
             // Calculate angular difference
             double angularDiff = endAngle - startAngle;
             
-            // Normalize angle based on direction
-            if (segment.IsClockwise)
+            // Check for full circle (start point ≈ end point in XY)
+            double xyDistance = Math.Sqrt(
+                Math.Pow(segment.EndPoint.X - segment.StartPoint.X, 2) +
+                Math.Pow(segment.EndPoint.Y - segment.StartPoint.Y, 2)
+            );
+            
+            if (xyDistance < 0.0001)
             {
-                while (angularDiff > 0) angularDiff -= 2 * Math.PI;
-                while (angularDiff < -2 * Math.PI) angularDiff += 2 * Math.PI;
+                // Full circle
+                angularDiff = 2 * Math.PI;
             }
             else
             {
-                while (angularDiff < 0) angularDiff += 2 * Math.PI;
-                while (angularDiff > 2 * Math.PI) angularDiff -= 2 * Math.PI;
+                // Normalize angle based on direction
+                if (segment.IsClockwise)
+                {
+                    // CW: angle should be negative
+                    while (angularDiff > 0) angularDiff -= 2 * Math.PI;
+                    if (angularDiff > -0.0001) angularDiff = -2 * Math.PI; // Avoid zero for near-full circle
+                }
+                else
+                {
+                    // CCW: angle should be positive
+                    while (angularDiff < 0) angularDiff += 2 * Math.PI;
+                    if (angularDiff < 0.0001) angularDiff = 2 * Math.PI; // Avoid zero for near-full circle
+                }
             }
 
-            // Arc length = radius * |angle|
-            return radius * Math.Abs(angularDiff);
+            // 2D Arc length = radius * |angle|
+            double arcLength2D = radius * Math.Abs(angularDiff);
+            
+            // For helical arcs, include Z movement
+            double dz = segment.EndPoint.Z - segment.StartPoint.Z;
+            if (Math.Abs(dz) > 0.0001)
+            {
+                // Helix length
+                return Math.Sqrt(arcLength2D * arcLength2D + dz * dz);
+            }
+            
+            return arcLength2D;
         }
 
         #endregion

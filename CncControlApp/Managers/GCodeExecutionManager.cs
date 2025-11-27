@@ -926,15 +926,308 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
 
         // Estimation helpers
         public void CalculateEstimatedExecutionTime(List<GCodeSegment> segments) => BuildTimeMapFromSegments(segments);
+        
+        /// <summary>
+        /// Get machine setting value by ID ($110=X max rate, $111=Y max rate, $112=Z max rate, $120=X accel, etc.)
+        /// </summary>
+        private double GetMachineSetting(int settingId, double defaultValue)
+        {
+            try
+            {
+                var setting = App.MainController?.Settings?.FirstOrDefault(s => s.Id == settingId);
+                if (setting != null && double.TryParse(setting.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double v))
+                    return Math.Max(1.0, v);
+            }
+            catch { }
+            return defaultValue;
+        }
+        
+        /// <summary>
+        /// Calculate time for a segment with proper physics-based acceleration modeling
+        /// Uses trapezoidal/triangular velocity profile
+        /// </summary>
+        private double CalculateSegmentTime(GCodeSegment seg, double distance, double rapidRateXY, double rapidRateZ, double acceleration, 
+                                            double entrySpeed = 0, double exitSpeed = 0)
+        {
+            if (distance <= 0) return 0;
+            
+            double targetFeedMmPerMin;
+            
+            if (seg.MovementType == GCodeMovementType.Rapid)
+            {
+                // For rapid moves, use machine's max rate
+                // Calculate effective rate based on movement direction
+                double dx = Math.Abs(seg.EndPoint.X - seg.StartPoint.X);
+                double dy = Math.Abs(seg.EndPoint.Y - seg.StartPoint.Y);
+                double dz = Math.Abs(seg.EndPoint.Z - seg.StartPoint.Z);
+                
+                if (dx < 0.001 && dy < 0.001)
+                {
+                    // Z-only move
+                    targetFeedMmPerMin = rapidRateZ;
+                }
+                else if (dz < 0.001)
+                {
+                    // XY-only move
+                    targetFeedMmPerMin = rapidRateXY;
+                }
+                else
+                {
+                    // Combined XYZ move - use vector-limited rate
+                    // The actual rate is limited by the slowest axis component
+                    double xyDist = Math.Sqrt(dx * dx + dy * dy);
+                    double totalDist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+                    
+                    // Time if limited by XY rate
+                    double timeIfXYLimited = totalDist / (rapidRateXY * (xyDist / totalDist + 0.001));
+                    // Time if limited by Z rate  
+                    double timeIfZLimited = totalDist / (rapidRateZ * (dz / totalDist + 0.001));
+                    
+                    // Use the slower (longer time)
+                    targetFeedMmPerMin = totalDist / Math.Max(timeIfXYLimited, timeIfZLimited);
+                }
+            }
+            else
+            {
+                // For cutting moves (G1, G2, G3), use the programmed feed rate
+                targetFeedMmPerMin = seg?.FeedRate ?? 0;
+                if (targetFeedMmPerMin <= 0) targetFeedMmPerMin = 500; // Default cutting feed
+            }
+            
+            // Convert to mm/sec for physics calculation
+            double Vmax = targetFeedMmPerMin / 60.0;  // Target max speed (mm/s)
+            double Vi = entrySpeed / 60.0;            // Entry speed (mm/s)
+            double Vf = exitSpeed / 60.0;             // Exit speed (mm/s)
+            double a = acceleration;                   // Acceleration (mm/s²)
+            double d = distance;                       // Distance (mm)
+            
+            // Clamp speeds to valid range
+            Vi = Math.Min(Vi, Vmax);
+            Vf = Math.Min(Vf, Vmax);
+            
+            // Calculate if we can reach Vmax given distance and acceleration
+            // Using kinematic equations:
+            // Distance to accelerate from Vi to Vmax: d_accel = (Vmax² - Vi²) / (2*a)
+            // Distance to decelerate from Vmax to Vf: d_decel = (Vmax² - Vf²) / (2*a)
+            
+            double d_accel = (Vmax * Vmax - Vi * Vi) / (2 * a);
+            double d_decel = (Vmax * Vmax - Vf * Vf) / (2 * a);
+            
+            double totalTimeSeconds;
+            
+            if (d_accel + d_decel <= d)
+            {
+                // TRAPEZOIDAL PROFILE: We can reach Vmax
+                // Time = accel_time + cruise_time + decel_time
+                double t_accel = (Vmax - Vi) / a;
+                double t_decel = (Vmax - Vf) / a;
+                double d_cruise = d - d_accel - d_decel;
+                double t_cruise = d_cruise / Vmax;
+                
+                totalTimeSeconds = t_accel + t_cruise + t_decel;
+            }
+            else
+            {
+                // TRIANGULAR PROFILE: Cannot reach Vmax
+                // Find peak velocity Vpeak where accel + decel distance = total distance
+                // (Vpeak² - Vi²)/(2a) + (Vpeak² - Vf²)/(2a) = d
+                // 2*Vpeak² - Vi² - Vf² = 2*a*d
+                // Vpeak = sqrt((Vi² + Vf² + 2*a*d) / 2)
+                
+                double Vpeak_squared = (Vi * Vi + Vf * Vf + 2 * a * d) / 2;
+                
+                if (Vpeak_squared < Vi * Vi || Vpeak_squared < Vf * Vf)
+                {
+                    // Edge case: need to decelerate immediately
+                    // This happens when Vi or Vf is already too high for the distance
+                    // Time ≈ d / average_speed
+                    double avgSpeed = (Vi + Vf) / 2;
+                    if (avgSpeed < 0.1) avgSpeed = 0.1;
+                    totalTimeSeconds = d / avgSpeed;
+                }
+                else
+                {
+                    double Vpeak = Math.Sqrt(Vpeak_squared);
+                    
+                    // Time to accelerate from Vi to Vpeak
+                    double t_accel = (Vpeak - Vi) / a;
+                    // Time to decelerate from Vpeak to Vf
+                    double t_decel = (Vpeak - Vf) / a;
+                    
+                    totalTimeSeconds = t_accel + t_decel;
+                }
+            }
+            
+            // Sanity check: time should be at least distance/Vmax
+            double minTime = d / Vmax;
+            if (totalTimeSeconds < minTime * 0.9)
+            {
+                totalTimeSeconds = minTime;
+            }
+            
+            // Return time in minutes
+            return totalTimeSeconds / 60.0;
+        }
+        
+        /// <summary>
+        /// Estimate junction speed between two segments based on angle
+        /// </summary>
+        private double EstimateJunctionSpeed(GCodeSegment current, GCodeSegment next, double maxSpeed)
+        {
+            if (current == null || next == null) return 0;
+            
+            // Get direction vectors
+            double dx1 = current.EndPoint.X - current.StartPoint.X;
+            double dy1 = current.EndPoint.Y - current.StartPoint.Y;
+            double dz1 = current.EndPoint.Z - current.StartPoint.Z;
+            double len1 = Math.Sqrt(dx1*dx1 + dy1*dy1 + dz1*dz1);
+            
+            double dx2 = next.EndPoint.X - next.StartPoint.X;
+            double dy2 = next.EndPoint.Y - next.StartPoint.Y;
+            double dz2 = next.EndPoint.Z - next.StartPoint.Z;
+            double len2 = Math.Sqrt(dx2*dx2 + dy2*dy2 + dz2*dz2);
+            
+            if (len1 < 0.001 || len2 < 0.001) return 0;
+            
+            // Normalize
+            dx1 /= len1; dy1 /= len1; dz1 /= len1;
+            dx2 /= len2; dy2 /= len2; dz2 /= len2;
+            
+            // Dot product gives cos(angle)
+            double dotProduct = dx1*dx2 + dy1*dy2 + dz1*dz2;
+            
+            // Clamp to [-1, 1] to avoid acos errors
+            dotProduct = Math.Max(-1, Math.Min(1, dotProduct));
+            
+            // Junction speed is reduced based on angle
+            // Straight line (cos=1): full speed
+            // 90° turn (cos=0): ~30% speed
+            // 180° turn (cos=-1): 0% speed
+            double speedFactor = (1 + dotProduct) / 2; // Range [0, 1]
+            
+            // Apply a junction deviation factor (GRBL uses $11 junction deviation)
+            // More aggressive slowdown for sharper angles
+            speedFactor = Math.Pow(speedFactor, 0.5); // Square root for gentler curve
+            
+            return maxSpeed * speedFactor;
+        }
+        
         public void BuildTimeMapFromSegments(List<GCodeSegment> segments)
         {
-            _segmentEstimatedTimes.Clear(); _completedSegments.Clear(); _completedMinutes = 0; _totalEstimatedMinutes = 0; if (segments == null) { TotalEstimatedTime = TimeSpan.Zero; return; }
+            _segmentEstimatedTimes.Clear(); 
+            _completedSegments.Clear(); 
+            _completedMinutes = 0; 
+            _totalEstimatedMinutes = 0; 
+            
+            if (segments == null || segments.Count == 0) 
+            { 
+                TotalEstimatedTime = TimeSpan.Zero; 
+                return; 
+            }
+            
+            // Get machine settings for accurate time calculation
+            // $110 = X max rate (mm/min), $111 = Y max rate, $112 = Z max rate
+            // $120 = X acceleration (mm/s²), $121 = Y acceleration, $122 = Z acceleration
+            double rapidRateXY = Math.Min(GetMachineSetting(110, 3000), GetMachineSetting(111, 3000)); // Use slower of X/Y
+            double rapidRateZ = GetMachineSetting(112, 1000);
+            double acceleration = GetMachineSetting(120, 200); // Use X acceleration as baseline (mm/s²)
+            
+            System.Diagnostics.Debug.WriteLine($"⏱️ Time estimation using: RapidXY={rapidRateXY}mm/min, RapidZ={rapidRateZ}mm/min, Accel={acceleration}mm/s²");
+            
+            // First pass: Calculate entry/exit speeds for each segment using look-ahead
+            double[] entrySpeedsPerMin = new double[segments.Count];
+            double[] exitSpeedsPerMin = new double[segments.Count];
+            
+            // Forward pass: calculate maximum entry speeds based on previous segment
             for (int i = 0; i < segments.Count; i++)
             {
-                var seg = segments[i]; double distance = 0; try { distance = seg?.GetActualDistance() ?? 0; } catch { }
-                double feed = seg?.FeedRate ?? 0; if (feed <= 0) feed = 500; double minutes = (feed > 0 && distance > 0) ? distance / feed : 0; _segmentEstimatedTimes[i] = minutes; _totalEstimatedMinutes += minutes;
+                var seg = segments[i];
+                if (seg == null) continue;
+                
+                // Get target speed for this segment
+                double targetSpeed;
+                if (seg.MovementType == GCodeMovementType.Rapid)
+                {
+                    bool isZOnly = Math.Abs(seg.EndPoint.X - seg.StartPoint.X) < 0.001 && 
+                                   Math.Abs(seg.EndPoint.Y - seg.StartPoint.Y) < 0.001;
+                    targetSpeed = isZOnly ? rapidRateZ : rapidRateXY;
+                }
+                else
+                {
+                    targetSpeed = seg.FeedRate > 0 ? seg.FeedRate : 500;
+                }
+                
+                if (i == 0)
+                {
+                    // First segment: start from zero
+                    entrySpeedsPerMin[i] = 0;
+                }
+                else
+                {
+                    // Entry speed limited by junction with previous segment
+                    var prevSeg = segments[i - 1];
+                    double junctionSpeed = EstimateJunctionSpeed(prevSeg, seg, Math.Min(targetSpeed, exitSpeedsPerMin[i - 1]));
+                    entrySpeedsPerMin[i] = junctionSpeed;
+                }
+                
+                // Calculate maximum exit speed achievable from this distance
+                double distance = 0;
+                try { distance = seg.GetActualDistance(); } catch { }
+                
+                if (distance > 0)
+                {
+                    // Max speed achievable: V² = Vi² + 2*a*d
+                    double maxExitSpeed = Math.Sqrt(entrySpeedsPerMin[i] * entrySpeedsPerMin[i] / 3600 + 2 * acceleration * distance) * 60;
+                    exitSpeedsPerMin[i] = Math.Min(targetSpeed, maxExitSpeed);
+                }
+                else
+                {
+                    exitSpeedsPerMin[i] = entrySpeedsPerMin[i];
+                }
             }
+            
+            // Backward pass: ensure we can decelerate to required speeds
+            exitSpeedsPerMin[segments.Count - 1] = 0; // Last segment must end at zero
+            
+            for (int i = segments.Count - 2; i >= 0; i--)
+            {
+                var seg = segments[i];
+                if (seg == null) continue;
+                
+                double distance = 0;
+                try { distance = seg.GetActualDistance(); } catch { }
+                
+                if (distance > 0)
+                {
+                    // Required exit speed to be able to reach next segment's entry speed
+                    double requiredExitSpeed = entrySpeedsPerMin[i + 1];
+                    
+                    // Max exit speed that allows deceleration to required speed
+                    // Using V² = Vf² + 2*a*d (backwards)
+                    double maxExitFromDecel = Math.Sqrt(requiredExitSpeed * requiredExitSpeed / 3600 + 2 * acceleration * distance) * 60;
+                    
+                    exitSpeedsPerMin[i] = Math.Min(exitSpeedsPerMin[i], maxExitFromDecel);
+                    exitSpeedsPerMin[i] = Math.Min(exitSpeedsPerMin[i], requiredExitSpeed * 1.5); // Smooth junction
+                }
+            }
+            
+            // Final pass: calculate time for each segment with proper entry/exit speeds
+            for (int i = 0; i < segments.Count; i++)
+            {
+                var seg = segments[i]; 
+                double distance = 0; 
+                try { distance = seg?.GetActualDistance() ?? 0; } catch { }
+                
+                double entrySpeed = entrySpeedsPerMin[i];
+                double exitSpeed = exitSpeedsPerMin[i];
+                
+                double minutes = CalculateSegmentTime(seg, distance, rapidRateXY, rapidRateZ, acceleration, entrySpeed, exitSpeed);
+                _segmentEstimatedTimes[i] = minutes; 
+                _totalEstimatedMinutes += minutes;
+            }
+            
             TotalEstimatedTime = TimeSpan.FromMinutes(_totalEstimatedMinutes);
+            System.Diagnostics.Debug.WriteLine($"⏱️ Total estimated time: {TotalEstimatedTime} ({segments.Count} segments)");
         }
         public void RecalculateRemainingTimeWithFeedOverride(int feedPercent)
         {

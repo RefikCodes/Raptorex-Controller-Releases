@@ -94,6 +94,9 @@ namespace CncControlApp
         public string ConfigName => _connectionManager.ConfigName;
         public int DetectedAxisCount => _connectionManager.DetectedAxisCount;
         public bool IsFluidNC => _connectionManager.IsFluidNC;
+        
+        // Expose ConnectionManager for GCodeRunLineLogger direct log access
+        public ConnectionManager ConnectionManagerInstance => _connectionManager;
 
     // Connection snapshot (for Sistem Bilgileri panel)
     public string ConnectionPort => _connectionManager.ConnectionPort;
