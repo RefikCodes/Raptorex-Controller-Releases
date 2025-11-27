@@ -1069,7 +1069,7 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
             catch { }
         }
         
-        // Helper to format GCode lines to 4 decimal places to match OpenBuilds precision
+        // Helper to format GCode lines to 3 decimal places to avoid controller precision errors
         private string FormatGCodeLine(string line)
         {
             if (string.IsNullOrWhiteSpace(line)) return line;
@@ -1083,8 +1083,8 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
                 
                 if (double.TryParse(numberStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double val))
                 {
-                    // Round to 4 decimal places (OpenBuilds standard)
-                    string rounded = Math.Round(val, 4).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+                    // Round to 3 decimal places to avoid error:33
+                    string rounded = Math.Round(val, 3).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
                     return $"{axis}{rounded}";
                 }
                 return m.Value;
