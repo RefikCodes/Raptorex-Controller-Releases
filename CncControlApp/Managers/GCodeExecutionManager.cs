@@ -65,11 +65,10 @@ namespace CncControlApp.Managers
         private const int MAX_LINE_COUNT = 50000;
         private const int MAX_GCODE_LINE_LENGTH = 256;
         private const int MAX_ERROR_COUNT = 5;
-        private const int INITIAL_BUFFER_SIZE = 3;
-        private const int TARGET_BUFFER_SIZE = 3;
+        private const int TARGET_BUFFER_SIZE = 15;
         
-        // Byte-based buffer limit (120 bytes is safer than 127 to avoid off-by-one errors)
-        private const int MAX_BUFFER_BYTES = 120;
+        // Byte-based buffer limit (800 bytes for larger buffer)
+        private const int MAX_BUFFER_BYTES = 800;
 
         public GCodeExecutionManager(
             ConnectionManager connectionManager,
@@ -571,7 +570,11 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
 
             const int STALL_THRESHOLD_MS = 2500; // time without OK before considering stall
             const int STALL_LOG_INTERVAL_MS = 3000; // avoid spamming log
+            const int INITIAL_FILL_DELAY_MS = 100; // TEST: Delay between commands during initial buffer fill
 
+            bool initialFillDone = false;
+            int initialFillCount = 0; // Track how many commands sent during initial fill
+            
             // Fill buffer while space is available
             async Task FillAsync()
             {
@@ -588,9 +591,9 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
                     {
                         if (CurrentGCodeLineIndex >= GCodeLines.Count) break; // Done sending
                         
-                        // STRICT PING-PONG: Only 1 command inflight at a time.
-                        // This matches OpenBuilds reliability and prevents buffer overflows.
-                        if (inflight.Count >= 1) break; 
+                        // INITIAL FILL: Fill to TARGET_BUFFER_SIZE, then PING-PONG (1 OK = 1 command)
+                        int maxInflight = initialFillDone ? 1 : TARGET_BUFFER_SIZE;
+                        if (inflight.Count >= maxInflight) break; 
 
                         // Peek next command to check size
                         if (!TryGetNextValidCommand(out cmd, out uiIdx))
@@ -613,8 +616,13 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
                     ParseModalValues(cmd);
                     bool sent = await _connectionManager.SendGCodeCommandAsync(cmd);
 
-                    // USER REQUEST: 15ms delay between sends to allow controller to breathe
-                    await Task.Delay(15);
+                    // TEST: Add delay ONLY during initial buffer fill to let controller process setup commands
+                    if (!initialFillDone)
+                    {
+                        initialFillCount++;
+                        await Task.Delay(INITIAL_FILL_DELAY_MS);
+                        System.Diagnostics.Debug.WriteLine($"🔄 Initial fill #{initialFillCount}: {cmd} (waited {INITIAL_FILL_DELAY_MS}ms)");
+                    }
 
                     if (!sent)
                     {
@@ -631,6 +639,13 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
 
                     // Yield to allow UI/Events to process, preventing lock starvation
                     await Task.Yield();
+                }
+                
+                // Mark initial fill as done after first FillAsync completes
+                if (!initialFillDone)
+                {
+                    initialFillDone = true;
+                    _log($"> 🧪 TEST: Initial buffer fill complete ({initialFillCount} commands with {INITIAL_FILL_DELAY_MS}ms delay each)");
                 }
 
                 lock (sync)
