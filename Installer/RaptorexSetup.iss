@@ -2,7 +2,7 @@
 ; Eski versiyonu kaldırır ve yeni versiyonu kurar
 
 #define MyAppName "Raptorex Controller"
-#define MyAppVersion "2.0.11"
+#define MyAppVersion "2.0.12"
 #define MyAppPublisher "Raptorex CNC"
 #define MyAppURL "https://github.com/RefikCodes/Raptorex-Controller-Releases"
 #define MyAppExeName "Rptx01.exe"
@@ -62,7 +62,10 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: quicklaunchicon
 
 [Run]
+; Normal kurulumda kullanıcıya sor
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+; Silent kurulumda otomatik başlat
+Filename: "{app}\{#MyAppExeName}"; Flags: nowait skipifnotsilent
 
 [UninstallDelete]
 ; Uygulama klasöründeki ayar dosyalarını sil
