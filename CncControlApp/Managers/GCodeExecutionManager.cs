@@ -570,14 +570,22 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
 
             const int STALL_THRESHOLD_MS = 2500; // time without OK before considering stall
             const int STALL_LOG_INTERVAL_MS = 3000; // avoid spamming log
-            const int INITIAL_FILL_DELAY_MS = 100; // TEST: Delay between commands during initial buffer fill
+            const int INITIAL_FILL_DELAY_MS = 150; // Delay for first 15 commands
+            const int NORMAL_SEND_DELAY_MS = 25;   // Delay for all subsequent commands
 
             bool initialFillDone = false;
             int initialFillCount = 0; // Track how many commands sent during initial fill
             
+            // Semaphore to ensure only one FillAsync runs at a time (prevents parallel buffer overflow)
+            var fillSemaphore = new SemaphoreSlim(1, 1);
+            
             // Fill buffer while space is available
             async Task FillAsync()
             {
+                // Ensure only one FillAsync runs at a time to prevent buffer overflow
+                if (!await fillSemaphore.WaitAsync(0)) return; // Skip if another FillAsync is running
+                try
+                {
                 if (aborted) return;
 
                 // Loop to fill buffer, but yield to UI/Events occasionally
@@ -616,12 +624,17 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
                     ParseModalValues(cmd);
                     bool sent = await _connectionManager.SendGCodeCommandAsync(cmd);
 
-                    // TEST: Add delay ONLY during initial buffer fill to let controller process setup commands
+                    // Add delay between commands: 100ms for first 15, 50ms for rest
                     if (!initialFillDone)
                     {
                         initialFillCount++;
                         await Task.Delay(INITIAL_FILL_DELAY_MS);
                         System.Diagnostics.Debug.WriteLine($"🔄 Initial fill #{initialFillCount}: {cmd} (waited {INITIAL_FILL_DELAY_MS}ms)");
+                    }
+                    else
+                    {
+                        // Add 50ms delay for all subsequent commands to prevent buffer overrun
+                        await Task.Delay(NORMAL_SEND_DELAY_MS);
                     }
 
                     if (!sent)
@@ -645,7 +658,7 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
                 if (!initialFillDone)
                 {
                     initialFillDone = true;
-                    _log($"> 🧪 TEST: Initial buffer fill complete ({initialFillCount} commands with {INITIAL_FILL_DELAY_MS}ms delay each)");
+                    _log($"> ⏱️ Initial buffer fill complete ({initialFillCount} commands with {INITIAL_FILL_DELAY_MS}ms delay, subsequent: {NORMAL_SEND_DELAY_MS}ms)");
                 }
 
                 lock (sync)
@@ -654,6 +667,11 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
                     {
                         allAckTcs.TrySetResult(true);
                     }
+                }
+                }
+                finally
+                {
+                    fillSemaphore.Release();
                 }
             }
 
@@ -1391,8 +1409,8 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
                 
                 if (double.TryParse(numberStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double val))
                 {
-                    // Round to 3 decimal places to avoid error:33
-                    string rounded = Math.Round(val, 3).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+                    // Round to 3 decimal places and ALWAYS show 3 decimals to avoid GRBL parsing issues
+                    string rounded = Math.Round(val, 3).ToString("0.000", System.Globalization.CultureInfo.InvariantCulture);
                     return $"{axis}{rounded}";
                 }
                 return m.Value;
