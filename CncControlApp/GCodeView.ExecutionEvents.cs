@@ -90,7 +90,6 @@ namespace CncControlApp
                 }
             }
             UnhookFileServiceEvents();
-            _viewportManager?.ClearAllViewports();
         }
 
         private void MainController_PropertyChanged(object sender, PropertyChangedEventArgs e)

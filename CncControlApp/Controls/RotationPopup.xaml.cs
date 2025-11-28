@@ -407,18 +407,6 @@ namespace CncControlApp.Controls
             catch { }
         }
 
-        private void HeaderBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            try
-            {
-                if (e.ChangedButton == MouseButton.Left)
-                {
-                    DragMove();
-                }
-            }
-            catch { }
-        }
-
         private void TopViewCanvas_TouchDown(object sender, TouchEventArgs e)
         {
             try

@@ -11,18 +11,13 @@ namespace CncControlApp
     {
         private void InitializeGCodeWorkspace()
         {
-            _viewportManager = new ViewportManager(TopViewCanvas, FrontViewCanvas, RightViewCanvas, IsometricViewCanvas);
-            _fileService = new GCodeFileService(_viewportManager);
-            _overlayManager = new GCodeOverlayManager(TopViewCanvas, TopViewOverlayCanvas);
-            var visualization = new GCodeVisualization(_viewportManager);
-            visualization.InitializeStaticOverlays();
-            _visualization = visualization;
+            // Viewport and overlay managers removed - list view only
+            _fileService = new GCodeFileService(null);
             HookFileServiceEvents();
             HookExecutionEvents();
             GCodeListBox.ItemsSource = DisplayGCodeLines;
             DataContext = this;
             EnsureExecutionBindings();
-            SetupViewportInteraction();
             if (App.MainController != null)
             {
                 App.MainController.PropertyChanged -= MainController_PropertyChanged;
@@ -80,10 +75,6 @@ namespace CncControlApp
             if (ProgressTextBlock != null && !ReferenceEquals(ProgressTextBlock.DataContext, App.MainController))
                 ProgressTextBlock.DataContext = App.MainController;
             // CurrentLineTextBlock was removed during panel reorganization - no longer exists in XAML
-        }
-        private void SetupViewportInteraction()
-        {
-            try { _viewportManager?.SetupViewportMouseEvents(); } catch { }
         }
         private void OnErrorOccurred(string title, string message)
         {

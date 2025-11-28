@@ -28,6 +28,13 @@ namespace CncControlApp
         /// </summary>
         public void RenderCanvas(ViewportType viewportType, List<GCodeSegment> gcodeSegments)
         {
+            // Null viewport manager guard - canvas views removed
+            if (_viewportManager == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"⏭️ RenderCanvas skipped: No viewport manager (canvas views removed)");
+                return;
+            }
+            
             // Design mode guard
             try
             {
@@ -96,23 +103,12 @@ namespace CncControlApp
 
                 System.Diagnostics.Debug.WriteLine($"✅ WorkspaceTransform created: Scale={xf.Scale:F3}, Table={xf.MaxX:F0}x{xf.MaxY:F0}mm");
 
-                // ✅ STEP 2: Update overlay with the SAME transform (no recalculation)
-                var overlayManager = GetOverlayManager();
-                if (overlayManager != null)
-                {
-                    overlayManager.UpdateWithTransform(xf);
-                    System.Diagnostics.Debug.WriteLine($"✅ Overlay updated with unified transform");
-                }
-
-                // ✅ STEP 3: Draw G-CODE using the SAME transform (no recalculation)
+                // ✅ STEP 2: Draw G-CODE using the transform
                 Point? originPosition = null;
                 if (gcodeSegments?.Count > 0)
                 {
                     originPosition = DrawGCodeWithTransform(mainCanvas, gcodeSegments, xf);
                 }
-
-                // ✅ STEP 4: Refresh overlay
-                RefreshTopViewOverlay();
 
                 System.Diagnostics.Debug.WriteLine($"✅ OPTIMIZED RENDER complete (Scale={xf.Scale:F3})");
                 return originPosition;
@@ -340,22 +336,6 @@ namespace CncControlApp
         }
 
         /// <summary>
-        /// Get overlay manager instance
-        /// </summary>
-        private dynamic GetOverlayManager()
-        {
-            try
-            {
-                var gCodeView = Application.Current.MainWindow?.FindName("GCodeViewControl") as GCodeView;
-                return gCodeView?.GetOverlayManager();
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        /// <summary>
         /// Get current fit state from GCodeView
         /// </summary>
         private bool GetCurrentFitState()
@@ -373,25 +353,6 @@ namespace CncControlApp
             {
                 System.Diagnostics.Debug.WriteLine($"GetCurrentFitState error: {ex.Message}");
                 return true;
-            }
-        }
-
-        /// <summary>
-        /// Refresh TopView overlay
-        /// </summary>
-        private void RefreshTopViewOverlay()
-        {
-            try
-            {
-                var overlayManager = GetOverlayManager();
-                if (overlayManager != null)
-                {
-                    overlayManager.RefreshOverlay();
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"RefreshTopViewOverlay error: {ex.Message}");
             }
         }
     }

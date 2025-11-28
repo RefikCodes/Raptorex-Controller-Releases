@@ -19,7 +19,7 @@ namespace CncControlApp
         private readonly GCodeFileManager _fileManager;
         private readonly GCodeParser _parser;
         private readonly ViewportManager _viewportManager;
-        private readonly GCodeVisualization _visualization;
+        private GCodeVisualization _visualization;
         
         // Collections
         private readonly ObservableCollection<GCodeLineItem> _gcodeLines;
@@ -106,7 +106,8 @@ namespace CncControlApp
         {
             _fileManager = new GCodeFileManager();
             _parser = new GCodeParser();
-            _viewportManager = viewportManager ?? throw new ArgumentNullException(nameof(viewportManager));
+            _viewportManager = viewportManager; // Can be null - canvas views removed
+            // Always create visualization for popup rendering support
             _visualization = new GCodeVisualization(_viewportManager);
 
             _gcodeLines = new ObservableCollection<GCodeLineItem>();
@@ -206,6 +207,9 @@ namespace CncControlApp
         {
             try
             {
+                // Canvas views removed - skip visualization
+                if (_visualization == null) return;
+                
                 if (_gcodeSegments == null || _gcodeSegments.Count ==0)
                 {
                     System.Diagnostics.Debug.WriteLine("> 🔄 Redraw skipped: No segments loaded");
@@ -305,16 +309,18 @@ namespace CncControlApp
                     timeStats.LinearTime, timeStats.RapidTime, 
                     timeStats.ArcTime, timeStats.TotalTime);
 
-                // Redraw all viewports with new segments
-                Application.Current.Dispatcher.Invoke(() =>
+                // Redraw all viewports with new segments (skip if no visualization)
+                if (_visualization != null)
                 {
-                    _visualization.RenderCanvas(ViewportType.Top, _gcodeSegments);
-                    _visualization.RenderCanvas(ViewportType.Right, _gcodeSegments);
-                    _visualization.RenderCanvas(ViewportType.Front, _gcodeSegments);
-                    _visualization.RenderCanvas(ViewportType.Isometric, _gcodeSegments);
-                }, System.Windows.Threading.DispatcherPriority.Send);
-
-                App.MainController?.AddLogMessage("> 🎨 All viewports redrawn from reparsed segments");
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        _visualization.RenderCanvas(ViewportType.Top, _gcodeSegments);
+                        _visualization.RenderCanvas(ViewportType.Right, _gcodeSegments);
+                        _visualization.RenderCanvas(ViewportType.Front, _gcodeSegments);
+                        _visualization.RenderCanvas(ViewportType.Isometric, _gcodeSegments);
+                    }, System.Windows.Threading.DispatcherPriority.Send);
+                    App.MainController?.AddLogMessage("> 🎨 All viewports redrawn from reparsed segments");
+                }
             }
             catch (Exception ex)
             {
@@ -428,27 +434,34 @@ namespace CncControlApp
                         setPct(50);
                         await Task.Delay(50);
 
-                        // Step4-7: Render all viewports synchronously (50% progress total)
-                        if (showProgressDialog && progressDialog != null)
+                        // Step4-7: Render all viewports synchronously (50% progress total) - skip if no visualization
+                        if (_visualization != null)
                         {
-                            await RenderViewportWithProgress(ViewportType.Top, progressDialog,60, "Rendering Top View...");
-                            await RenderViewportWithProgress(ViewportType.Right, progressDialog,75, "Rendering Right View...");
-                            await RenderViewportWithProgress(ViewportType.Front, progressDialog,90, "Rendering Front View...");
-                            await RenderViewportWithProgress(ViewportType.Isometric, progressDialog,100, "Rendering Isometric View...");
+                            if (showProgressDialog && progressDialog != null)
+                            {
+                                await RenderViewportWithProgress(ViewportType.Top, progressDialog,60, "Rendering Top View...");
+                                await RenderViewportWithProgress(ViewportType.Right, progressDialog,75, "Rendering Right View...");
+                                await RenderViewportWithProgress(ViewportType.Front, progressDialog,90, "Rendering Front View...");
+                                await RenderViewportWithProgress(ViewportType.Isometric, progressDialog,100, "Rendering Isometric View...");
+                            }
+                            else
+                            {
+                                report("Rendering Top View...");
+                                Application.Current.Dispatcher.Invoke(() => _visualization.RenderCanvas(ViewportType.Top, _gcodeSegments), System.Windows.Threading.DispatcherPriority.Send);
+                                setPct(60);
+                                report("Rendering Right View...");
+                                Application.Current.Dispatcher.Invoke(() => _visualization.RenderCanvas(ViewportType.Right, _gcodeSegments), System.Windows.Threading.DispatcherPriority.Send);
+                                setPct(75);
+                                report("Rendering Front View...");
+                                Application.Current.Dispatcher.Invoke(() => _visualization.RenderCanvas(ViewportType.Front, _gcodeSegments), System.Windows.Threading.DispatcherPriority.Send);
+                                setPct(90);
+                                report("Rendering Isometric View...");
+                                Application.Current.Dispatcher.Invoke(() => _visualization.RenderCanvas(ViewportType.Isometric, _gcodeSegments), System.Windows.Threading.DispatcherPriority.Send);
+                                setPct(100);
+                            }
                         }
                         else
                         {
-                            report("Rendering Top View...");
-                            Application.Current.Dispatcher.Invoke(() => _visualization.RenderCanvas(ViewportType.Top, _gcodeSegments), System.Windows.Threading.DispatcherPriority.Send);
-                            setPct(60);
-                            report("Rendering Right View...");
-                            Application.Current.Dispatcher.Invoke(() => _visualization.RenderCanvas(ViewportType.Right, _gcodeSegments), System.Windows.Threading.DispatcherPriority.Send);
-                            setPct(75);
-                            report("Rendering Front View...");
-                            Application.Current.Dispatcher.Invoke(() => _visualization.RenderCanvas(ViewportType.Front, _gcodeSegments), System.Windows.Threading.DispatcherPriority.Send);
-                            setPct(90);
-                            report("Rendering Isometric View...");
-                            Application.Current.Dispatcher.Invoke(() => _visualization.RenderCanvas(ViewportType.Isometric, _gcodeSegments), System.Windows.Threading.DispatcherPriority.Send);
                             setPct(100);
                         }
 
@@ -496,6 +509,7 @@ namespace CncControlApp
         {
             try
             {
+                if (_visualization == null) return;
                 if (_gcodeSegments == null || _gcodeSegments.Count ==0) return;
                 Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                 {
@@ -722,6 +736,12 @@ namespace CncControlApp
         private async Task RenderViewportWithProgress(ViewportType viewportType, GCodeProgressDialog progressDialog, 
             double progressPercentage, string statusMessage)
         {
+            if (_visualization == null)
+            {
+                progressDialog.SetProgress(progressPercentage);
+                return;
+            }
+            
             progressDialog.UpdateStatus(statusMessage);
             LoadingProgressChanged?.Invoke(progressPercentage -10, statusMessage);
 

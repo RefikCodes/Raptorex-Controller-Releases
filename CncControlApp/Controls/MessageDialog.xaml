@@ -41,7 +41,7 @@
                     <TextBlock x:Name="MessageText"
                                Text="Message"
                                TextWrapping="Wrap"
-                               Width="840"
+                               Width="530"
                                Foreground="#FFDDDDDD"
                                FontSize="15"/>
                 </Border>
@@ -82,11 +82,11 @@
                 </StackPanel.Resources>
 
                 <Button x:Name="YesButton" Content="STOP Run" Width="140" Height="44"
-                        Background="#FFF28B82" Foreground="#FF1E1E20" BorderBrush="#FFD98078" FontSize="14" FontWeight="SemiBold" Click="YesButton_Click"/>
+                        Background="#FFA5D6A7" Foreground="#FF1E1E20" BorderBrush="#FF7FBF84" FontSize="14" FontWeight="SemiBold" Click="YesButton_Click"/>
                 <!-- spacer = one button width -->
                 <Rectangle Width="140" Height="0"/>
                 <Button x:Name="NoButton" Content="Continue" Width="140" Height="44"
-                        Background="#FFA5D6A7" Foreground="#FF1E1E20" BorderBrush="#FF7FBF84" FontSize="14" FontWeight="SemiBold" Click="NoButton_Click"/>
+                        Background="#FFF28B82" Foreground="#FF1E1E20" BorderBrush="#FFD98078" FontSize="14" FontWeight="SemiBold" Click="NoButton_Click"/>
                 <!-- spacer = one button width -->
                 <Rectangle Width="140" Height="0"/>
                 <Button x:Name="OkButton" Content="OK" Width="120" Height="44"

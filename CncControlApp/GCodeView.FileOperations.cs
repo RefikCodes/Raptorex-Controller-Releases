@@ -29,7 +29,6 @@ namespace CncControlApp
               bool success = await _fileService.LoadFileWithProgressAsync(customDialog.SelectedFile);
     if (success)
      {
-_overlayManager?.LoadWorkspaceLimitsFromSettings();
        LoadTableDimensionsFromSettings();
                UpdateStatusBarWithLiveFitCheck();
       }
@@ -56,9 +55,6 @@ _overlayManager?.LoadWorkspaceLimitsFromSettings();
   // Reset execution state and counters to a known baseline
      App.MainController.GCodeManager?.ResetExecutionState();
     }
-
-      // Clear overlays/preview
-                _overlayManager?.ClearOverlay();
       
     // Clear stored G-code origin position (for rotation)
       _gcodeOriginCanvasPosition = null;

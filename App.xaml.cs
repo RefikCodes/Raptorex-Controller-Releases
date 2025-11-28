@@ -39,6 +39,23 @@ namespace CncControlApp
                 MainController = new MainControll();
                 
                 System.IO.File.AppendAllText("startup.log", $"[{DateTime.Now:HH:mm:ss.fff}] MainController created successfully\n");
+                
+                // Arka planda güncelleme kontrolü yap (sessiz mod)
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(5000); // Uygulama tamamen yüklendikten sonra
+                        await Application.Current.Dispatcher.InvokeAsync(async () =>
+                        {
+                            await UpdateChecker.CheckAndPromptAsync(silentIfNoUpdate: true);
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Update check failed: {ex.Message}");
+                    }
+                });
             }
             catch (Exception ex)
             {

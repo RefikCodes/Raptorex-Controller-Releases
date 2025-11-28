@@ -18,10 +18,7 @@ namespace CncControlApp
     {
         #region Fields
 
-        private ViewportManager _viewportManager;
         private GCodeFileService _fileService;
-        private GCodeOverlayManager _overlayManager;
-        private GCodeVisualization _visualization;
 
         private ObservableCollection<GCodeLineItem> _displayGCodeLines;
 
@@ -77,12 +74,6 @@ private double _scrollFromOffset = 0;
 
 // Keep selection aligned with current line
         private bool _suppressSelectionChanged = false;
-
-        private bool _isTopViewMaximized = false;
-    private GridLength _savedRow0Height = new GridLength(1, GridUnitType.Star);
-    private GridLength _savedRow2Height = new GridLength(1, GridUnitType.Star);
-        private GridLength _savedCol0Width = new GridLength(1, GridUnitType.Star);
-    private GridLength _savedCol2Width = new GridLength(1, GridUnitType.Star);
 
         // Execution tracking
       private DateTime _executionStartTime;
@@ -170,8 +161,6 @@ private double _scrollFromOffset = 0;
 
             InitializeGCodeWorkspace();
 
-SetActiveTab(true); // default to G-Code tab
-
             if (App.MainController != null)
                 App.MainController.CommandBlockedDueToHold += OnCommandBlockedDueToHold;
 
@@ -198,8 +187,6 @@ StatusTextBlock.Text = $"Paused (Hold) – skipped: {e.Command}";
 
         #endregion
 
-     public GCodeOverlayManager GetOverlayManager() => _overlayManager;
-
         // Method to start modal value updates during execution (also drives periodic progress refresh)
    private void StartExecutionModalUpdates()
    {
@@ -225,85 +212,6 @@ StatusTextBlock.Text = $"Paused (Hold) – skipped: {e.Command}";
   }
             catch { }
       }
-
-    private void ToggleTopViewMaximize()
-        {
-            if (ViewTabContent.Visibility != Visibility.Visible) return;
-     var layoutRoot = ViewTabContent.Children[0] as Grid;
-            if (layoutRoot == null) return;
-
-    bool willMaximize = !_isTopViewMaximized;
-
-       if (willMaximize)
-          {
-   _savedRow0Height = layoutRoot.RowDefinitions[0].Height;
-     _savedRow2Height = layoutRoot.RowDefinitions[2].Height;
-         _savedCol0Width = layoutRoot.ColumnDefinitions[0].Width;
-    _savedCol2Width = layoutRoot.ColumnDefinitions[2].Width;
-
-                layoutRoot.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
-      layoutRoot.RowDefinitions[2].Height = new GridLength(0);
-      layoutRoot.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
-         layoutRoot.ColumnDefinitions[2].Width = new GridLength(0);
-
-         if (RightViewBorder != null) RightViewBorder.Visibility = Visibility.Collapsed;
-        if (FrontViewBorder != null) FrontViewBorder.Visibility = Visibility.Collapsed;
-     if (IsoViewBorder != null) IsoViewBorder.Visibility = Visibility.Collapsed;
-     if (VerticalSplitter != null) VerticalSplitter.Visibility = Visibility.Collapsed;
-        if (HorizontalSplitter != null) HorizontalSplitter.Visibility = Visibility.Collapsed;
-     _isTopViewMaximized = true;
-          }
-    else
-          {
-           layoutRoot.RowDefinitions[0].Height = _savedRow0Height;
-         layoutRoot.RowDefinitions[2].Height = _savedRow2Height;
- layoutRoot.ColumnDefinitions[0].Width = _savedCol0Width;
-   layoutRoot.ColumnDefinitions[2].Width = _savedCol2Width;
-
-      if (RightViewBorder != null) RightViewBorder.Visibility = Visibility.Visible;
-           if (FrontViewBorder != null) FrontViewBorder.Visibility = Visibility.Visible;
-      if (IsoViewBorder != null) IsoViewBorder.Visibility = Visibility.Visible;
-       if (VerticalSplitter != null) VerticalSplitter.Visibility = Visibility.Visible;
-       if (HorizontalSplitter != null) HorizontalSplitter.Visibility = Visibility.Visible;
-        _isTopViewMaximized = false;
-         }
-
-   try
-            {
-       if (TopViewMaxToggleButton != null)
-        {
-     TopViewMaxToggleButton.Content = _isTopViewMaximized ? "❐" : "⛶"; // ❐ restore, ⛶ maximize
-            TopViewMaxToggleButton.ToolTip = _isTopViewMaximized ? "Restore views" : "Maximize top view";
-        }
-   }
-            catch { }
-
-        Dispatcher.BeginInvoke(new Action(() =>
-     {
-              try
-     {
-       _fileService?.RedrawTopViewport();
-             _overlayManager?.OnCanvasSizeChanged();
-  }
-              catch { }
-       }), System.Windows.Threading.DispatcherPriority.Background);
-        }
-
-        private void TopViewHeaderBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            ToggleTopViewMaximize();
-        }
-
-        private void TopViewHeaderBar_TouchDown(object sender, TouchEventArgs e)
- {
-ToggleTopViewMaximize();
-       e.Handled = true;
-    }
-
-private void TopViewMaxToggleButton_Click(object sender, RoutedEventArgs e)
-    {
- ToggleTopViewMaximize();
-        }
 
         // Listen to IsGCodeRunning property changes to start/stop updates
         public void UpdateExecutionState(bool isRunning)

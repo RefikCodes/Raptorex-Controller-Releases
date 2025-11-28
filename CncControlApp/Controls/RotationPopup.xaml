@@ -180,7 +180,7 @@
  </Grid.RowDefinitions>
 
  <!-- Header -->
- <Border x:Name="HeaderBorder" Grid.Row="0" Background="#FF3D3D40" Padding="18,14" CornerRadius="14,14,0,0" MouseLeftButtonDown="HeaderBorder_MouseLeftButtonDown" Cursor="SizeAll" BorderBrush="Black">
+ <Border x:Name="HeaderBorder" Grid.Row="0" Background="#FF3D3D40" Padding="18,14" CornerRadius="14,14,0,0" BorderBrush="Black">
  <DockPanel>
  <Ellipse Width="10" Height="10" Fill="#FF4CAF50" VerticalAlignment="Center"/>
  <TextBlock Margin="10,0,0,0" Text="G-CODE ROTATION" Foreground="White" FontSize="22"/>

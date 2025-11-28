@@ -44,7 +44,6 @@ namespace CncControlApp
         UiHelper.SafeUpdateTextBlock(ZDistanceTextBlock, $"{zRange:F1}mm");
 
            UpdateCurrentPartDimensions(xRange, yRange);
-    _overlayManager?.UpdatePartDimensions(xRange, yRange);
               UpdateStatusBarWithLiveFitCheck();
            }
        catch { }
@@ -134,9 +133,6 @@ namespace CncControlApp
            ResetFeedSpindleState();
 
          ResetRotationState();
-  _viewportManager?.ResetAllViewports();
-
-        _overlayManager?.LoadWorkspaceLimitsFromSettings();
 
  LoadTableDimensionsFromSettings();
 
@@ -159,10 +155,6 @@ namespace CncControlApp
               if (RotationAngleSlider != null && Math.Abs(RotationAngleSlider.Value) > 0.0001)
        RotationAngleSlider.Value = 0;
 
-    if (TopViewCanvas != null)
-      TopViewCanvas.RenderTransform = Transform.Identity;
-
-       _overlayManager?.RefreshOverlay();
              UpdateStatusBarWithLiveFitCheck();
           }
    catch { }

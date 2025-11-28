@@ -38,51 +38,21 @@ namespace CncControlApp
  /// </summary>
         private void InitializeLiveTrace()
         {
-   try
-      {
-    // Find or create live trace canvas layer
-        if (TopViewCanvas != null && TopViewOverlayCanvas != null)
-      {
-      // Live trace canvas sits between main canvas and overlay
-      _liveTraceCanvas = new Canvas
-      {
-  Background = Brushes.Transparent,
-     IsHitTestVisible = false,
-             Visibility = Visibility.Collapsed
-       };
-          
-     // Add to same parent grid as other canvases
-      var parent = TopViewCanvas.Parent as Grid;
-     if (parent != null)
-        {
-             // Insert between main canvas and overlay
-            int mainIndex = parent.Children.IndexOf(TopViewCanvas);
-   parent.Children.Insert(mainIndex + 1, _liveTraceCanvas);
-      
-           // Set grid position
-     Grid.SetRow(_liveTraceCanvas, Grid.GetRow(TopViewCanvas));
-      Grid.SetColumn(_liveTraceCanvas, Grid.GetColumn(TopViewCanvas));
-      
-      // Set z-index (between main canvas and overlay)
-     Panel.SetZIndex(_liveTraceCanvas, Panel.GetZIndex(TopViewCanvas) + 1);
-     }
-         
-       System.Diagnostics.Debug.WriteLine("✅ Live trace canvas initialized");
-   }
-
- // Create trace timer (50ms interval for smooth updates)
-  _liveTraceTimer = new DispatcherTimer
-              {
-    Interval = TimeSpan.FromMilliseconds(50)
-      };
-       _liveTraceTimer.Tick += LiveTraceTimer_Tick;
-
-                System.Diagnostics.Debug.WriteLine("✅ Live trace timer created");
-   }
- catch (Exception ex)
+            // Live trace disabled - canvas views removed
+            // Timer still created for potential future use with popup
+            try
             {
-    System.Diagnostics.Debug.WriteLine($"❌ InitializeLiveTrace error: {ex.Message}");
-       }
+                _liveTraceTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(50)
+                };
+                _liveTraceTimer.Tick += LiveTraceTimer_Tick;
+                System.Diagnostics.Debug.WriteLine("✅ Live trace timer created (canvas disabled)");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ InitializeLiveTrace error: {ex.Message}");
+            }
         }
 
         #endregion
@@ -299,32 +269,9 @@ StrokeThickness = 2,
       /// </summary>
     private bool TryConvertMachineToCanvas(double machineX, double machineY, out Point canvasPoint)
         {
-   canvasPoint = new Point();
-
-            try
-  {
-        if (TopViewCanvas == null) return false;
-
-     double canvasWidth = TopViewCanvas.ActualWidth;
-          double canvasHeight = TopViewCanvas.ActualHeight;
-
-                if (canvasWidth <= 0 || canvasHeight <= 0) return false;
-
-            // Use WorkspaceTransform for consistent coordinate mapping
-     if (!CncControlApp.Helpers.WorkspaceTransform.TryCreateFromSettings(canvasWidth, canvasHeight, out var xf))
-   {
-           return false;
-       }
-
-         // Convert machine coordinates to canvas coordinates
-        canvasPoint = xf.ToCanvas(machineX, machineY);
- return true;
-            }
-            catch (Exception ex)
-     {
-        System.Diagnostics.Debug.WriteLine($"❌ TryConvertMachineToCanvas error: {ex.Message}");
-     return false;
-        }
+            canvasPoint = new Point();
+            // Canvas views removed - live trace disabled
+            return false;
         }
 
         #endregion

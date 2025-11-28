@@ -132,8 +132,6 @@ namespace CncControlApp
                         if (XDistanceTextBlock != null) XDistanceTextBlock.Text = $"{xRange:F1}mm";
                         if (YDistanceTextBlock != null) YDistanceTextBlock.Text = $"{yRange:F1}mm";
 
-                        _overlayManager?.UpdatePartDimensions(xRange, yRange);
-
                         // Update status bar including live fit state
                         UpdateStatusBarWithLiveFitCheck();
                     }

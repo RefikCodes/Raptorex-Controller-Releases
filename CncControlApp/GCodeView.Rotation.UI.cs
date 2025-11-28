@@ -122,11 +122,6 @@ public void ResetRotation()
         RotationAngleSlider.Value = 0;
              else
             SetRotationAngle(0);
-         
-     if (TopViewCanvas != null)
-          {
- TopViewCanvas.RenderTransform = null;
-       }
    }
   catch (Exception ex)
       {
@@ -254,7 +249,6 @@ public void ResetRotation()
  //5) Finalize UI
  await Application.Current.Dispatcher.InvokeAsync(() =>
  {
- if (TopViewCanvas != null) TopViewCanvas.RenderTransform = null;
  if (RotationAngleSlider != null) RotationAngleSlider.Value =0;
  _currentRotationAngle =0;
  });
@@ -303,17 +297,7 @@ public void ResetRotation()
 
         private void ApplySimpleRotation(double angleDegrees)
         {
- try
-       {
-  if (TopViewCanvas == null) return;
-       var rotateTransform = new RotateTransform { Angle = angleDegrees };
-        TopViewCanvas.RenderTransformOrigin = new Point(0.5, 0.5);
-    TopViewCanvas.RenderTransform = rotateTransform;
-  }
-            catch (Exception ex)
-   {
-  System.Diagnostics.Debug.WriteLine($"ApplySimpleRotation error: {ex.Message}");
-       }
+            // Canvas views removed - rotation preview only in popup
         }
 
         private void ApplyAngleRotationButton_Click(object sender, RoutedEventArgs e)
@@ -494,16 +478,6 @@ private void RotationAngleSlider_TouchUp(object sender, TouchEventArgs e)
          if (RotationAngleSlider != null) RotationAngleSlider.IsEnabled = !running;
         if (RotationResetButton != null) RotationResetButton.IsEnabled = !running;
         if (ApplyAngleRotationButton != null) ApplyAngleRotationButton.IsEnabled = !running;
-
- if (TopViewCanvas != null)
-      {
-        TopViewCanvas.IsEnabled = !running;
-          TopViewCanvas.IsHitTestVisible = !running;
-      }
-       if (TopViewOverlayCanvas != null)
-        {
-               TopViewOverlayCanvas.IsHitTestVisible = false;
-       }
    }
       catch { }
   }
@@ -678,7 +652,7 @@ if (start < end) start += 2.0 * Math.PI;
 
                                 method.Invoke(visualization, new object[] { targetCanvas, targetOverlayCanvas, segments, width, height });
 
-                                if (targetOverlayCanvas != null && _overlayManager != null)
+                                if (targetOverlayCanvas != null)
                                 {
                                     DrawPopupOverlay(targetOverlayCanvas, width, height);
                                 }
