@@ -13,11 +13,13 @@ namespace CncControlApp
     /// <summary>
     /// GitHub Releases üzerinden otomatik güncelleme kontrolü
     /// Rate limit sorunu yaşamamak için redirect yöntemi kullanılır
+    /// Otomatik indirme, kurulum ve yeniden başlatma desteği
     /// </summary>
     public static class UpdateChecker
     {
         private const string GITHUB_REPO = "RefikCodes/Raptorex-Controller-Releases";
         private const string RELEASES_PAGE_URL = "https://github.com/{0}/releases/latest";
+        private const string TEMP_INSTALLER_NAME = "RaptorexController_Update.exe";
 
         /// <summary>
         /// Mevcut uygulama versiyonunu alır
@@ -125,7 +127,7 @@ namespace CncControlApp
         }
 
         /// <summary>
-        /// Güncelleme varsa kullanıcıya göster
+        /// Güncelleme varsa kullanıcıya göster ve otomatik indir/kur
         /// </summary>
         public static async Task CheckAndPromptAsync(bool silentIfNoUpdate = true)
         {
@@ -136,27 +138,15 @@ namespace CncControlApp
                 string message = $"Yeni sürüm mevcut!\n\n" +
                                  $"Mevcut: v{updateInfo.CurrentVersion}\n" +
                                  $"Yeni: v{updateInfo.LatestVersion}\n\n" +
-                                 $"{(string.IsNullOrEmpty(updateInfo.ReleaseNotes) ? "" : "Değişiklikler:\n" + updateInfo.ReleaseNotes + "\n\n")}" +
-                                 $"İndirmek için GitHub sayfasına gidilsin mi?";
+                                 $"Güncelleme otomatik olarak indirilip kurulacak.\nProgram yeniden başlatılacak.\n\n" +
+                                 $"Devam edilsin mi?";
 
                 var result = MessageBox.Show(message, "Güncelleme Mevcut", 
                     MessageBoxButton.YesNo, MessageBoxImage.Information);
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    try
-                    {
-                        Process.Start(new ProcessStartInfo
-                        {
-                            FileName = updateInfo.DownloadUrl,
-                            UseShellExecute = true
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Tarayıcı açılamadı: {ex.Message}", "Hata", 
-                            MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
+                    await DownloadAndInstallUpdateAsync(updateInfo);
                 }
             }
             else if (!silentIfNoUpdate)
@@ -171,6 +161,124 @@ namespace CncControlApp
                     MessageBox.Show($"En güncel sürümü kullanıyorsunuz.\nMevcut sürüm: v{CurrentVersion}", 
                         "Güncelleme Kontrolü", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Güncellemeyi indir, kur ve programı yeniden başlat
+        /// </summary>
+        private static async Task DownloadAndInstallUpdateAsync(UpdateInfo updateInfo)
+        {
+            string tempPath = Path.Combine(Path.GetTempPath(), TEMP_INSTALLER_NAME);
+            
+            try
+            {
+                ErrorLogger.LogInfo($"Güncelleme indiriliyor: {updateInfo.DownloadUrl}");
+                
+                // Progress dialog göster
+                var progressWindow = new Window
+                {
+                    Title = "Güncelleme İndiriliyor",
+                    Width = 400,
+                    Height = 150,
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                    ResizeMode = ResizeMode.NoResize,
+                    WindowStyle = WindowStyle.ToolWindow
+                };
+                
+                var stackPanel = new System.Windows.Controls.StackPanel
+                {
+                    Margin = new Thickness(20),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                
+                var statusText = new System.Windows.Controls.TextBlock
+                {
+                    Text = $"v{updateInfo.LatestVersion} indiriliyor...",
+                    FontSize = 14,
+                    Margin = new Thickness(0, 0, 0, 10),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                
+                var progressBar = new System.Windows.Controls.ProgressBar
+                {
+                    Height = 25,
+                    IsIndeterminate = true
+                };
+                
+                stackPanel.Children.Add(statusText);
+                stackPanel.Children.Add(progressBar);
+                progressWindow.Content = stackPanel;
+                
+                progressWindow.Show();
+                
+                // İndirme işlemi
+                using (var client = new HttpClient())
+                {
+                    client.DefaultRequestHeaders.Add("User-Agent", "RaptorexController-Updater");
+                    client.Timeout = TimeSpan.FromMinutes(5);
+                    
+                    var response = await client.GetAsync(updateInfo.DownloadUrl, HttpCompletionOption.ResponseHeadersRead);
+                    response.EnsureSuccessStatusCode();
+                    
+                    using (var stream = await response.Content.ReadAsStreamAsync())
+                    using (var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                    {
+                        await stream.CopyToAsync(fileStream);
+                    }
+                }
+                
+                progressWindow.Close();
+                
+                ErrorLogger.LogInfo($"Güncelleme indirildi: {tempPath}");
+                
+                // Kurulum başlat ve programı kapat
+                StartInstallerAndExit(tempPath);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError("Güncelleme indirme hatası", ex);
+                MessageBox.Show($"Güncelleme indirilemedi:\n{ex.Message}\n\nManuel olarak GitHub'dan indirebilirsiniz.", 
+                    "İndirme Hatası", MessageBoxButton.OK, MessageBoxImage.Error);
+                
+                // Temp dosyasını temizle
+                try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
+            }
+        }
+
+        /// <summary>
+        /// Installer'ı başlat ve programı kapat
+        /// </summary>
+        private static void StartInstallerAndExit(string installerPath)
+        {
+            try
+            {
+                ErrorLogger.LogInfo($"Installer başlatılıyor: {installerPath}");
+                
+                // Installer'ı silent modda başlat (/SILENT veya /VERYSILENT Inno Setup için)
+                // Program kapandıktan sonra kurulum başlayacak
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = installerPath,
+                    Arguments = "/SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS",
+                    UseShellExecute = true
+                };
+                
+                Process.Start(startInfo);
+                
+                ErrorLogger.LogInfo("Installer başlatıldı, program kapatılıyor...");
+                
+                // Uygulamayı kapat
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    Application.Current.Shutdown();
+                });
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError("Installer başlatma hatası", ex);
+                MessageBox.Show($"Kurulum başlatılamadı:\n{ex.Message}\n\nLütfen indirilen dosyayı manuel çalıştırın:\n{installerPath}", 
+                    "Kurulum Hatası", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }
