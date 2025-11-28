@@ -14,7 +14,7 @@ namespace CncControlApp
     /// </summary>
     public static class UpdateChecker
     {
-        private const string GITHUB_REPO = "RefikCodes/Raptorex-Controller-PC-3Axis-only";
+        private const string GITHUB_REPO = "RefikCodes/Raptorex-Controller-Releases";
         private const string RELEASES_API_URL = "https://api.github.com/repos/{0}/releases/latest";
         private const string RELEASES_PAGE_URL = "https://github.com/{0}/releases/latest";
 
