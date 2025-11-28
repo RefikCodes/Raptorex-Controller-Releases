@@ -197,7 +197,7 @@ namespace CncControlApp
 
                 if (targetPercent ==100)
                 {
-                    await App.MainController.SendControlCharacterAsync('\x99'); // spindle reset
+                    await App.MainController.SendControlCharacterAsync('\x9A'); // spindle reset (0x9A)
                     _lastSpindleOverridePercent =100;
                     RefreshOverrideDisplays();
                     App.MainController.AddLogMessage("> Spindle override reset to100% (baseline)");
