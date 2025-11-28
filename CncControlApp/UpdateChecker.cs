@@ -7,6 +7,8 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace CncControlApp
 {
@@ -48,8 +50,6 @@ namespace CncControlApp
         {
             try
             {
-                ErrorLogger.LogInfo($"Güncelleme kontrolü başlatılıyor... Mevcut versiyon: {CurrentVersion}");
-                
                 string releasesUrl = string.Format(RELEASES_PAGE_URL, GITHUB_REPO);
                 
                 // HttpClient ile redirect'i takip etmeden son URL'i al
@@ -65,7 +65,6 @@ namespace CncControlApp
                     if (response.StatusCode == HttpStatusCode.Found || response.StatusCode == HttpStatusCode.MovedPermanently)
                     {
                         string redirectUrl = response.Headers.Location?.ToString();
-                        ErrorLogger.LogInfo($"Redirect URL: {redirectUrl}");
                         
                         if (!string.IsNullOrEmpty(redirectUrl))
                         {
@@ -74,12 +73,10 @@ namespace CncControlApp
                             if (match.Success)
                             {
                                 string latestVersionStr = match.Groups[1].Value;
-                                ErrorLogger.LogInfo($"Bulunan versiyon: {latestVersionStr}");
                                 
                                 if (Version.TryParse(NormalizeVersion(latestVersionStr), out Version latestVersion))
                                 {
                                     bool hasUpdate = latestVersion > CurrentVersion;
-                                    ErrorLogger.LogInfo($"Karşılaştırma: {latestVersion} > {CurrentVersion} = {hasUpdate}");
                                     
                                     // Download URL'i oluştur
                                     string downloadUrl = $"https://github.com/{GITHUB_REPO}/releases/download/v{latestVersionStr}/RaptorexController_Setup_{latestVersionStr}.exe";
@@ -135,16 +132,9 @@ namespace CncControlApp
 
             if (updateInfo.HasUpdate)
             {
-                string message = $"Yeni sürüm mevcut!\n\n" +
-                                 $"Mevcut: v{updateInfo.CurrentVersion}\n" +
-                                 $"Yeni: v{updateInfo.LatestVersion}\n\n" +
-                                 $"Güncelleme otomatik olarak indirilip kurulacak.\nProgram yeniden başlatılacak.\n\n" +
-                                 $"Devam edilsin mi?";
-
-                var result = MessageBox.Show(message, "Güncelleme Mevcut", 
-                    MessageBoxButton.YesNo, MessageBoxImage.Information);
-
-                if (result == MessageBoxResult.Yes)
+                var result = ShowUpdateDialog(updateInfo);
+                
+                if (result == true)
                 {
                     await DownloadAndInstallUpdateAsync(updateInfo);
                 }
@@ -153,15 +143,267 @@ namespace CncControlApp
             {
                 if (!string.IsNullOrEmpty(updateInfo.ErrorMessage))
                 {
-                    MessageBox.Show($"Güncelleme kontrolü yapılamadı:\n{updateInfo.ErrorMessage}", 
-                        "Güncelleme Kontrolü", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    ShowInfoDialog("Güncelleme Kontrolü", $"Güncelleme kontrolü yapılamadı:\n{updateInfo.ErrorMessage}", isError: true);
                 }
                 else
                 {
-                    MessageBox.Show($"En güncel sürümü kullanıyorsunuz.\nMevcut sürüm: v{CurrentVersion}", 
-                        "Güncelleme Kontrolü", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ShowInfoDialog("Güncelleme Kontrolü", $"En güncel sürümü kullanıyorsunuz.\n\nMevcut sürüm: v{CurrentVersion}", isError: false);
                 }
             }
+        }
+
+        /// <summary>
+        /// Güncelleme bilgisi popup'ı göster (dışarıdan çağrılabilir)
+        /// </summary>
+        public static async Task ShowUpdatePopupAsync()
+        {
+            var updateInfo = await CheckForUpdatesAsync();
+
+            if (updateInfo.HasUpdate)
+            {
+                var result = ShowUpdateDialog(updateInfo);
+                
+                if (result == true)
+                {
+                    await DownloadAndInstallUpdateAsync(updateInfo);
+                }
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(updateInfo.ErrorMessage))
+                {
+                    ShowInfoDialog("Güncelleme Kontrolü", $"Güncelleme kontrolü yapılamadı:\n{updateInfo.ErrorMessage}", isError: true);
+                }
+                else
+                {
+                    ShowInfoDialog("Yazılım Güncel", $"En güncel sürümü kullanıyorsunuz.\n\nMevcut sürüm: v{CurrentVersion}", isError: false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Programın stiline uygun güncelleme dialog'u
+        /// </summary>
+        private static bool? ShowUpdateDialog(UpdateInfo updateInfo)
+        {
+            var dialog = new Window
+            {
+                Title = "Güncelleme Mevcut",
+                Width = 420,
+                Height = 280,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                ResizeMode = ResizeMode.NoResize,
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = Brushes.Transparent,
+                Topmost = true
+            };
+
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(8)
+            };
+
+            var mainStack = new StackPanel { Margin = new Thickness(20) };
+
+            // Başlık
+            var titleText = new TextBlock
+            {
+                Text = "🔄 Yeni Güncelleme Mevcut!",
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+
+            // Versiyon bilgisi
+            var versionGrid = new Grid { Margin = new Thickness(0, 0, 0, 15) };
+            versionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            versionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            versionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            versionGrid.RowDefinitions.Add(new RowDefinition());
+
+            var currentVer = new TextBlock
+            {
+                Text = $"v{updateInfo.CurrentVersion}",
+                FontSize = 16,
+                Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            Grid.SetColumn(currentVer, 0);
+
+            var arrow = new TextBlock
+            {
+                Text = "➜",
+                FontSize = 20,
+                Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(15, 0, 15, 0)
+            };
+            Grid.SetColumn(arrow, 1);
+
+            var newVer = new TextBlock
+            {
+                Text = $"v{updateInfo.LatestVersion}",
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            Grid.SetColumn(newVer, 2);
+
+            versionGrid.Children.Add(currentVer);
+            versionGrid.Children.Add(arrow);
+            versionGrid.Children.Add(newVer);
+
+            // Açıklama
+            var descText = new TextBlock
+            {
+                Text = "Güncelleme otomatik olarak indirilip kurulacak.\nProgram yeniden başlatılacak.",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 180)),
+                TextAlignment = TextAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 25)
+            };
+
+            // Butonlar
+            var buttonStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            var yesButton = CreateStyledButton("✓ Güncelle", Color.FromRgb(76, 175, 80), Color.FromRgb(102, 187, 106));
+            yesButton.Click += (s, e) => { dialog.DialogResult = true; dialog.Close(); };
+
+            var noButton = CreateStyledButton("✕ Şimdi Değil", Color.FromRgb(120, 120, 120), Color.FromRgb(150, 150, 150));
+            noButton.Margin = new Thickness(15, 0, 0, 0);
+            noButton.Click += (s, e) => { dialog.DialogResult = false; dialog.Close(); };
+
+            buttonStack.Children.Add(yesButton);
+            buttonStack.Children.Add(noButton);
+
+            mainStack.Children.Add(titleText);
+            mainStack.Children.Add(versionGrid);
+            mainStack.Children.Add(descText);
+            mainStack.Children.Add(buttonStack);
+
+            border.Child = mainStack;
+            dialog.Content = border;
+
+            // Pencereyi sürüklenebilir yap
+            border.MouseLeftButtonDown += (s, e) => { if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed) dialog.DragMove(); };
+
+            return dialog.ShowDialog();
+        }
+
+        /// <summary>
+        /// Bilgi dialog'u (güncel/hata durumu için)
+        /// </summary>
+        private static void ShowInfoDialog(string title, string message, bool isError)
+        {
+            var dialog = new Window
+            {
+                Title = title,
+                Width = 380,
+                Height = 200,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                ResizeMode = ResizeMode.NoResize,
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = Brushes.Transparent,
+                Topmost = true
+            };
+
+            var accentColor = isError ? Color.FromRgb(244, 67, 54) : Color.FromRgb(76, 175, 80);
+
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                BorderBrush = new SolidColorBrush(accentColor),
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(8)
+            };
+
+            var mainStack = new StackPanel { Margin = new Thickness(20) };
+
+            var titleText = new TextBlock
+            {
+                Text = isError ? "⚠️ " + title : "✓ " + title,
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(accentColor),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 15)
+            };
+
+            var msgText = new TextBlock
+            {
+                Text = message,
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+                TextAlignment = TextAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+
+            var okButton = CreateStyledButton("Tamam", accentColor, isError ? Color.FromRgb(255, 100, 100) : Color.FromRgb(102, 187, 106));
+            okButton.HorizontalAlignment = HorizontalAlignment.Center;
+            okButton.Click += (s, e) => dialog.Close();
+
+            mainStack.Children.Add(titleText);
+            mainStack.Children.Add(msgText);
+            mainStack.Children.Add(okButton);
+
+            border.Child = mainStack;
+            dialog.Content = border;
+
+            border.MouseLeftButtonDown += (s, e) => { if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed) dialog.DragMove(); };
+
+            dialog.ShowDialog();
+        }
+
+        /// <summary>
+        /// Stilize edilmiş buton oluştur
+        /// </summary>
+        private static Button CreateStyledButton(string content, Color bgColor, Color hoverColor)
+        {
+            var button = new Button
+            {
+                Content = content,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White,
+                Background = new SolidColorBrush(bgColor),
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(20, 10, 20, 10),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            var template = new ControlTemplate(typeof(Button));
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.Name = "border";
+            borderFactory.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(Control.BackgroundProperty));
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(5));
+            borderFactory.SetValue(Border.PaddingProperty, new TemplateBindingExtension(Control.PaddingProperty));
+
+            var contentPresenter = new FrameworkElementFactory(typeof(ContentPresenter));
+            contentPresenter.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            contentPresenter.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            borderFactory.AppendChild(contentPresenter);
+
+            template.VisualTree = borderFactory;
+            button.Template = template;
+
+            button.MouseEnter += (s, e) => button.Background = new SolidColorBrush(hoverColor);
+            button.MouseLeave += (s, e) => button.Background = new SolidColorBrush(bgColor);
+
+            return button;
         }
 
         /// <summary>
@@ -171,45 +413,75 @@ namespace CncControlApp
         {
             string tempPath = Path.Combine(Path.GetTempPath(), TEMP_INSTALLER_NAME);
             
+            Window progressWindow = null;
             try
             {
-                ErrorLogger.LogInfo($"Güncelleme indiriliyor: {updateInfo.DownloadUrl}");
-                
-                // Progress dialog göster
-                var progressWindow = new Window
+                // Progress dialog göster - programın stiline uygun
+                progressWindow = new Window
                 {
                     Title = "Güncelleme İndiriliyor",
                     Width = 400,
-                    Height = 150,
+                    Height = 160,
                     WindowStartupLocation = WindowStartupLocation.CenterScreen,
                     ResizeMode = ResizeMode.NoResize,
-                    WindowStyle = WindowStyle.ToolWindow
+                    WindowStyle = WindowStyle.None,
+                    AllowsTransparency = true,
+                    Background = Brushes.Transparent,
+                    Topmost = true
                 };
-                
-                var stackPanel = new System.Windows.Controls.StackPanel
+
+                var border = new Border
                 {
-                    Margin = new Thickness(20),
+                    Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                    BorderThickness = new Thickness(2),
+                    CornerRadius = new CornerRadius(8)
+                };
+
+                var mainStack = new StackPanel
+                {
+                    Margin = new Thickness(25),
                     VerticalAlignment = VerticalAlignment.Center
                 };
-                
-                var statusText = new System.Windows.Controls.TextBlock
+
+                var titleText = new TextBlock
                 {
-                    Text = $"v{updateInfo.LatestVersion} indiriliyor...",
+                    Text = $"⬇️ v{updateInfo.LatestVersion} indiriliyor...",
                     FontSize = 14,
-                    Margin = new Thickness(0, 0, 0, 10),
-                    HorizontalAlignment = HorizontalAlignment.Center
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 15)
                 };
-                
-                var progressBar = new System.Windows.Controls.ProgressBar
+
+                var progressBar = new ProgressBar
                 {
-                    Height = 25,
-                    IsIndeterminate = true
+                    Height = 8,
+                    IsIndeterminate = true,
+                    Background = new SolidColorBrush(Color.FromRgb(50, 50, 50)),
+                    Foreground = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                    BorderThickness = new Thickness(0)
                 };
-                
-                stackPanel.Children.Add(statusText);
-                stackPanel.Children.Add(progressBar);
-                progressWindow.Content = stackPanel;
-                
+
+                var infoText = new TextBlock
+                {
+                    Text = "Lütfen bekleyin...",
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 10, 0, 0)
+                };
+
+                mainStack.Children.Add(titleText);
+                mainStack.Children.Add(progressBar);
+                mainStack.Children.Add(infoText);
+
+                border.Child = mainStack;
+                progressWindow.Content = border;
+
+                // Sürüklenebilir
+                border.MouseLeftButtonDown += (s, e) => { if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed) progressWindow.DragMove(); };
+
                 progressWindow.Show();
                 
                 // İndirme işlemi
@@ -230,16 +502,14 @@ namespace CncControlApp
                 
                 progressWindow.Close();
                 
-                ErrorLogger.LogInfo($"Güncelleme indirildi: {tempPath}");
-                
                 // Kurulum başlat ve programı kapat
                 StartInstallerAndExit(tempPath);
             }
             catch (Exception ex)
             {
+                progressWindow?.Close();
                 ErrorLogger.LogError("Güncelleme indirme hatası", ex);
-                MessageBox.Show($"Güncelleme indirilemedi:\n{ex.Message}\n\nManuel olarak GitHub'dan indirebilirsiniz.", 
-                    "İndirme Hatası", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowInfoDialog("İndirme Hatası", $"Güncelleme indirilemedi:\n{ex.Message}\n\nManuel olarak GitHub'dan indirebilirsiniz.", isError: true);
                 
                 // Temp dosyasını temizle
                 try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
@@ -253,8 +523,6 @@ namespace CncControlApp
         {
             try
             {
-                ErrorLogger.LogInfo($"Installer başlatılıyor: {installerPath}");
-                
                 // Installer'ı silent modda başlat (/SILENT veya /VERYSILENT Inno Setup için)
                 // Program kapandıktan sonra kurulum başlayacak
                 var startInfo = new ProcessStartInfo
@@ -266,8 +534,6 @@ namespace CncControlApp
                 
                 Process.Start(startInfo);
                 
-                ErrorLogger.LogInfo("Installer başlatıldı, program kapatılıyor...");
-                
                 // Uygulamayı kapat
                 Application.Current.Dispatcher.Invoke(() =>
                 {
@@ -277,8 +543,7 @@ namespace CncControlApp
             catch (Exception ex)
             {
                 ErrorLogger.LogError("Installer başlatma hatası", ex);
-                MessageBox.Show($"Kurulum başlatılamadı:\n{ex.Message}\n\nLütfen indirilen dosyayı manuel çalıştırın:\n{installerPath}", 
-                    "Kurulum Hatası", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowInfoDialog("Kurulum Hatası", $"Kurulum başlatılamadı:\n{ex.Message}\n\nLütfen indirilen dosyayı manuel çalıştırın:\n{installerPath}", isError: true);
             }
         }
     }

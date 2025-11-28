@@ -50,20 +50,31 @@ namespace CncControlApp.Helpers
             transform = null;
             try
             {
-                if (App.MainController?.Settings == null || App.MainController.Settings.Count == 0) return false;
+                if (App.MainController?.Settings == null || App.MainController.Settings.Count == 0)
+                {
+                    ErrorLogger.LogWarning($"WorkspaceTransform: Settings null or empty");
+                    return false;
+                }
                 var xLimit = App.MainController.Settings.FirstOrDefault(s => s.Id == 130);
                 var yLimit = App.MainController.Settings.FirstOrDefault(s => s.Id == 131);
-                if (xLimit == null || yLimit == null) return false;
+                if (xLimit == null || yLimit == null)
+                {
+                    return false;
+                }
 
                 if (!double.TryParse(xLimit.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double maxX)) return false;
                 if (!double.TryParse(yLimit.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double maxY)) return false;
-                if (maxX <= 0 || maxY <= 0) return false;
+                if (maxX <= 0 || maxY <= 0)
+                {
+                    return false;
+                }
 
                 transform = new WorkspaceTransform(canvasWidth, canvasHeight, maxX, maxY, marginFactor);
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                ErrorLogger.LogError($"WorkspaceTransform exception", ex);
                 return false;
             }
         }

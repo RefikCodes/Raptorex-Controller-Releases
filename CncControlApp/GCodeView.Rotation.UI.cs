@@ -636,12 +636,13 @@ if (start < end) start += 2.0 * Math.PI;
                     try
                     {
                         var visualization = _fileService.GetVisualization();
+                        
                         if (visualization != null)
                         {
                             // ✅ FIX: Changed method name from RenderTopViewSimple to RenderTopViewOptimized
                             var method = visualization.GetType().GetMethod("RenderTopViewOptimized",
                                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
+                            
                             if (method != null)
                             {
                                 targetCanvas.Children.Clear();
@@ -657,15 +658,12 @@ if (start < end) start += 2.0 * Math.PI;
                                     DrawPopupOverlay(targetOverlayCanvas, width, height);
                                 }
                             }
-                            else
-                            {
-                                System.Diagnostics.Debug.WriteLine("❌ RedrawPopupTopView: RenderTopViewOptimized method not found!");
-                            }
                         }
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"RedrawPopupTopView inner error: {ex.Message}");
+                        ErrorLogger.LogError("RedrawPopupTopView inner error", ex);
                     }
                 }), System.Windows.Threading.DispatcherPriority.Render);
 

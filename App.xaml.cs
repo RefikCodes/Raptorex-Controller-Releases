@@ -62,11 +62,7 @@ namespace CncControlApp
             {
                 base.OnStartup(e);
                 
-                ErrorLogger.LogInfo("Uygulama başlatılıyor...");
-                
                 MainController = new MainControll();
-                
-                ErrorLogger.LogInfo("MainController başarıyla oluşturuldu");
                 
                 // Arka planda güncelleme kontrolü yap (sessiz mod)
                 Task.Run(async () =>
@@ -79,9 +75,9 @@ namespace CncControlApp
                             await UpdateChecker.CheckAndPromptAsync(silentIfNoUpdate: true);
                         });
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        ErrorLogger.LogWarning($"Güncelleme kontrolü başarısız: {ex.Message}");
+                        // Güncelleme kontrolü sessizce başarısız olabilir
                     }
                 });
             }

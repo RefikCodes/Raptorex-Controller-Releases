@@ -1488,26 +1488,16 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
             }
         }
         
-        private void DownloadUpdate()
+        private async void DownloadUpdate()
         {
             try
             {
-                if (string.IsNullOrEmpty(_updateDownloadUrl))
-                {
-                    _updateDownloadUrl = "https://github.com/RefikCodes/Raptorex-Controller-PC-3Axis-only/releases/latest";
-                }
-                
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = _updateDownloadUrl,
-                    UseShellExecute = true
-                });
-                
-                AddLogMessage($"> 🌐 Güncelleme sayfası açıldı: v{LatestVersion}");
+                // Popup'ı aç - güncelleme varsa indir, yoksa bilgi göster
+                await UpdateChecker.ShowUpdatePopupAsync();
             }
             catch (Exception ex)
             {
-                AddLogMessage($"> ❌ Tarayıcı açılamadı: {ex.Message}");
+                AddLogMessage($"> ❌ Güncelleme kontrolü hatası: {ex.Message}");
             }
         }
 

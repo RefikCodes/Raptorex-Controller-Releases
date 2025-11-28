@@ -18,7 +18,6 @@ namespace CncControlApp.Services
  private bool _active;
  private MainControll _mc;
  private object _mgr;
- private int _lastLoggedExecIndex = -1;
 
  // De-dupe error spam and avoid recursion
  private int _lastErrorLine = -1;
@@ -41,7 +40,6 @@ namespace CncControlApp.Services
  _cm = mc.ConnectionManagerInstance;
  OpenLogFile();
  _active = true;
- _lastLoggedExecIndex = -1;
  _lastErrorLine = -1; _lastErrorReason = null; _lastErrorTs = DateTime.MinValue;
  try { _mc.PropertyChanged += OnMainControllerPropertyChanged; } catch { }
  if (_mgr is INotifyPropertyChanged pc)
@@ -129,35 +127,18 @@ namespace CncControlApp.Services
  if (e.PropertyName == nameof(MainControll.IsGCodeRunning))
  {
  var running = _mc?.IsGCodeRunning == true;
- _writer?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] STATE IsGCodeRunning={running}");
+ _writer?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] === {(running ? "RUN STARTED" : "RUN ENDED")} ===");
  if (!running) End();
  }
- else if (e.PropertyName == nameof(MainControll.MachineStatus))
- {
- var st = _mc?.MachineStatus ?? string.Empty;
- _writer?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] STATUS {st}");
- }
+ // MachineStatus artık loglanmıyor - sadece hatalarda log tutulacak
  }
  catch { }
  }
 
  private void OnManagerPropertyChanged(object sender, PropertyChangedEventArgs e)
  {
- if (!_active) return;
- try
- {
- if (e.PropertyName == "CurrentlyExecutingLineIndex" || e.PropertyName == "LastCompletedLineIndex")
- {
- int idx = GetIntProp(_mgr, "CurrentlyExecutingLineIndex");
- if (idx <=0) idx = GetIntProp(_mgr, "LastCompletedLineIndex");
- if (idx <=0) return;
- if (idx == _lastLoggedExecIndex) return;
- _lastLoggedExecIndex = idx;
- string lineTxt = TryGetLineText(idx);
- _writer?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] EXEC {idx}: {lineTxt}");
- }
- }
- catch { }
+ // EXEC logging kaldırıldı - sadece hatalar loglanacak
+ // Satır satır loglama çok fazla veri oluşturuyordu
  }
 
  private string TryGetLineText(int oneBasedIndex)
@@ -187,8 +168,8 @@ namespace CncControlApp.Services
  var msg = obj as string;
  if (string.IsNullOrWhiteSpace(msg)) continue;
  var low = msg.ToLowerInvariant();
- _writer?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] MSG {msg}");
-
+ 
+ // Sadece hataları logla - normal mesajlar loglanmıyor
  // Real error/alarm detection: avoid false positives like "Errors=0" or buffer stats
  bool isBufferStat = low.Contains("buffer stats") || low.Contains("errors=");
  bool isAlarm = low.Contains("alarm");
@@ -235,17 +216,8 @@ namespace CncControlApp.Services
 
  private void OnConnectionLogMessage(string msg)
  {
- if (!_active || _writer == null) return;
- if (string.IsNullOrWhiteSpace(msg)) return;
- try
- {
- // Log all "Gönderiliyor" (sending) messages directly to file
- if (msg.Contains("Gönderiliyor:") || msg.Contains("Gonderiliyor:"))
- {
- _writer.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] SEND {msg}");
- }
- }
- catch { }
+ // SEND logging kaldırıldı - çok fazla veri oluşturuyordu
+ // Sadece hatalar loglanıyor
  }
 
  private static ObservableCollection<string> GetStringCollection(object obj, string name)
