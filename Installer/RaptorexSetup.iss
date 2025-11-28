@@ -2,7 +2,7 @@
 ; Eski versiyonu kaldırır ve yeni versiyonu kurar
 
 #define MyAppName "Raptorex Controller"
-#define MyAppVersion "2.0.1"
+#define MyAppVersion "2.0.2"
 #define MyAppPublisher "Raptorex CNC"
 #define MyAppURL "https://github.com/RefikCodes/Raptorex-Controller-PC-3Axis-only"
 #define MyAppExeName "Rptx01.exe"
