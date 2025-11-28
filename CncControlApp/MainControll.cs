@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -110,6 +111,29 @@ namespace CncControlApp
     public string SerialEncoding => _connectionManager.SerialEncoding;
     public string SerialTimeouts => _connectionManager.SerialTimeouts;
     public string SerialBuffers => _connectionManager.SerialBuffers;
+
+    // Software Version and Update Info
+    private string _latestVersion = "";
+    private bool _hasUpdate = false;
+    
+    public string SoftwareVersion => Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
+    
+    public string LatestVersion 
+    { 
+        get => _latestVersion; 
+        private set { if (_latestVersion != value) { _latestVersion = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasUpdate)); OnPropertyChanged(nameof(UpdateButtonVisibility)); } } 
+    }
+    
+    public bool HasUpdate 
+    { 
+        get => _hasUpdate; 
+        private set { if (_hasUpdate != value) { _hasUpdate = value; OnPropertyChanged(); OnPropertyChanged(nameof(UpdateButtonVisibility)); } } 
+    }
+    
+    public Visibility UpdateButtonVisibility => HasUpdate ? Visibility.Visible : Visibility.Collapsed;
+    
+    public ICommand CheckUpdateCommand { get; private set; }
+    public ICommand DownloadUpdateCommand { get; private set; }
 
     // Machine state snapshot
     public string ParserStateDisplay => _connectionManager.ParserStateDisplay;
@@ -442,6 +466,17 @@ namespace CncControlApp
                 AddLogMessage($"> {icon} Command blocked ({reason}): '{e.Command}' (status: {e.MachineStatus})"); 
                 CommandBlockedDueToHold?.Invoke(this, e); 
             };
+            
+            // Update commands
+            CheckUpdateCommand = new RelayCommand(async _ => await CheckForUpdateAsync(silent: false));
+            DownloadUpdateCommand = new RelayCommand(_ => DownloadUpdate());
+            
+            // Check for updates silently on startup
+            Task.Run(async () => 
+            {
+                await Task.Delay(3000);
+                await CheckForUpdateAsync(silent: true);
+            });
         }
 
         // Logging
@@ -1409,6 +1444,72 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
             catch (Exception ex) { AddLogMessage($"> ❌ StopCentralStatusQuerier error: {ex.Message}"); }
         }
         public void ToggleCentralStatusQuerier() => CentralStatusQuerierEnabled = !CentralStatusQuerierEnabled;
+
+        // Software Update Methods
+        private string _updateDownloadUrl = "";
+        
+        private async Task CheckForUpdateAsync(bool silent)
+        {
+            try
+            {
+                var updateInfo = await UpdateChecker.CheckForUpdatesAsync();
+                
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    if (updateInfo.HasUpdate)
+                    {
+                        LatestVersion = updateInfo.LatestVersion.ToString(3);
+                        HasUpdate = true;
+                        _updateDownloadUrl = updateInfo.DownloadUrl;
+                        
+                        if (!silent)
+                        {
+                            AddLogMessage($"> 🔄 Yeni güncelleme mevcut: v{LatestVersion}");
+                        }
+                    }
+                    else
+                    {
+                        HasUpdate = false;
+                        LatestVersion = "";
+                        
+                        if (!silent)
+                        {
+                            AddLogMessage($"> ✅ Yazılım güncel (v{SoftwareVersion})");
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                if (!silent)
+                {
+                    AddLogMessage($"> ⚠️ Güncelleme kontrolü başarısız: {ex.Message}");
+                }
+            }
+        }
+        
+        private void DownloadUpdate()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_updateDownloadUrl))
+                {
+                    _updateDownloadUrl = "https://github.com/RefikCodes/Raptorex-Controller-PC-3Axis-only/releases/latest";
+                }
+                
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = _updateDownloadUrl,
+                    UseShellExecute = true
+                });
+                
+                AddLogMessage($"> 🌐 Güncelleme sayfası açıldı: v{LatestVersion}");
+            }
+            catch (Exception ex)
+            {
+                AddLogMessage($"> ❌ Tarayıcı açılamadı: {ex.Message}");
+            }
+        }
 
         // Dispose
         public void Dispose()
