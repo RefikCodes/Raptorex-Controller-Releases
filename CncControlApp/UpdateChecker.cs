@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -11,11 +12,11 @@ namespace CncControlApp
 {
     /// <summary>
     /// GitHub Releases üzerinden otomatik güncelleme kontrolü
+    /// Rate limit sorunu yaşamamak için redirect yöntemi kullanılır
     /// </summary>
     public static class UpdateChecker
     {
         private const string GITHUB_REPO = "RefikCodes/Raptorex-Controller-Releases";
-        private const string RELEASES_API_URL = "https://api.github.com/repos/{0}/releases/latest";
         private const string RELEASES_PAGE_URL = "https://github.com/{0}/releases/latest";
 
         /// <summary>
@@ -39,56 +40,68 @@ namespace CncControlApp
         }
 
         /// <summary>
-        /// GitHub'dan en son sürümü kontrol eder
+        /// GitHub'dan en son sürümü kontrol eder (redirect yöntemi - rate limit yok)
         /// </summary>
         public static async Task<UpdateInfo> CheckForUpdatesAsync()
         {
             try
             {
-                using (var client = new HttpClient())
+                ErrorLogger.LogInfo($"Güncelleme kontrolü başlatılıyor... Mevcut versiyon: {CurrentVersion}");
+                
+                string releasesUrl = string.Format(RELEASES_PAGE_URL, GITHUB_REPO);
+                
+                // HttpClient ile redirect'i takip etmeden son URL'i al
+                using (var handler = new HttpClientHandler { AllowAutoRedirect = false })
+                using (var client = new HttpClient(handler))
                 {
-                    // GitHub API User-Agent gerektirir
                     client.DefaultRequestHeaders.Add("User-Agent", "RaptorexController-UpdateChecker");
                     client.Timeout = TimeSpan.FromSeconds(10);
 
-                    string apiUrl = string.Format(RELEASES_API_URL, GITHUB_REPO);
-                    string json = await client.GetStringAsync(apiUrl);
-
-                    // JSON'dan versiyon ve download URL'i çıkar
-                    var tagMatch = Regex.Match(json, @"""tag_name""\s*:\s*""v?([^""]+)""");
-                    var downloadMatch = Regex.Match(json, @"""browser_download_url""\s*:\s*""([^""]+\.exe)""");
-                    var bodyMatch = Regex.Match(json, @"""body""\s*:\s*""([^""]+)""");
-
-                    if (!tagMatch.Success)
-                    {
-                        return new UpdateInfo { HasUpdate = false };
-                    }
-
-                    string latestVersionStr = tagMatch.Groups[1].Value;
+                    var response = await client.GetAsync(releasesUrl);
                     
-                    // Versiyon string'ini temizle (v2.0.0 -> 2.0.0)
-                    latestVersionStr = latestVersionStr.TrimStart('v', 'V');
-                    
-                    if (!Version.TryParse(NormalizeVersion(latestVersionStr), out Version latestVersion))
+                    // 301/302 redirect olmalı
+                    if (response.StatusCode == HttpStatusCode.Found || response.StatusCode == HttpStatusCode.MovedPermanently)
                     {
-                        return new UpdateInfo { HasUpdate = false };
+                        string redirectUrl = response.Headers.Location?.ToString();
+                        ErrorLogger.LogInfo($"Redirect URL: {redirectUrl}");
+                        
+                        if (!string.IsNullOrEmpty(redirectUrl))
+                        {
+                            // URL'den tag'i çıkar: .../releases/tag/v2.0.6 -> v2.0.6
+                            var match = Regex.Match(redirectUrl, @"/tag/v?([0-9.]+)");
+                            if (match.Success)
+                            {
+                                string latestVersionStr = match.Groups[1].Value;
+                                ErrorLogger.LogInfo($"Bulunan versiyon: {latestVersionStr}");
+                                
+                                if (Version.TryParse(NormalizeVersion(latestVersionStr), out Version latestVersion))
+                                {
+                                    bool hasUpdate = latestVersion > CurrentVersion;
+                                    ErrorLogger.LogInfo($"Karşılaştırma: {latestVersion} > {CurrentVersion} = {hasUpdate}");
+                                    
+                                    // Download URL'i oluştur
+                                    string downloadUrl = $"https://github.com/{GITHUB_REPO}/releases/download/v{latestVersionStr}/RaptorexController_Setup_{latestVersionStr}.exe";
+                                    
+                                    return new UpdateInfo
+                                    {
+                                        HasUpdate = hasUpdate,
+                                        CurrentVersion = CurrentVersion,
+                                        LatestVersion = latestVersion,
+                                        DownloadUrl = downloadUrl,
+                                        ReleaseNotes = ""
+                                    };
+                                }
+                            }
+                        }
                     }
-
-                    bool hasUpdate = latestVersion > CurrentVersion;
-
-                    return new UpdateInfo
-                    {
-                        HasUpdate = hasUpdate,
-                        CurrentVersion = CurrentVersion,
-                        LatestVersion = latestVersion,
-                        DownloadUrl = downloadMatch.Success ? downloadMatch.Groups[1].Value : string.Format(RELEASES_PAGE_URL, GITHUB_REPO),
-                        ReleaseNotes = bodyMatch.Success ? UnescapeJson(bodyMatch.Groups[1].Value) : ""
-                    };
+                    
+                    ErrorLogger.LogWarning($"Beklenmeyen yanıt: {response.StatusCode}");
+                    return new UpdateInfo { HasUpdate = false };
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Güncelleme kontrolü hatası: {ex.Message}");
+                ErrorLogger.LogError("Güncelleme kontrolü hatası", ex);
                 return new UpdateInfo 
                 { 
                     HasUpdate = false, 
@@ -109,18 +122,6 @@ namespace CncControlApp
                 parts = version.Split('.');
             }
             return string.Join(".", parts);
-        }
-
-        /// <summary>
-        /// JSON escape karakterlerini çöz
-        /// </summary>
-        private static string UnescapeJson(string text)
-        {
-            return text
-                .Replace("\\n", "\n")
-                .Replace("\\r", "\r")
-                .Replace("\\t", "\t")
-                .Replace("\\\"", "\"");
         }
 
         /// <summary>
