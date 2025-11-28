@@ -2,7 +2,7 @@
 ; Eski versiyonu kaldırır ve yeni versiyonu kurar
 
 #define MyAppName "Raptorex Controller"
-#define MyAppVersion "2.0.7"
+#define MyAppVersion "2.0.9"
 #define MyAppPublisher "Raptorex CNC"
 #define MyAppURL "https://github.com/RefikCodes/Raptorex-Controller-Releases"
 #define MyAppExeName "Rptx01.exe"
@@ -27,7 +27,7 @@ AllowNoIcons=yes
 ; Çıktı ayarları
 OutputDir=..\bin\Installer
 OutputBaseFilename=RaptorexController_Setup_{#MyAppVersion}
-; SetupIconFile=..\Images\RaptorexIcon.ico  ; Ikon dosyası eklendiğinde aktif et
+SetupIconFile=..\Images\RaptorexIcon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 ; Windows Vista+ için admin hakları
