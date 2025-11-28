@@ -255,12 +255,10 @@ if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G91"))
  if (!validated)
  {
  string list = string.Join("\n", fineContacts.Select((v, idx) => $"Fine#{idx +1}: {v:F3} mm"));
- MessageBox.Show(
- $"Doğrulama başarısız!\nEşik: {toleranceThreshold:0.000} mm\nÖlçümler:\n{list}",
- "Z Probe ERROR",
- MessageBoxButton.OK,
- MessageBoxImage.Error
- );
+ Controls.MessageDialog.ShowError("Z Probe Hatası",
+     $"Doğrulama başarısız!\n" +
+     $"Eşik: {toleranceThreshold:0.000} mm\n\n" +
+     $"Ölçümler:\n{list}");
  await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
  return;
  }
@@ -305,15 +303,11 @@ if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G91"))
 
  // Popup: tüm değerler, kullanılan iki ölçüm, ortalama ve tolerans
  string allVals = string.Join("\n", fineContacts.Select((v, idx) => $"Fine#{idx +1}: {v:F3} mm"));
- MessageBox.Show(
- $"Ölçümler:\n{allVals}\n\n" +
- $"Kullanılan: Fine#{usedA +1} ve Fine#{usedB +1}\n" +
- $"Ortalama (2 ölçüm): {avgUsed:0.000} mm\n" +
- $"Tolerans (fark): {tolerance:0.000} mm",
- "Z Probe Tamamlandı",
- MessageBoxButton.OK,
- MessageBoxImage.Information
- );
+ Controls.MessageDialog.ShowInfo("Z Probe Tamamlandı",
+     $"Ölçümler:\n{allVals}\n\n" +
+     $"Kullanılan: Fine#{usedA +1} ve Fine#{usedB +1}\n" +
+     $"Ortalama (2 ölçüm): {avgUsed:0.000} mm\n" +
+     $"Tolerans (fark): {tolerance:0.000} mm");
 
           App.MainController?.AddLogMessage("> ✅ Z Probe tamamlandı");
             }
@@ -506,15 +500,11 @@ int dir = directionSign >= 0 ? 1 : -1;
 
   double delta = secondContactAxis - firstContactAxis;
   double deltaAbs = Math.Abs(delta);
-       MessageBox.Show(
-                $"İlk temas {axis}: {firstContactAxis:F3} mm\n" +
-     $"İkinci temas {axis}: {secondContactAxis:F3} mm\n" +
-     $"Fark (İkinci - İlk): {delta:+0.000;-0.000;0.000} mm\n" +
-  $"Mutlak fark: {deltaAbs:0.000} mm",
-     $"{axis} Probe Hassasiyet Kontrolü",
-        MessageBoxButton.OK,
-         MessageBoxImage.Information
-      );
+       Controls.MessageDialog.ShowInfo($"{axis} Probe Hassasiyet Kontrolü",
+           $"İlk temas {axis}: {firstContactAxis:F3} mm\n" +
+           $"İkinci temas {axis}: {secondContactAxis:F3} mm\n" +
+           $"Fark (İkinci - İlk): {delta:+0.000;-0.000;0.000} mm\n" +
+           $"Mutlak fark: {deltaAbs:0.000} mm");
 
                 App.MainController?.AddLogMessage($"> ✅ {axis} Probe (Main) tamamlandı");
           return true;
@@ -577,7 +567,7 @@ int dir = directionSign >= 0 ? 1 : -1;
                         if (stream != null) try { stream.Append($"> ❌ Probe başarısız: {msg}"); } catch { }
                         return;
                     }
-                    MessageBox.Show($"{axisName}{dirName} Probe başarısız!\n\n{msg}", "Probe Hatası", MessageBoxButton.OK, MessageBoxImage.Error);
+                    Controls.MessageDialog.ShowError("Probe Hatası", $"{axisName}{dirName} Probe başarısız!\n\n{msg}");
                     return;
                 }
 
@@ -601,8 +591,12 @@ int dir = directionSign >= 0 ? 1 : -1;
                     }
                     else
                     {
-                        MessageBox.Show($"{axisName}{dirName} Probe tamamlandı!\n\nTemas: {contact:F3} mm\nTolerans: {result.Tolerance:F3} mm\nÖlçüm: {result.FineReadings.Count}\n\n{axisName} ekseni sıfırlandı.", 
-                            "Probe Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
+                        Controls.MessageDialog.ShowInfo("Probe Başarılı", 
+                            $"{axisName}{dirName} Probe tamamlandı!\n\n" +
+                            $"Temas: {contact:F3} mm\n" +
+                            $"Tolerans: {result.Tolerance:F3} mm\n" +
+                            $"Ölçüm: {result.FineReadings.Count}\n\n" +
+                            $"{axisName} ekseni sıfırlandı.");
                     }
                 }
             }
@@ -611,7 +605,7 @@ int dir = directionSign >= 0 ? 1 : -1;
                 App.MainController?.AddLogMessage($"> ❌ Hata: {ex.Message}");
                 if (!silent)
                 {
-                    MessageBox.Show($"Probe hatası:\n{ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+                    Controls.MessageDialog.ShowError("Probe Hatası", $"Probe hatası:\n{ex.Message}");
                 }
                 else
                 {

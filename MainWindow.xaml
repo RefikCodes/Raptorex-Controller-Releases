@@ -442,7 +442,130 @@
                     <!-- Bottom: Contact and Company Info -->
                     <Border Grid.Row="1" Margin="0,12,0,0" Background="#FF2D2D30" CornerRadius="10" Padding="14" BorderBrush="#FFA2A2A4" BorderThickness="1">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <!-- ...existing info stack... -->
+                            <StackPanel>
+                                <TextBlock Text="İletişim" FontSize="14" FontWeight="Bold" Foreground="#FF4CAF50" Margin="0,0,0,8"/>
+
+                                <!-- Website -->
+                                <TextBlock Foreground="#FFB0BEC5" FontSize="12">
+                                    <Run Text="Web: "/>
+                                    <Hyperlink NavigateUri="https://www.raptorextech.com" RequestNavigate="Hyperlink_RequestNavigate">
+                                        <Run Text="www.raptorextech.com"/>
+                                    </Hyperlink>
+                                </TextBlock>
+
+                                <!-- Address -->
+                                <TextBlock Foreground="#FFB0BEC5" FontSize="12" Margin="0,4,0,0">
+                                    <Run Text="Adres: "/>
+                                    <Run Text="[Firma adresi buraya]"/>
+                                </TextBlock>
+
+                                <!-- Phone -->
+                                <TextBlock Foreground="#FFB0BEC5" FontSize="12" Margin="0,4,0,8">
+                                    <Run Text="Telefon: "/>
+                                    <Run Text="[0 (xxx) xxx xx xx]"/>
+                                </TextBlock>
+
+                                <Separator Margin="0,4,0,8"/>
+
+                                <!-- System Information -->
+                                <TextBlock Text="Sistem Bilgileri" FontSize="14" FontWeight="Bold" Foreground="#FF00D9FF" Margin="0,0,0,8"/>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="8"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="8"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Firmware Name -->
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Firmware:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding FirmwareName}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- Firmware Version -->
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Versiyon:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding FirmwareVersion}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- Board Name -->
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Kart:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding BoardName}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- Config Name -->
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Konfigurasyon:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ConfigName}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- Detected Axis Count -->
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Eksen Sayısı:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding DetectedAxisCount, Mode=OneWay}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- FluidNC -->
+                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="FluidNC:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding IsFluidNC}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- Spacer -->
+                                    <TextBlock Grid.Row="6" Grid.ColumnSpan="2" Height="1"/>
+
+                                    <!-- Connection subsection -->
+                                    <TextBlock Grid.Row="7" Grid.ColumnSpan="2" Text="Bağlantı" FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50" Margin="0,6,0,4"/>
+                                    <TextBlock Grid.Row="8" Grid.Column="0" Text="Port:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding ConnectionPort}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="9" Grid.Column="0" Text="Açıklama:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding ConnectionDescription}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="10" Grid.Column="0" Text="Üretici:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="10" Grid.Column="1" Text="{Binding ConnectionManufacturer}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="11" Grid.Column="0" Text="PNP ID:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="11" Grid.Column="1" Text="{Binding ConnectionPnpId}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Row="12" Grid.Column="0" Text="Taşıma:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="12" Grid.Column="1" Text="{Binding ConnectionTransport}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+
+                                    <!-- Spacer -->
+                                    <TextBlock Grid.Row="13" Grid.ColumnSpan="2" Height="1"/>
+
+                                    <!-- Serial subsection -->
+                                    <TextBlock Grid.Row="14" Grid.ColumnSpan="2" Text="Seri" FontSize="12" FontWeight="Bold" Foreground="#FF4CAF50" Margin="0,6,0,4"/>
+                                    <TextBlock Grid.Row="15" Grid.Column="0" Text="Baud:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="15" Grid.Column="1" Text="{Binding SerialBaud}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="16" Grid.Column="0" Text="Veri/Parity/Stop:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="16" Grid.Column="1" Text="{Binding SerialFormat}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="17" Grid.Column="0" Text="Handshake:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="17" Grid.Column="1" Text="{Binding SerialHandshake}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="18" Grid.Column="0" Text="Kodlama:" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="18" Grid.Column="1" Text="{Binding SerialEncoding}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="19" Grid.Column="0" Text="Zaman Aşımı (R/W):" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="19" Grid.Column="1" Text="{Binding SerialTimeouts}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                    <TextBlock Grid.Row="20" Grid.Column="0" Text="Buffer (R/W):" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
+                                    <TextBlock Grid.Row="20" Grid.Column="1" Text="{Binding SerialBuffers}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
+                                </Grid>
+
+                                <Separator Margin="0,8,0,8"/>
+
+                                <!-- About -->
+                                <TextBlock Text="Hakkımızda" FontSize="14" FontWeight="Bold" Foreground="#FF4CAF50"/>
+                                <TextBlock Foreground="#FFDDDDDD" TextWrapping="Wrap" Margin="0,4,0,0">
+                                    RaptorexTech, CNC otomasyon ve üretim süreçleri için yüksek performanslı çözümler geliştirir. Bu uygulama, makinenizi güvenle kontrol etmeniz ve verimli çalışmanız için tasarlanmıştır.
+                                </TextBlock>
+                            </StackPanel>
                         </ScrollViewer>
                     </Border>
                 </Grid>

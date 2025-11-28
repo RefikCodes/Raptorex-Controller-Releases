@@ -297,13 +297,20 @@ namespace CncControlApp
                         break;
                     }
 
-                    // Retract after successful probe
-                    await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                    await mc.SendGCodeCommandWithConfirmationAsync("G00 Z10");
-                    await WaitForIdleAsync(3000, "ProbeRetract");
+                    // Retract after successful probe - move to absolute Work Z=+10
+                    double currentWZ = mc.MStatus?.WorkZ ?? 0.0;
+                    double retractDelta = 10.0 - currentWZ; // Calculate delta to reach Work Z=+10
+                    if (retractDelta > 0.5) // Only retract if we need to move up significantly
+                    {
+                        await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                        string retractCmd = retractDelta.ToString("F3", CultureInfo.InvariantCulture);
+                        await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{retractCmd}");
+                        await WaitForIdleAsync(3000, "ProbeRetract");
+                        await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                    }
 
                     double finalWorkZ = mc.MStatus?.WorkZ ??0.0;
-                    streamPopup.Append($"> After retract: Work Z={finalWorkZ:F3}");
+                    streamPopup.Append($"> After retract: Work Z={finalWorkZ:F3} (target was +10);");
                     mc?.AddLogMessage($"> Still on surface, continuing...");
                     streamPopup.Append($"> Still on surface, continuing...");
                 }
@@ -500,9 +507,18 @@ namespace CncControlApp
                         break;
                     }
 
-                    await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                    await mc.SendGCodeCommandWithConfirmationAsync("G00 Z10");
-                    await WaitForIdleAsync(3000, "Right_ProbeRetract");
+                    // Retract to absolute Work Z=+10 (not relative!)
+                    double currentWZR = mc.MStatus?.WorkZ ?? 0.0;
+                    double retractDeltaR = 10.0 - currentWZR;
+                    if (retractDeltaR > 0.5)
+                    {
+                        await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                        string retractCmdR = retractDeltaR.ToString("F3", CultureInfo.InvariantCulture);
+                        await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{retractCmdR}");
+                        await WaitForIdleAsync(3000, "Right_ProbeRetract");
+                        await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                    }
+                    streamPopup.Append($"> After retract: Work Z={(mc.MStatus?.WorkZ ?? 0.0):F3} (target +10)");
                 }
 
                 // Run X- probe and record edgeX2
@@ -762,10 +778,18 @@ namespace CncControlApp
                         break;
                     }
 
-                    // Retract after successful probe
-                    await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                    await mc.SendGCodeCommandWithConfirmationAsync("G00 Z10");
-                    await WaitForIdleAsync(3000, "ProbeRetract");
+                    // Retract to absolute Work Z=+10 (not relative!)
+                    double currentWZY = mc.MStatus?.WorkZ ?? 0.0;
+                    double retractDeltaY = 10.0 - currentWZY;
+                    if (retractDeltaY > 0.5)
+                    {
+                        await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                        string retractCmdY = retractDeltaY.ToString("F3", CultureInfo.InvariantCulture);
+                        await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{retractCmdY}");
+                        await WaitForIdleAsync(3000, "ProbeRetract_Y");
+                        await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                    }
+                    streamPopup.Append($"> After retract: Work Z={(mc.MStatus?.WorkZ ?? 0.0):F3} (target +10)");
                 }
 
                 if (!edgeFound && moveCount >= MAX_MOVES)
@@ -946,9 +970,18 @@ namespace CncControlApp
                         break;
                     }
 
-                    await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                    await mc.SendGCodeCommandWithConfirmationAsync("G00 Z10");
-                    await WaitForIdleAsync(3000, "Right_ProbeRetract");
+                    // Retract to absolute Work Z=+10 (not relative!)
+                    double currentWZRY = mc.MStatus?.WorkZ ?? 0.0;
+                    double retractDeltaRY = 10.0 - currentWZRY;
+                    if (retractDeltaRY > 0.5)
+                    {
+                        await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                        string retractCmdRY = retractDeltaRY.ToString("F3", CultureInfo.InvariantCulture);
+                        await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{retractCmdRY}");
+                        await WaitForIdleAsync(3000, "Right_ProbeRetract_Y");
+                        await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                    }
+                    streamPopup.Append($"> After retract: Work Z={(mc.MStatus?.WorkZ ?? 0.0):F3} (target +10)");
                 }
 
                 // Run Y- probe and record edgeY2
