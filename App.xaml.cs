@@ -17,13 +17,42 @@ namespace CncControlApp
 
         public App()
         {
+            // Hata logger'ı başlat
+            ErrorLogger.Initialize();
+
+            // Yakalanmamış exception handler
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
-                var logPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log");
                 var ex = e.ExceptionObject as Exception;
-                var message = $"UNHANDLED EXCEPTION:\n{ex?.ToString() ?? e.ExceptionObject?.ToString()}\n";
-                System.IO.File.WriteAllText(logPath, message);
-                MessageBox.Show($"Fatal Error: {ex?.Message ?? "Unknown error"}\n\nLogged to: {logPath}", "Fatal Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ErrorLogger.LogCritical("Yakalanmamış kritik hata (UnhandledException)", ex);
+                
+                MessageBox.Show(
+                    $"Kritik Hata: {ex?.Message ?? "Bilinmeyen hata"}\n\n" +
+                    $"Detaylar masaüstündeki log dosyasına kaydedildi:\n{ErrorLogger.LogFilePath}", 
+                    "Kritik Hata", 
+                    MessageBoxButton.OK, 
+                    MessageBoxImage.Error);
+            };
+
+            // UI thread exception handler
+            DispatcherUnhandledException += (s, e) =>
+            {
+                ErrorLogger.LogError("UI thread hatası (DispatcherUnhandledException)", e.Exception);
+                e.Handled = true; // Uygulamanın çökmesini engelle
+                
+                MessageBox.Show(
+                    $"Bir hata oluştu: {e.Exception.Message}\n\n" +
+                    $"Detaylar log dosyasına kaydedildi.",
+                    "Hata",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            };
+
+            // Task exception handler
+            TaskScheduler.UnobservedTaskException += (s, e) =>
+            {
+                ErrorLogger.LogError("Arka plan görev hatası (UnobservedTaskException)", e.Exception);
+                e.SetObserved(); // Exception'ı işlenmiş olarak işaretle
             };
         }
 
@@ -33,12 +62,11 @@ namespace CncControlApp
             {
                 base.OnStartup(e);
                 
-                // Log startup attempt
-                System.IO.File.AppendAllText("startup.log", $"[{DateTime.Now:HH:mm:ss.fff}] Application starting...\n");
+                ErrorLogger.LogInfo("Uygulama başlatılıyor...");
                 
                 MainController = new MainControll();
                 
-                System.IO.File.AppendAllText("startup.log", $"[{DateTime.Now:HH:mm:ss.fff}] MainController created successfully\n");
+                ErrorLogger.LogInfo("MainController başarıyla oluşturuldu");
                 
                 // Arka planda güncelleme kontrolü yap (sessiz mod)
                 Task.Run(async () =>
@@ -53,16 +81,19 @@ namespace CncControlApp
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Update check failed: {ex.Message}");
+                        ErrorLogger.LogWarning($"Güncelleme kontrolü başarısız: {ex.Message}");
                     }
                 });
             }
             catch (Exception ex)
             {
-                var logPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log");
-                var message = $"STARTUP ERROR:\n{ex}\n\nStack Trace:\n{ex.StackTrace}\n";
-                System.IO.File.WriteAllText(logPath, message);
-                MessageBox.Show($"Startup Error: {ex.Message}\n\nDetails logged to: {logPath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ErrorLogger.LogCritical("Uygulama başlatma hatası", ex);
+                MessageBox.Show(
+                    $"Uygulama başlatılamadı: {ex.Message}\n\n" +
+                    $"Detaylar log dosyasına kaydedildi:\n{ErrorLogger.LogFilePath}", 
+                    "Başlatma Hatası", 
+                    MessageBoxButton.OK, 
+                    MessageBoxImage.Error);
                 Shutdown(1);
                 return;
             }
@@ -94,6 +125,7 @@ namespace CncControlApp
                 var mc = MainController;
                 if (mc?.IsConnected == true && mc.IsGCodeRunning)
                 {
+                    ErrorLogger.LogWarning("Uygulama kapatılırken G-Code hala çalışıyordu - acil durdurma gönderildi");
                     mc.AddLogMessage("> ⚠️ Application exiting while G-Code is still running – issuing feed hold + soft reset to stop machine.");
                     // Feed hold '!' then soft reset (Ctrl-X0x18) to clear planner
                     try { mc.SendControlCharacterAsync('!').GetAwaiter().GetResult(); } catch { }
@@ -102,8 +134,13 @@ namespace CncControlApp
                     try { mc.SendControlCharacterAsync((char)0x18).GetAwaiter().GetResult(); } catch { }
                     mc.AddLogMessage("> 🛑 Emergency stop sequence sent during exit.");
                 }
+                
+                ErrorLogger.LogShutdown();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogError("Uygulama kapatılırken hata oluştu", ex);
+            }
             base.OnExit(e);
         }
     }
