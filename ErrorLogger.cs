@@ -14,6 +14,11 @@ namespace CncControlApp
         private static readonly object _lockObj = new object();
         private static string _logFilePath;
         private static bool _initialized = false;
+        
+        /// <summary>
+        /// Debug modu - true olduğunda tüm detaylı loglar yazılır
+        /// </summary>
+        public static bool DebugMode { get; set; } = true;
 
         /// <summary>
         /// Log dosyasının tam yolu (Masaüstü/RaptorexController_ErrorLog.txt)
@@ -178,6 +183,33 @@ namespace CncControlApp
                 }
 
                 System.Diagnostics.Debug.WriteLine($"[INFO] {message}");
+            }
+            catch
+            {
+            }
+        }
+
+        /// <summary>
+        /// Debug mesajı loglar (sadece DebugMode=true ise).
+        /// </summary>
+        public static void LogDebug(
+            string message,
+            [CallerFilePath] string callerFilePath = "",
+            [CallerLineNumber] int callerLineNumber = 0,
+            [CallerMemberName] string callerMemberName = "")
+        {
+            if (!DebugMode) return;
+            
+            try
+            {
+                var line = $"🔵 DEBUG [{DateTime.Now:HH:mm:ss.fff}] {Path.GetFileName(callerFilePath)}:{callerLineNumber} → {callerMemberName}(): {message}";
+
+                lock (_lockObj)
+                {
+                    File.AppendAllText(LogFilePath, line + Environment.NewLine, Encoding.UTF8);
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] {message}");
             }
             catch
             {

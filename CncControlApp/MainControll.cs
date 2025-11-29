@@ -361,16 +361,22 @@ namespace CncControlApp
         // Ctor
         public MainControll()
         {
+            ErrorLogger.LogDebug("MainControll constructor başlıyor...");
+            
             _uiManager = new UIPropertiesManager();
+            ErrorLogger.LogDebug("UIPropertiesManager oluşturuldu");
+            
             _memoryLogManager = new MemoryLogManager(_uiManager.LogMessages, _ => { });
             _memoryLogManager.MemoryUsageCritical += OnMemoryUsageCritical;
             _memoryLogManager.MemoryCleanupCompleted += OnMemoryCleanupCompleted;
             _memoryLogManager.PropertyChanged += OnMemoryLogManagerPropertyChanged;
+            ErrorLogger.LogDebug("MemoryLogManager oluşturuldu");
 
             _dataProcessingManager = new DataProcessingManager(
                 m => AddLogMessage(m),
                 (st, log) => { MachineStatus = st; if (!string.IsNullOrEmpty(log)) AddLogMessage(log); },
                 coords => { MStatus.X = coords.X; MStatus.Y = coords.Y; MStatus.Z = coords.Z; MStatus.A = coords.A; MStatus.WorkX = coords.WorkX; MStatus.WorkY = coords.WorkY; MStatus.WorkZ = coords.WorkZ; MStatus.WorkA = coords.WorkA; });
+            ErrorLogger.LogDebug("DataProcessingManager oluşturuldu");
 
             // Subscribe to executing line info from status reports (FluidNC 'line' / 'Ln')
             _dataProcessingManager.ExecutingLineReported += (oneBasedLine) =>
@@ -408,8 +414,11 @@ namespace CncControlApp
             };
 
             _errorHandlingService = new ErrorHandlingService(m => _uiManager.LogMessages.Add(m));
+            ErrorLogger.LogDebug("ErrorHandlingService oluşturuldu");
+            
             var config = new ConnectionConfiguration { EnableAutoConnect = true, EnableSoundNotifications = true, SupportedDevices = new[] { "CP210x", "CH340" }, BaudRate =115200, ConnectionTimeout =800 };
             _connectionManager = new ConnectionManager(config);
+            ErrorLogger.LogDebug("ConnectionManager oluşturuldu");
 
             _gCodeManager = new GCodeExecutionManager(
                 _connectionManager,
@@ -419,6 +428,7 @@ namespace CncControlApp
                 () => MachineStatus,
                 s => MachineStatus = s,
                 () => MStatus.WorkZ); // Pass delegate to get current WorkZ
+            ErrorLogger.LogDebug("GCodeExecutionManager oluşturuldu");
 
             _gCodeManager.PropertyChanged += OnGCodeManagerPropertyChanged;
             _gCodeManager.ExecutionStatusChanged += OnGCodeExecutionStatusChanged;
@@ -449,6 +459,7 @@ namespace CncControlApp
 
             _statusAndProcessTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
             _statusAndProcessTimer.Tick += StatusAndProcessTimer_Tick;
+            ErrorLogger.LogDebug("StatusAndProcessTimer oluşturuldu");
 
             MStatus.PropertyChanged += (s, e) =>
             {
@@ -459,6 +470,7 @@ namespace CncControlApp
             };
 
             AddLogMessage("> ✅ MainControll başlatıldı - Tüm servisler entegre edildi");
+            ErrorLogger.LogDebug("MainControll constructor tamamlandı");
             _gCodeManager.CommandBlockedDueToHold += (s, e) => 
             { 
                 string icon = e.MachineStatus.StartsWith("Alarm", StringComparison.OrdinalIgnoreCase) ? "🚨" : "⏸️";
@@ -764,6 +776,8 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
 
         private void OnConnectionStatusChanged(bool isConnected)
         {
+            ErrorLogger.LogDebug($"OnConnectionStatusChanged: isConnected={isConnected}");
+            
             _statusAndProcessTimer.IsEnabled = isConnected;
             OnPropertyChanged(nameof(IsConnected));
             OnPropertyChanged(nameof(IsDisconnected));
@@ -774,15 +788,17 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
 
             if (isConnected)
             {
+                ErrorLogger.LogDebug("Bağlantı kuruldu - UI güncelleniyor");
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     AddLogMessage("> ✅ CNC bağlantısı kuruldu");
                     NavigateToPanel?.Invoke(MenuPage.Status);
                 });
-                try { StartCentralStatusQuerier(); CentralStatusQuerierEnabled = true; } catch (Exception ex) { AddLogMessage($"> ❌ CentralStatusQuerier start error: {ex.Message}"); }
+                try { StartCentralStatusQuerier(); CentralStatusQuerierEnabled = true; ErrorLogger.LogDebug("CentralStatusQuerier başlatıldı"); } catch (Exception ex) { AddLogMessage($"> ❌ CentralStatusQuerier start error: {ex.Message}"); ErrorLogger.LogError("CentralStatusQuerier start error", ex); }
             }
             else
             {
+                ErrorLogger.LogDebug("Bağlantı kesildi - UI güncelleniyor");
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     try { _loadingPopup?.ClosePopup(); _loadingPopup = null; AddLogMessage("> ❌ CNC bağlantısı kesildi"); }

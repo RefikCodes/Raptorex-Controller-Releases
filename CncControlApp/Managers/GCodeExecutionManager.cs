@@ -441,24 +441,27 @@ namespace CncControlApp.Managers
 
         public async Task<bool> RunGCodeAsync()
         {
+            ErrorLogger.LogDebug($"RunGCodeAsync başladı - CanStartExecution={CanStartExecution}, IsConnected={IsConnected}, IsGCodeLoaded={IsGCodeLoaded}, IsGCodeRunning={IsGCodeRunning}");
        try
             {
  if (!CanStartExecution)
     {
         string reason = !IsConnected ? "Not connected" : !IsGCodeLoaded ? "No G-Code loaded" : IsGCodeRunning ? "Already running" : CanContinueExecution ? "Hold-resumable (use Continue)" : "Unknown";
+        ErrorLogger.LogDebug($"RunGCode başlatılamadı: {reason}");
  _logError("RunGCode", new InvalidOperationException(reason), ErrorHandlingService.ErrorSeverity.Warning);
        return false;
    }
         
        // ✅ CRITICAL FIX: Clear stop state before starting new execution
        _wasStopped = false;
+       ErrorLogger.LogDebug("Stop state temizlendi, execution başlıyor");
       
           ClearLineAnnotations();
                 LastCompletedLineIndex = -1; 
 CurrentlyExecutingLineIndex = -1; 
          CurrentGCodeLineIndex = 0;
      
-       if (!await WaitForControllerReadyAsync()) { _log("> ⚠️ Controller not ready (still Alarm/Hold) — aborting run"); return false; }
+       if (!await WaitForControllerReadyAsync()) { _log("> ⚠️ Controller not ready (still Alarm/Hold) — aborting run"); ErrorLogger.LogDebug("Controller ready değil - abort"); return false; }
            
     // ✅ Reset execution timing BEFORE setting IsGCodeRunning to ensure timer starts fresh
     ExecutionStartTime = DateTime.Now;
@@ -474,6 +477,7 @@ CurrentlyExecutingLineIndex = -1;
            
 // Set IsGCodeRunning which will start the timer via the setter
        if (!IsGCodeRunning) { IsGCodeRunning = true; if ((GetMachineStatusSafe() ?? string.Empty).StartsWith("Idle", StringComparison.OrdinalIgnoreCase)) { SetMachineStatusSafe("Run"); } }
+       ErrorLogger.LogDebug($"GCode çalışma başladı - satır sayısı: {GCodeLines?.Count ?? 0}");
       
  _internalStreaming = true; _executionCts?.Dispose(); _executionCts = new CancellationTokenSource();
       
@@ -485,6 +489,7 @@ CurrentlyExecutingLineIndex = -1;
       if (!streamedOk) 
       { 
           // Streaming failed - cancel execution
+          ErrorLogger.LogDebug("Streaming başarısız - abort");
           if (IsGCodeRunning) IsGCodeRunning = false; 
           _log("> ❌ Streaming aborted"); 
           ExecutionCompleted?.Invoke(this, false); 
@@ -493,6 +498,7 @@ CurrentlyExecutingLineIndex = -1;
       }
         
 _log("> ✅ All commands streamed successfully - machine executing buffered commands");
+ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
  
         // ✅ CRITICAL FIX: Just return true - machine will keep executing
       // IsGCodeRunning stays true until we manually set it false later
@@ -502,6 +508,7 @@ _log("> ✅ All commands streamed successfully - machine executing buffered comm
      catch (Exception ex)
             {
     _internalStreaming = false; 
+    ErrorLogger.LogError("RunGCodeAsync exception", ex);
     if (IsGCodeRunning) IsGCodeRunning = false; 
     _logError("RunGCode", ex, ErrorHandlingService.ErrorSeverity.Critical); 
     ExecutionCompleted?.Invoke(this, false); 
