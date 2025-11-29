@@ -1,22 +1,214 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace CncControlApp
 {
     /// <summary>
     /// GoToPositionDialog - G00 hızlı konumlandırma komutu için dialog
     /// Kullanıcı X, Y, Z koordinatlarını girerek CNC'yi o pozisyona hareket ettirir
+    /// LOCAL (Work) veya MACHINE koordinat sistemini seçebilir
     /// </summary>
     public partial class GoToPositionDialog : Window
     {
+        private bool _useLocalCoordinates = true;
+        private double _maxFeedRate = 6000; // Default rapid rate
+        
+        // Renkler
+        private static readonly SolidColorBrush LocalColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4CAF50"));
+        private static readonly SolidColorBrush LocalBgColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF2D3D2D"));
+        private static readonly SolidColorBrush MachineColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF42A5F5"));
+        private static readonly SolidColorBrush MachineBgColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF2D2D3D"));
+        private static readonly SolidColorBrush InactiveColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF888888"));
+
         public GoToPositionDialog()
         {
             InitializeComponent();
             
-            // İlk textbox'a focus ver
-            Loaded += (s, e) => XPositionTextBox.Focus();
+            // Mevcut koordinatları yükle
+            Loaded += (s, e) => 
+            {
+                InitializeFeedRateSlider();
+                LoadCurrentCoordinates();
+                XPositionTextBox.Focus();
+                XPositionTextBox.SelectAll();
+            };
+        }
+
+        /// <summary>
+        /// Feed rate slider'ı başlat - max değeri rapid rate'den al
+        /// </summary>
+        private void InitializeFeedRateSlider()
+        {
+            // Makine ayarlarından rapid rate'leri al ($110=X, $111=Y, $112=Z)
+            _maxFeedRate = GetMinRapidRate();
+            
+            // Slider'ı ayarla
+            FeedRateSlider.Minimum = 0;
+            FeedRateSlider.Maximum = _maxFeedRate;
+            FeedRateSlider.Value = _maxFeedRate / 2; // Orta nokta default
+            
+            // Değeri güncelle
+            UpdateFeedValueText();
+        }
+
+        /// <summary>
+        /// En düşük rapid rate'i al (X, Y, Z arasından)
+        /// </summary>
+        private double GetMinRapidRate()
+        {
+            double defaultRate = 6000;
+            try
+            {
+                var settings = App.MainController?.Settings;
+                if (settings == null) return defaultRate;
+
+                // $110=X rapid, $111=Y rapid, $112=Z rapid
+                double xRapid = GetSettingValue(settings, 110, defaultRate);
+                double yRapid = GetSettingValue(settings, 111, defaultRate);
+                double zRapid = GetSettingValue(settings, 112, 3000);
+
+                // En düşük XY rapid kullan
+                return Math.Min(xRapid, yRapid);
+            }
+            catch
+            {
+                return defaultRate;
+            }
+        }
+
+        private double GetSettingValue(System.Collections.ObjectModel.ObservableCollection<GCodeSetting> settings, int id, double defaultValue)
+        {
+            var setting = settings?.FirstOrDefault(s => s.Id == id);
+            if (setting != null && double.TryParse(setting.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double v))
+                return Math.Max(100, v);
+            return defaultValue;
+        }
+
+        private void FeedRateSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            UpdateFeedValueText();
+        }
+
+        private void UpdateFeedValueText()
+        {
+            if (FeedValueText == null || FeedRateSlider == null) return;
+            
+            int feedValue = (int)FeedRateSlider.Value;
+            FeedValueText.Text = $"{feedValue} mm/min";
+        }
+
+        /// <summary>
+        /// Mevcut koordinatları textbox'lara yükle
+        /// </summary>
+        private void LoadCurrentCoordinates()
+        {
+            var mStatus = App.MainController?.MStatus;
+            if (mStatus == null) return;
+
+            if (_useLocalCoordinates)
+            {
+                XPositionTextBox.Text = mStatus.WorkX.ToString("F3", CultureInfo.InvariantCulture);
+                YPositionTextBox.Text = mStatus.WorkY.ToString("F3", CultureInfo.InvariantCulture);
+                ZPositionTextBox.Text = mStatus.WorkZ.ToString("F3", CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                XPositionTextBox.Text = mStatus.X.ToString("F3", CultureInfo.InvariantCulture);
+                YPositionTextBox.Text = mStatus.Y.ToString("F3", CultureInfo.InvariantCulture);
+                ZPositionTextBox.Text = mStatus.Z.ToString("F3", CultureInfo.InvariantCulture);
+            }
+        }
+
+        /// <summary>
+        /// Renkleri güncelle (LOCAL yeşil, MACHINE mavi)
+        /// </summary>
+        private void UpdateColors()
+        {
+            if (_useLocalCoordinates)
+            {
+                // LOCAL aktif - yeşil
+                LocalToggle.IsChecked = true;
+                LocalToggle.Foreground = LocalColor;
+                MachineToggle.IsChecked = false;
+                MachineToggle.Foreground = InactiveColor;
+
+                // Koordinat kutuları yeşil
+                SetCoordinateColors(LocalColor, LocalBgColor);
+            }
+            else
+            {
+                // MACHINE aktif - mavi
+                LocalToggle.IsChecked = false;
+                LocalToggle.Foreground = InactiveColor;
+                MachineToggle.IsChecked = true;
+                MachineToggle.Foreground = MachineColor;
+
+                // Koordinat kutuları mavi
+                SetCoordinateColors(MachineColor, MachineBgColor);
+            }
+        }
+
+        private void SetCoordinateColors(SolidColorBrush foreground, SolidColorBrush background)
+        {
+            // X - Label text stays white, only border/background changes
+            XLabel.Background = background;
+            XLabel.BorderBrush = foreground;
+            XPositionTextBox.Foreground = foreground;
+            XPositionTextBox.BorderBrush = foreground;
+            XPositionTextBox.Background = background;
+            XPositionTextBox.CaretBrush = foreground;
+
+            // Y - Label text stays white, only border/background changes
+            YLabel.Background = background;
+            YLabel.BorderBrush = foreground;
+            YPositionTextBox.Foreground = foreground;
+            YPositionTextBox.BorderBrush = foreground;
+            YPositionTextBox.Background = background;
+            YPositionTextBox.CaretBrush = foreground;
+
+            // Z - Label text stays white, only border/background changes
+            ZLabel.Background = background;
+            ZLabel.BorderBrush = foreground;
+            ZPositionTextBox.Foreground = foreground;
+            ZPositionTextBox.BorderBrush = foreground;
+            ZPositionTextBox.Background = background;
+            ZPositionTextBox.CaretBrush = foreground;
+        }
+
+        private void LocalToggle_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_useLocalCoordinates)
+            {
+                _useLocalCoordinates = true;
+                UpdateColors();
+                LoadCurrentCoordinates();
+            }
+            else
+            {
+                // Zaten seçili, tekrar seç
+                LocalToggle.IsChecked = true;
+            }
+        }
+
+        private void MachineToggle_Click(object sender, RoutedEventArgs e)
+        {
+            if (_useLocalCoordinates)
+            {
+                _useLocalCoordinates = false;
+                UpdateColors();
+                LoadCurrentCoordinates();
+            }
+            else
+            {
+                // Zaten seçili, tekrar seç
+                MachineToggle.IsChecked = true;
+            }
         }
 
         private void Window_KeyDown(object sender, KeyEventArgs e)
@@ -70,20 +262,19 @@ namespace CncControlApp
                     return;
                 }
 
-                // Feed rate (opsiyonel)
+                // Feed rate from slider
                 int? feedRate = null;
-                if (!string.IsNullOrWhiteSpace(FeedRateTextBox.Text))
+                int sliderValue = (int)FeedRateSlider.Value;
+                if (sliderValue > 0)
                 {
-                    if (int.TryParse(FeedRateTextBox.Text, out int f) && f > 0)
-                    {
-                        feedRate = f;
-                    }
+                    feedRate = sliderValue;
                 }
 
-                // G00 komutu oluştur (hızlı hareket)
-                string gcode = FormatG00Command(x, y, z, feedRate);
+                // G53 (machine) veya G00 (work) komutu oluştur
+                string gcode = FormatGCodeCommand(x, y, z, feedRate);
 
-                App.MainController.AddLogMessage($"> 📍 Go To: {gcode}");
+                string coordType = _useLocalCoordinates ? "LOCAL" : "MACHINE";
+                App.MainController.AddLogMessage($"> 📍 Go To ({coordType}): {gcode}");
 
                 // Komutu gönder
                 bool success = await App.MainController.SendGCodeCommandAsync(gcode);
@@ -121,16 +312,28 @@ namespace CncControlApp
         }
 
         /// <summary>
-        /// G00 komutunu formatla
+        /// G-Code komutunu formatla
+        /// LOCAL: G00 (work coordinates)
+        /// MACHINE: G53 G00 (machine coordinates)
         /// </summary>
-        private string FormatG00Command(double x, double y, double z, int? feedRate)
+        private string FormatGCodeCommand(double x, double y, double z, int? feedRate)
         {
             // Invariant culture ile formatla (nokta kullan)
             string xStr = x.ToString("F3", CultureInfo.InvariantCulture);
             string yStr = y.ToString("F3", CultureInfo.InvariantCulture);
             string zStr = z.ToString("F3", CultureInfo.InvariantCulture);
 
-            string cmd = $"G00 X{xStr} Y{yStr} Z{zStr}";
+            string cmd;
+            if (_useLocalCoordinates)
+            {
+                // Work koordinatları - G00
+                cmd = $"G00 X{xStr} Y{yStr} Z{zStr}";
+            }
+            else
+            {
+                // Machine koordinatları - G53 G00
+                cmd = $"G53 G00 X{xStr} Y{yStr} Z{zStr}";
+            }
 
             // Feed rate varsa ekle
             if (feedRate.HasValue)

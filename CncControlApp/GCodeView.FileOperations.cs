@@ -47,6 +47,9 @@ namespace CncControlApp
               _fileService.ClearAllData();
                 DisplayGCodeLines.Clear();
 
+       // Placeholder'ı göster
+       UpdateEmptyStatePlaceholder();
+
        // Clear controller-side lines and loaded file path
        if (App.MainController != null)
            {

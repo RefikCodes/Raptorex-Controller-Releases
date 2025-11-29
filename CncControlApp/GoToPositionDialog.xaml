@@ -3,34 +3,100 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None"
         ResizeMode="NoResize"
-        Width="400"
-        Height="380"
+        Width="420"
+        Height="540"
         Background="Transparent"
         AllowsTransparency="True"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         Topmost="True"
         KeyDown="Window_KeyDown">
+
+    <Window.Resources>
+        <!-- Toggle Button Style for Local/Machine -->
+        <Style x:Key="CoordToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="#FF3E3E40"/>
+            <Setter Property="Foreground" Value="#FF888888"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="12,10">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF2D3D2D"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Coordinate TextBox Style - matching CoordinatesView -->
+        <Style x:Key="CoordInputStyle" TargetType="TextBox">
+            <Setter Property="FontSize" Value="26"/>
+            <Setter Property="FontFamily" Value="Consolas, 'Courier New', monospace"/>
+            <Setter Property="FontWeight" Value="Regular"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="TextAlignment" Value="Right"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="0,6,6,0">
+                            <ScrollViewer x:Name="PART_ContentHost" 
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="#FFFF6600"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     
-    <Border CornerRadius="14" Background="#FF2C2C2F" BorderBrush="#FF5A5A5C" BorderThickness="1.2" Padding="0" SnapsToDevicePixels="True">
+    <Border CornerRadius="14" Background="#FF2D2D30" BorderBrush="#FFA2A2A4" BorderThickness="1.5" Padding="0" SnapsToDevicePixels="True">
         <Border.Effect>
-            <DropShadowEffect Color="#000000" BlurRadius="16" ShadowDepth="0" Opacity="0.6"/>
+            <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="0" Opacity="0.7"/>
         </Border.Effect>
         
         <Grid>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- Header -->
-            <Border Grid.Row="0" Background="#FF3D3D40" Padding="18,14" CornerRadius="14,14,0,0">
+            <Border Grid.Row="0" Background="#FF3D3D40" Padding="18,12" CornerRadius="14,14,0,0">
                 <DockPanel>
                     <TextBlock Text="📍"
-                               FontSize="20"
+                               FontSize="22"
                                VerticalAlignment="Center"/>
-                    <TextBlock Text="Go To Position (G00)"
+                    <TextBlock Text="Go To Position"
                                Margin="10,0,0,0"
                                Foreground="White"
                                FontSize="20"
@@ -48,93 +114,229 @@
                 </DockPanel>
             </Border>
 
-            <!-- Input Fields -->
-            <StackPanel Grid.Row="1" Margin="24,20">
+            <!-- Toggle: Local / Machine -->
+            <Grid Grid.Row="1" Margin="20,16,20,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <ToggleButton x:Name="LocalToggle"
+                              Grid.Column="0"
+                              Content="LOCAL"
+                              IsChecked="True"
+                              Style="{StaticResource CoordToggleStyle}"
+                              BorderBrush="#FF4CAF50"
+                              Foreground="#FF4CAF50"
+                              Click="LocalToggle_Click"/>
+                
+                <ToggleButton x:Name="MachineToggle"
+                              Grid.Column="2"
+                              Content="MACHINE"
+                              IsChecked="False"
+                              Style="{StaticResource CoordToggleStyle}"
+                              BorderBrush="#FF42A5F5"
+                              Foreground="#FF888888"
+                              Click="MachineToggle_Click"/>
+            </Grid>
+
+            <!-- Coordinate Input Fields -->
+            <StackPanel Grid.Row="2" Margin="20,12,20,12">
                 
                 <!-- X Position -->
-                <DockPanel Margin="0,0,0,12">
-                    <TextBlock Text="X:" 
-                               Width="30"
-                               Foreground="#FFDDDDDD" 
-                               FontSize="18" 
-                               FontWeight="Bold"
-                               VerticalAlignment="Center"/>
+                <Grid x:Name="XGrid" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="45"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border x:Name="XLabel" Grid.Column="0" 
+                            Background="#FF2D3D2D" 
+                            BorderBrush="#FF4CAF50" 
+                            BorderThickness="2,2,0,2" 
+                            CornerRadius="6,0,0,6"
+                            Padding="8,0">
+                        <TextBlock Text="X" 
+                                   FontSize="24" 
+                                   FontWeight="Bold"
+                                   Foreground="White"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Center"/>
+                    </Border>
                     <TextBox x:Name="XPositionTextBox"
-                             Background="#FF3A3A3E"
-                             Foreground="White"
-                             FontSize="18"
-                             Padding="12,8"
-                             BorderBrush="#FF5A5A5C"
-                             BorderThickness="1"
-                             Text="0.000"/>
-                </DockPanel>
+                             Grid.Column="1"
+                             Style="{StaticResource CoordInputStyle}"
+                             Background="#FF2D3D2D"
+                             Foreground="#FF4CAF50"
+                             BorderBrush="#FF4CAF50"
+                             CaretBrush="#FF4CAF50"/>
+                </Grid>
 
                 <!-- Y Position -->
-                <DockPanel Margin="0,0,0,12">
-                    <TextBlock Text="Y:" 
-                               Width="30"
-                               Foreground="#FFDDDDDD" 
-                               FontSize="18" 
-                               FontWeight="Bold"
-                               VerticalAlignment="Center"/>
+                <Grid x:Name="YGrid" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="45"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border x:Name="YLabel" Grid.Column="0" 
+                            Background="#FF2D3D2D" 
+                            BorderBrush="#FF4CAF50" 
+                            BorderThickness="2,2,0,2" 
+                            CornerRadius="6,0,0,6"
+                            Padding="8,0">
+                        <TextBlock Text="Y" 
+                                   FontSize="24" 
+                                   FontWeight="Bold"
+                                   Foreground="White"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Center"/>
+                    </Border>
                     <TextBox x:Name="YPositionTextBox"
-                             Background="#FF3A3A3E"
-                             Foreground="White"
-                             FontSize="18"
-                             Padding="12,8"
-                             BorderBrush="#FF5A5A5C"
-                             BorderThickness="1"
-                             Text="0.000"/>
-                </DockPanel>
+                             Grid.Column="1"
+                             Style="{StaticResource CoordInputStyle}"
+                             Background="#FF2D3D2D"
+                             Foreground="#FF4CAF50"
+                             BorderBrush="#FF4CAF50"
+                             CaretBrush="#FF4CAF50"/>
+                </Grid>
 
                 <!-- Z Position -->
-                <DockPanel Margin="0,0,0,12">
-                    <TextBlock Text="Z:" 
-                               Width="30"
-                               Foreground="#FFDDDDDD" 
-                               FontSize="18" 
-                               FontWeight="Bold"
-                               VerticalAlignment="Center"/>
+                <Grid x:Name="ZGrid" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="45"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border x:Name="ZLabel" Grid.Column="0" 
+                            Background="#FF2D3D2D" 
+                            BorderBrush="#FF4CAF50" 
+                            BorderThickness="2,2,0,2" 
+                            CornerRadius="6,0,0,6"
+                            Padding="8,0">
+                        <TextBlock Text="Z" 
+                                   FontSize="24" 
+                                   FontWeight="Bold"
+                                   Foreground="White"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Center"/>
+                    </Border>
                     <TextBox x:Name="ZPositionTextBox"
-                             Background="#FF3A3A3E"
-                             Foreground="White"
-                             FontSize="18"
-                             Padding="12,8"
-                             BorderBrush="#FF5A5A5C"
-                             BorderThickness="1"
-                             Text="0.000"/>
-                </DockPanel>
+                             Grid.Column="1"
+                             Style="{StaticResource CoordInputStyle}"
+                             Background="#FF2D3D2D"
+                             Foreground="#FF4CAF50"
+                             BorderBrush="#FF4CAF50"
+                             CaretBrush="#FF4CAF50"/>
+                </Grid>
 
-                <!-- Feed Rate -->
-                <DockPanel Margin="0,8,0,0">
-                    <TextBlock Text="F:" 
-                               Width="30"
-                               Foreground="#FFAAAAAA" 
-                               FontSize="16" 
-                               VerticalAlignment="Center"
-                               ToolTip="Feed Rate (mm/min)"/>
-                    <TextBox x:Name="FeedRateTextBox"
-                             Background="#FF3A3A3E"
-                             Foreground="#FFCCCCCC"
-                             FontSize="16"
-                             Padding="12,6"
-                             BorderBrush="#FF4A4A4C"
-                             BorderThickness="1"
-                             Text="1000"
-                             ToolTip="Feed Rate (mm/min) - G00 hızlı hareket için opsiyonel"/>
-                </DockPanel>
+                <!-- Feed Rate Slider -->
+                <Grid Margin="0,16,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- Label and Value -->
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                        <TextBlock Text="FEED RATE" 
+                                   FontSize="12" 
+                                   FontWeight="SemiBold"
+                                   Foreground="#FF888888"
+                                   HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="FeedValueText"
+                                   FontSize="14" 
+                                   FontWeight="Bold"
+                                   Foreground="#FFFFB74D"
+                                   HorizontalAlignment="Right"/>
+                    </Grid>
+                    
+                    <!-- Horizontal Slider -->
+                    <Border Grid.Row="1" 
+                            Background="#FF3A3A3E" 
+                            BorderBrush="#FF555555" 
+                            BorderThickness="2" 
+                            CornerRadius="8"
+                            Padding="8,6">
+                        <Slider x:Name="FeedRateSlider"
+                                Orientation="Horizontal"
+                                Height="32"
+                                Minimum="0"
+                                Maximum="6000"
+                                Value="3000"
+                                IsMoveToPointEnabled="True"
+                                IsSnapToTickEnabled="False"
+                                TickFrequency="100"
+                                SmallChange="100"
+                                LargeChange="500"
+                                ValueChanged="FeedRateSlider_ValueChanged">
+                            <Slider.Template>
+                                <ControlTemplate TargetType="Slider">
+                                    <Grid>
+                                        <Border x:Name="TrackBackground"
+                                                Background="#FF555555"
+                                                CornerRadius="6"
+                                                Height="12"
+                                                VerticalAlignment="Center"/>
+                                        <Track x:Name="PART_Track">
+                                            <Track.DecreaseRepeatButton>
+                                                <RepeatButton Command="Slider.DecreaseLarge">
+                                                    <RepeatButton.Template>
+                                                        <ControlTemplate TargetType="RepeatButton">
+                                                            <Border Background="#FFFFB74D" CornerRadius="6,0,0,6" Height="12"/>
+                                                        </ControlTemplate>
+                                                    </RepeatButton.Template>
+                                                </RepeatButton>
+                                            </Track.DecreaseRepeatButton>
+                                            <Track.Thumb>
+                                                <Thumb>
+                                                    <Thumb.Template>
+                                                        <ControlTemplate TargetType="Thumb">
+                                                            <Border Background="White"
+                                                                    BorderBrush="#FFFFB74D"
+                                                                    BorderThickness="3"
+                                                                    CornerRadius="12"
+                                                                    Width="28"
+                                                                    Height="28">
+                                                                <Border.Effect>
+                                                                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Opacity="0.4"/>
+                                                                </Border.Effect>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Thumb.Template>
+                                                </Thumb>
+                                            </Track.Thumb>
+                                            <Track.IncreaseRepeatButton>
+                                                <RepeatButton Command="Slider.IncreaseLarge">
+                                                    <RepeatButton.Template>
+                                                        <ControlTemplate TargetType="RepeatButton">
+                                                            <Border Background="Transparent"/>
+                                                        </ControlTemplate>
+                                                    </RepeatButton.Template>
+                                                </RepeatButton>
+                                            </Track.IncreaseRepeatButton>
+                                        </Track>
+                                    </Grid>
+                                </ControlTemplate>
+                            </Slider.Template>
+                        </Slider>
+                    </Border>
+                </Grid>
 
             </StackPanel>
 
             <!-- Buttons -->
-            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">
+            <Grid Grid.Row="3" Margin="20,8,20,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="15"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
                 <Button x:Name="GoButton" 
-                        Content="🚀 GO" 
-                        Width="140" 
-                        Height="48"
+                        Grid.Column="0"
+                        Height="52"
                         Background="#FF4CAF50"
                         Foreground="White"
-                        FontSize="18"
+                        FontSize="20"
                         FontWeight="Bold"
                         BorderThickness="0"
                         Cursor="Hand"
@@ -145,7 +347,10 @@
                             <Border x:Name="Root"
                                     Background="{TemplateBinding Background}"
                                     CornerRadius="10">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Text="🚀" FontSize="22" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="GO" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                                </StackPanel>
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
@@ -160,10 +365,9 @@
                 </Button>
                 
                 <Button x:Name="CancelButton" 
-                        Content="İptal" 
-                        Width="100" 
-                        Height="48"
-                        Margin="20,0,0,0"
+                        Grid.Column="2"
+                        Width="100"
+                        Height="52"
                         Background="#FF555555"
                         Foreground="White"
                         FontSize="16"
@@ -176,7 +380,7 @@
                             <Border x:Name="Root"
                                     Background="{TemplateBinding Background}"
                                     CornerRadius="10">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <TextBlock Text="İptal" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
@@ -189,7 +393,7 @@
                         </ControlTemplate>
                     </Button.Template>
                 </Button>
-            </StackPanel>
+            </Grid>
 
         </Grid>
     </Border>

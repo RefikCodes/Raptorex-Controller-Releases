@@ -229,5 +229,20 @@ StatusTextBlock.Text = $"Paused (Hold) – skipped: {e.Command}";
      }
        catch { }
      }
+
+        /// <summary>
+        /// Update empty state placeholder visibility based on whether files are loaded
+        /// </summary>
+        public void UpdateEmptyStatePlaceholder()
+        {
+            try
+            {
+                if (EmptyStatePlaceholder == null) return;
+                
+                bool hasContent = DisplayGCodeLines != null && DisplayGCodeLines.Count > 0;
+                EmptyStatePlaceholder.Visibility = hasContent ? Visibility.Collapsed : Visibility.Visible;
+            }
+            catch { }
+        }
     }
 }

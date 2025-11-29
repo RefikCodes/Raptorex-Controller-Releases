@@ -112,6 +112,9 @@ namespace CncControlApp
          }
   }
 
+  // Dosya yüklendi - placeholder'ı gizle
+  UpdateEmptyStatePlaceholder();
+
      if (_fileService?.GCodeLines != null && App.MainController != null)
         {
             App.MainController.GCodeLines.Clear();
