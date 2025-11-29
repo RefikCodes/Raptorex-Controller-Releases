@@ -41,5 +41,19 @@ namespace CncControlApp
  mc.AddLogMessage(ok ? "> ✅ Tüm eksenler (X,Y,Z) kalıcı olarak sıfırlandı" : "> ❌ Set Zero ALL başarısız");
  (sender as Button).IsEnabled = true;
  }
+
+ private void GoToButton_Click(object sender, RoutedEventArgs e)
+ {
+ try
+ {
+ var dialog = new GoToPositionDialog();
+ dialog.Owner = Application.Current.MainWindow;
+ dialog.ShowDialog();
+ }
+ catch (System.Exception ex)
+ {
+ App.MainController?.AddLogMessage($"> ❌ Go To Position hata: {ex.Message}");
+ }
+ }
  }
 }

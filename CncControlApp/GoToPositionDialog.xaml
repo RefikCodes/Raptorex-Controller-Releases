@@ -1,0 +1,196 @@
+<Window x:Class="CncControlApp.GoToPositionDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Width="400"
+        Height="380"
+        Background="Transparent"
+        AllowsTransparency="True"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Topmost="True"
+        KeyDown="Window_KeyDown">
+    
+    <Border CornerRadius="14" Background="#FF2C2C2F" BorderBrush="#FF5A5A5C" BorderThickness="1.2" Padding="0" SnapsToDevicePixels="True">
+        <Border.Effect>
+            <DropShadowEffect Color="#000000" BlurRadius="16" ShadowDepth="0" Opacity="0.6"/>
+        </Border.Effect>
+        
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" Background="#FF3D3D40" Padding="18,14" CornerRadius="14,14,0,0">
+                <DockPanel>
+                    <TextBlock Text="📍"
+                               FontSize="20"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="Go To Position (G00)"
+                               Margin="10,0,0,0"
+                               Foreground="White"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                    <Button Content="✕" 
+                            HorizontalAlignment="Right" 
+                            Background="Transparent" 
+                            Foreground="#FF888888"
+                            BorderThickness="0"
+                            FontSize="18"
+                            Cursor="Hand"
+                            Click="CloseButton_Click"
+                            ToolTip="Kapat (ESC)"/>
+                </DockPanel>
+            </Border>
+
+            <!-- Input Fields -->
+            <StackPanel Grid.Row="1" Margin="24,20">
+                
+                <!-- X Position -->
+                <DockPanel Margin="0,0,0,12">
+                    <TextBlock Text="X:" 
+                               Width="30"
+                               Foreground="#FFDDDDDD" 
+                               FontSize="18" 
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"/>
+                    <TextBox x:Name="XPositionTextBox"
+                             Background="#FF3A3A3E"
+                             Foreground="White"
+                             FontSize="18"
+                             Padding="12,8"
+                             BorderBrush="#FF5A5A5C"
+                             BorderThickness="1"
+                             Text="0.000"/>
+                </DockPanel>
+
+                <!-- Y Position -->
+                <DockPanel Margin="0,0,0,12">
+                    <TextBlock Text="Y:" 
+                               Width="30"
+                               Foreground="#FFDDDDDD" 
+                               FontSize="18" 
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"/>
+                    <TextBox x:Name="YPositionTextBox"
+                             Background="#FF3A3A3E"
+                             Foreground="White"
+                             FontSize="18"
+                             Padding="12,8"
+                             BorderBrush="#FF5A5A5C"
+                             BorderThickness="1"
+                             Text="0.000"/>
+                </DockPanel>
+
+                <!-- Z Position -->
+                <DockPanel Margin="0,0,0,12">
+                    <TextBlock Text="Z:" 
+                               Width="30"
+                               Foreground="#FFDDDDDD" 
+                               FontSize="18" 
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"/>
+                    <TextBox x:Name="ZPositionTextBox"
+                             Background="#FF3A3A3E"
+                             Foreground="White"
+                             FontSize="18"
+                             Padding="12,8"
+                             BorderBrush="#FF5A5A5C"
+                             BorderThickness="1"
+                             Text="0.000"/>
+                </DockPanel>
+
+                <!-- Feed Rate -->
+                <DockPanel Margin="0,8,0,0">
+                    <TextBlock Text="F:" 
+                               Width="30"
+                               Foreground="#FFAAAAAA" 
+                               FontSize="16" 
+                               VerticalAlignment="Center"
+                               ToolTip="Feed Rate (mm/min)"/>
+                    <TextBox x:Name="FeedRateTextBox"
+                             Background="#FF3A3A3E"
+                             Foreground="#FFCCCCCC"
+                             FontSize="16"
+                             Padding="12,6"
+                             BorderBrush="#FF4A4A4C"
+                             BorderThickness="1"
+                             Text="1000"
+                             ToolTip="Feed Rate (mm/min) - G00 hızlı hareket için opsiyonel"/>
+                </DockPanel>
+
+            </StackPanel>
+
+            <!-- Buttons -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">
+                <Button x:Name="GoButton" 
+                        Content="🚀 GO" 
+                        Width="140" 
+                        Height="48"
+                        Background="#FF4CAF50"
+                        Foreground="White"
+                        FontSize="18"
+                        FontWeight="Bold"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Click="GoButton_Click"
+                        ToolTip="Pozisyona git (Enter)">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Root"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="10">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Root" Property="Background" Value="#FF66BB6A"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Root" Property="Background" Value="#FF388E3C"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+                
+                <Button x:Name="CancelButton" 
+                        Content="İptal" 
+                        Width="100" 
+                        Height="48"
+                        Margin="20,0,0,0"
+                        Background="#FF555555"
+                        Foreground="White"
+                        FontSize="16"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Click="CloseButton_Click"
+                        ToolTip="İptal (ESC)">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Root"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="10">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Root" Property="Background" Value="#FF666666"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Root" Property="Background" Value="#FF444444"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </StackPanel>
+
+        </Grid>
+    </Border>
+</Window>
