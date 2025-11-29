@@ -46,30 +46,67 @@
 
         <!-- Klavye tuşu (büyük, yuvarlak) -->
         <Style x:Key="KbButtonStyle" TargetType="Button" BasedOn="{StaticResource RoundedButtonBase}">
-            <Setter Property="MinWidth" Value="72"/>
-            <Setter Property="MinHeight" Value="72"/>
-            <Setter Property="Margin" Value="6"/>
+            <Setter Property="MinWidth" Value="90"/>
+            <Setter Property="MinHeight" Value="90"/>
+            <Setter Property="Margin" Value="8"/>
         </Style>
 
-        <!-- Makro tuş -->
-        <Style x:Key="GMacroButtonStyle" TargetType="Button" BasedOn="{StaticResource KbButtonStyle}">
-            <Setter Property="Background" Value="#FF2E7D32"/>
+        <!-- Makro tuş - Hareket (Mavi) -->
+        <Style x:Key="GMovementButtonStyle" TargetType="Button" BasedOn="{StaticResource KbButtonStyle}">
+            <Setter Property="Background" Value="#FF1976D2"/>
+            <Setter Property="BorderBrush" Value="#FF0D47A1"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="MinHeight" Value="70"/>
+        </Style>
+
+        <!-- Makro tuş - Düzlem/Mod (Yeşil) -->
+        <Style x:Key="GModeButtonStyle" TargetType="Button" BasedOn="{StaticResource KbButtonStyle}">
+            <Setter Property="Background" Value="#FF388E3C"/>
             <Setter Property="BorderBrush" Value="#FF1B5E20"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="MinWidth" Value="110"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="MinHeight" Value="70"/>
+        </Style>
+
+        <!-- Makro tuş - Ayar/Sıfırlama (Turuncu) -->
+        <Style x:Key="GSettingButtonStyle" TargetType="Button" BasedOn="{StaticResource KbButtonStyle}">
+            <Setter Property="Background" Value="#FFF57C00"/>
+            <Setter Property="BorderBrush" Value="#FFE65100"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="MinHeight" Value="70"/>
+        </Style>
+
+        <!-- Makro tuş - Probe (Mor) -->
+        <Style x:Key="GProbeButtonStyle" TargetType="Button" BasedOn="{StaticResource KbButtonStyle}">
+            <Setter Property="Background" Value="#FF7B1FA2"/>
+            <Setter Property="BorderBrush" Value="#FF4A148C"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="MinHeight" Value="70"/>
+        </Style>
+
+        <!-- Makro tuş - Sistem Komutları (Kırmızı) -->
+        <Style x:Key="GSystemButtonStyle" TargetType="Button" BasedOn="{StaticResource KbButtonStyle}">
+            <Setter Property="Background" Value="#FFD32F2F"/>
+            <Setter Property="BorderBrush" Value="#FFB71C1C"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="MinHeight" Value="70"/>
         </Style>
 
         <!-- Geniş tuşlar -->
         <Style x:Key="WideKbButtonStyle" TargetType="Button" BasedOn="{StaticResource KbButtonStyle}">
-            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="MinWidth" Value="180"/>
         </Style>
         <Style x:Key="ExtraWideKbButtonStyle" TargetType="Button" BasedOn="{StaticResource KbButtonStyle}">
-            <Setter Property="MinWidth" Value="260"/>
+            <Setter Property="MinWidth" Value="340"/>
         </Style>
 
         <!-- Aksiyon butonları (Send/Clear) -->
         <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource RoundedButtonBase}">
-            <Setter Property="Height" Value="64"/>
+            <Setter Property="Height" Value="51"/>
             <Setter Property="FontSize" Value="18"/>
         </Style>
     </UserControl.Resources>
@@ -101,7 +138,8 @@
                      BorderThickness="0"
                      ScrollViewer.VerticalScrollBarVisibility="Auto"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                     Height="320"
+                     Height="256"
+                     VirtualizingStackPanel.IsVirtualizing="False"
                      MouseDoubleClick="ConsoleListBox_MouseDoubleClick">
                 <!-- 10 satır için satır yüksekliği = 32px -->
                 <ListBox.ItemContainerStyle>
@@ -124,13 +162,13 @@
             <TextBox x:Name="GCodeTextBox"
                      Grid.Column="0"
                      FontFamily="Consolas"
-                     FontSize="24"
+                     FontSize="19"
                      Foreground="#FFDDDDDD"
                      Background="#FF1F1F1F"
                      BorderBrush="#FF5A5A5C"
                      BorderThickness="1"
                      Padding="12"
-                     Height="64"
+                     Height="51"
                      VerticalContentAlignment="Center"
                      KeyDown="GCodeTextBox_KeyDown"
                      ToolTip="Type G-code here (Enter to send)"/>
@@ -171,15 +209,96 @@
             </Border.Effect>
 
             <!-- YENI: Klavye içeriklerini Viewbox ile sığdır -->
-            <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+            <Viewbox Stretch="Uniform" StretchDirection="Both">
                 <StackPanel Margin="6">
-                    <!-- G macros -->
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-                        <Button Style="{StaticResource GMacroButtonStyle}" Content="G00" Click="KeyButton_Click"/>
-                        <Button Style="{StaticResource GMacroButtonStyle}" Content="G01" Click="KeyButton_Click"/>
-                        <Button Style="{StaticResource GMacroButtonStyle}" Content="G91" Click="KeyButton_Click"/>
-                        <Button Style="{StaticResource GMacroButtonStyle}" Content="G92" Click="KeyButton_Click"/>
-                        <Button Style="{StaticResource GMacroButtonStyle}" Content="G10" Click="KeyButton_Click"/>
+                    <!-- G-Code Shortcut Buttons - Renk Kodlu Gruplar (3 satır) -->
+                    <StackPanel Margin="0,0,0,10">
+                        <!-- 1. Satır: Hareket + Düzlem/Mod -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                            <!-- Hareket Komutları (Mavi) -->
+                            <Border BorderBrush="#FF1976D2" BorderThickness="2" CornerRadius="8" Padding="4" Margin="0,0,8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="HAREKET" Foreground="#FF64B5F6" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="4,0,8,0"/>
+                                    <Button Style="{StaticResource GMovementButtonStyle}" Content="G00" Click="KeyButton_Click" ToolTip="Rapid Move"/>
+                                    <Button Style="{StaticResource GMovementButtonStyle}" Content="G01" Click="KeyButton_Click" ToolTip="Linear Move"/>
+                                    <Button Style="{StaticResource GMovementButtonStyle}" Content="G02" Click="KeyButton_Click" ToolTip="Arc CW"/>
+                                    <Button Style="{StaticResource GMovementButtonStyle}" Content="G03" Click="KeyButton_Click" ToolTip="Arc CCW"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <!-- Düzlem/Mod Komutları (Yeşil) -->
+                            <Border BorderBrush="#FF388E3C" BorderThickness="2" CornerRadius="8" Padding="4">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="MOD" Foreground="#FF81C784" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="4,0,8,0"/>
+                                    <Button Style="{StaticResource GModeButtonStyle}" Content="G17" Click="KeyButton_Click" ToolTip="XY Plane"/>
+                                    <Button Style="{StaticResource GModeButtonStyle}" Content="G90" Click="KeyButton_Click" ToolTip="Absolute"/>
+                                    <Button Style="{StaticResource GModeButtonStyle}" Content="G91" Click="KeyButton_Click" ToolTip="Relative"/>
+                                    <Button Style="{StaticResource GModeButtonStyle}" Content="G94" Click="KeyButton_Click" ToolTip="Feed/Min"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        
+                        <!-- 2. Satır: Ayar + Probe -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                            <!-- Ayar Komutları (Turuncu) -->
+                            <Border BorderBrush="#FFF57C00" BorderThickness="2" CornerRadius="8" Padding="4" Margin="0,0,8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="AYAR" Foreground="#FFFFB74D" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="4,0,8,0"/>
+                                    <Button Style="{StaticResource GSettingButtonStyle}" Content="G10" Click="KeyButton_Click" ToolTip="Set Offset"/>
+                                    <Button Style="{StaticResource GSettingButtonStyle}" Content="G28" Click="KeyButton_Click" ToolTip="Home"/>
+                                    <Button Style="{StaticResource GSettingButtonStyle}" Content="G30" Click="KeyButton_Click" ToolTip="2nd Home"/>
+                                    <Button Style="{StaticResource GSettingButtonStyle}" Content="G92" Click="KeyButton_Click" ToolTip="Set Position"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <!-- Probe Komutları (Mor) -->
+                            <Border BorderBrush="#FF7B1FA2" BorderThickness="2" CornerRadius="8" Padding="4">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="PROBE" Foreground="#FFCE93D8" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="4,0,8,0"/>
+                                    <Button Style="{StaticResource GProbeButtonStyle}" Content="G38.2" Click="KeyButton_Click" ToolTip="Probe toward"/>
+                                    <Button Style="{StaticResource GProbeButtonStyle}" Content="G38.3" Click="KeyButton_Click" ToolTip="Probe toward (no error)"/>
+                                    <Button Style="{StaticResource GProbeButtonStyle}" Content="G38.4" Click="KeyButton_Click" ToolTip="Probe away"/>
+                                    <Button Style="{StaticResource GProbeButtonStyle}" Content="G38.5" Click="KeyButton_Click" ToolTip="Probe away (no error)"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        
+                        <!-- 3. Satır: Sistem + Kontrol + Eksen -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <!-- Sistem Komutları (Kırmızı) -->
+                            <Border BorderBrush="#FFD32F2F" BorderThickness="2" CornerRadius="8" Padding="4" Margin="0,0,8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="SİSTEM" Foreground="#FFEF9A9A" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="4,0,8,0"/>
+                                    <Button Style="{StaticResource GSystemButtonStyle}" Content="$H" Click="KeyButton_Click" ToolTip="Homing Cycle"/>
+                                    <Button Style="{StaticResource GSystemButtonStyle}" Content="$X" Click="KeyButton_Click" ToolTip="Unlock"/>
+                                    <Button Style="{StaticResource GSystemButtonStyle}" Content="$$" Click="KeyButton_Click" ToolTip="View Settings"/>
+                                    <Button Style="{StaticResource GSystemButtonStyle}" Content="$#" Click="KeyButton_Click" ToolTip="View Parameters"/>
+                                    <Button Style="{StaticResource GSystemButtonStyle}" Tag="CTRLX" Content="Ctrl-X" Click="KeyButton_SpecialClick" ToolTip="Soft Reset (0x18)"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <!-- Gerçek Zamanlı Kontrol (Turuncu-Kırmızı) -->
+                            <Border BorderBrush="#FFFF6F00" BorderThickness="2" CornerRadius="8" Padding="4" Margin="0,0,8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="KONTROL" Foreground="#FFFFAB91" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="4,0,8,0"/>
+                                    <Button Style="{StaticResource KbButtonStyle}" Content="!" Click="KeyButton_Click" ToolTip="Feed Hold"/>
+                                    <Button Style="{StaticResource KbButtonStyle}" Content="~" Click="KeyButton_Click" ToolTip="Cycle Start/Resume"/>
+                                    <Button Style="{StaticResource KbButtonStyle}" Content="?" Click="KeyButton_Click" ToolTip="Status Report"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <!-- Ek Komutlar (Gri) -->
+                            <Border BorderBrush="#FF616161" BorderThickness="2" CornerRadius="8" Padding="4">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="EKSEN" Foreground="#FFBDBDBD" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="4,0,8,0"/>
+                                    <Button Style="{StaticResource KbButtonStyle}" Content="X" Click="KeyButton_Click" ToolTip="X Axis"/>
+                                    <Button Style="{StaticResource KbButtonStyle}" Content="Y" Click="KeyButton_Click" ToolTip="Y Axis"/>
+                                    <Button Style="{StaticResource KbButtonStyle}" Content="Z" Click="KeyButton_Click" ToolTip="Z Axis"/>
+                                    <Button Style="{StaticResource KbButtonStyle}" Content="F" Click="KeyButton_Click" ToolTip="Feed Rate"/>
+                                    <Button Style="{StaticResource KbButtonStyle}" Content="S" Click="KeyButton_Click" ToolTip="Spindle Speed"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </StackPanel>
 
                     <!-- Number row -->
@@ -227,8 +346,8 @@
                         <Button Style="{StaticResource WideKbButtonStyle}" Tag="CLEAR" Content="Clear" Click="KeyButton_SpecialClick"/>
                     </StackPanel>
 
-                    <!-- ZXCV row + Space/Enter -->
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <!-- ZXCV row + Special Characters -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
                         <Button Style="{StaticResource KbButtonStyle}" Content="Z" Click="KeyButton_Click"/>
                         <Button Style="{StaticResource KbButtonStyle}" Content="X" Click="KeyButton_Click"/>
                         <Button Style="{StaticResource KbButtonStyle}" Content="C" Click="KeyButton_Click"/>
@@ -236,6 +355,13 @@
                         <Button Style="{StaticResource KbButtonStyle}" Content="B" Click="KeyButton_Click"/>
                         <Button Style="{StaticResource KbButtonStyle}" Content="N" Click="KeyButton_Click"/>
                         <Button Style="{StaticResource KbButtonStyle}" Content="M" Click="KeyButton_Click"/>
+                        <Button Style="{StaticResource KbButtonStyle}" Content=";" Click="KeyButton_Click" ToolTip="Comment"/>
+                        <Button Style="{StaticResource KbButtonStyle}" Content="°" Click="KeyButton_Click" ToolTip="Degree"/>
+                        <Button Style="{StaticResource KbButtonStyle}" Content="λ" Click="KeyButton_Click" ToolTip="Lambda"/>
+                    </StackPanel>
+                    
+                    <!-- Space/Enter row -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <Button Style="{StaticResource ExtraWideKbButtonStyle}" Tag="SPACE" Content="Space" Click="KeyButton_SpecialClick"/>
                         <Button Style="{StaticResource WideKbButtonStyle}" Tag="ENTER" Content="Enter ⏎" Click="KeyButton_SpecialClick"/>
                     </StackPanel>

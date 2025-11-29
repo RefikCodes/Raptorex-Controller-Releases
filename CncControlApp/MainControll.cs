@@ -807,7 +807,10 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
                 try { StopCentralStatusQuerier(); CentralStatusQuerierEnabled = false; } catch (Exception ex) { AddLogMessage($"> ❌ CentralStatusQuerier stop error: {ex.Message}"); }
             }
         }
-        private void OnResponseReceived(string r) => _dataProcessingManager.EnqueueReceivedData(r);
+        private void OnResponseReceived(string r) 
+        { 
+            _dataProcessingManager.EnqueueReceivedData(r);
+        }
         private void OnSettingsReceived(ObservableCollection<GCodeSetting> s)
         {
             Application.Current.Dispatcher.BeginInvoke(new Action(() =>

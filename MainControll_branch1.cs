@@ -68,6 +68,7 @@ namespace CncControlApp
         public event Action StopSequenceCompleted;
         public event EventHandler BufferStatusChanged;
         public event EventHandler<(string Command, string MachineStatus)> CommandBlockedDueToHold;
+        public event Action<string> RawResponseReceived; // Console için ham yanıt event'i
 
         // Delegated properties/commands
         public ObservableCollection<string> AvailablePorts => _connectionManager.AvailablePorts;
@@ -629,7 +630,12 @@ namespace CncControlApp
                 try { StopCentralStatusQuerier(); CentralStatusQuerierEnabled = false; } catch (Exception ex) { AddLogMessage($"> ❌ CentralStatusQuerier stop error: {ex.Message}"); }
             }
         }
-        private void OnResponseReceived(string r) => _dataProcessingManager.EnqueueReceivedData(r);
+        private void OnResponseReceived(string r) 
+        { 
+            _dataProcessingManager.EnqueueReceivedData(r);
+            // Console için raw response bildirimi
+            try { RawResponseReceived?.Invoke(r); } catch { }
+        }
         private void OnSettingsReceived(ObservableCollection<GCodeSetting> s)
         {
             Application.Current.Dispatcher.BeginInvoke(new Action(() =>
