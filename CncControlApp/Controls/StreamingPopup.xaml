@@ -14,17 +14,14 @@
  <DropShadowEffect Color="#000000" BlurRadius="16" ShadowDepth="0" Opacity="0.6"/>
  </Border.Effect>
  <Grid Margin="0">
- <Grid.RowDefinitions>
- <RowDefinition Height="Auto"/>
- <RowDefinition Height="Auto"/>
- <RowDefinition Height="Auto"/>
- <RowDefinition Height="12"/>
- <RowDefinition Height="Auto"/>
- <RowDefinition Height="10"/>
- <RowDefinition Height="Auto"/>
- </Grid.RowDefinitions>
-
- <!-- Header -->
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="12"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions> <!-- Header -->
  <Border Grid.Row="0" Background="#FF3D3D40" Padding="18,14" CornerRadius="14,14,0,0">
  <DockPanel>
  <Ellipse Width="10" Height="10" Fill="#FF34C759" VerticalAlignment="Center"/>
@@ -68,14 +65,8 @@
  </ScrollViewer>
  </Border>
 
- <!-- Spacer -->
- <Border Grid.Row="5" Background="Transparent"/>
-
- <!-- Bottom buttons -->
- <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,22,18">
- <Button x:Name="CloseButton" Content="Close" Width="100" Height="36"
- Background="#FF90CAF9" Foreground="#FF1E1E20" BorderBrush="#FF6FB6F3" FontSize="14" FontWeight="SemiBold" Click="CloseButton_Click"/>
- </StackPanel>
+ <!-- Bottom spacer (no close button - window closes automatically) -->
+ <Border Grid.Row="5" Background="Transparent" Height="18"/>
  </Grid>
  </Border>
 </Window>

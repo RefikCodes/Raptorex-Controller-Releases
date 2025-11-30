@@ -298,10 +298,10 @@ namespace CncControlApp.Services
                     RunUiLocker.EndProbeSession();
                 }
  
-     // Restore normal central status interval
-      fastScope?.Dispose();
-    }
-  }
+                // Restore normal central status interval
+                fastScope?.Dispose();
+            }
+        }
 
         #endregion
 
@@ -531,9 +531,9 @@ namespace CncControlApp.Services
                 await Task.Delay(50);
             }
 
-            // Fallback: request status update and read machine position
-            await StatusQueryService.QueryStatusOnce(200);
-            await Task.Delay(150);
+            // Fallback: read machine position from MStatus (updated by CentralStatusQuerier)
+            // No additional query needed - CentralStatusQuerier keeps MStatus updated
+            await Task.Delay(150); // Small delay to ensure latest status is available
 
             var mStatus = _controller?.MStatus;
             double value;

@@ -12,8 +12,10 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Threading;
 using CncControlApp.Managers; // event cache erişimi için
+using CncControlApp.Models; // ProbeRecord için
 using System.Windows.Navigation;
 using CncControlApp.Controls;
+using Microsoft.Win32;
 
 namespace CncControlApp
 {
@@ -56,6 +58,11 @@ namespace CncControlApp
 
         // Since the Fine Probe checkbox is removed from UI, use a default mode here
         private bool _fineProbeMode = false; // default: fast probe
+
+        // Z Mapping grid verileri
+        private int _zMappingRows = 0;
+        private int _zMappingColumns = 0;
+        private bool _zMappingGridVisible = false;
 
         public MainWindow()
         {
@@ -111,6 +118,7 @@ namespace CncControlApp
             panel.CenterXOuterClicked -= Panel_CenterXOuterClicked;
             panel.CenterYOuterClicked -= Panel_CenterYOuterClicked;
             panel.CenterXYOuterClicked -= Panel_CenterXYOuterClicked;
+            panel.ZMappingRequested -= Panel_ZMappingRequested;
 
             panel.ZProbeClicked += ZProbeButton_Click;
             panel.PlusXProbeClicked += PlusXProbeButton_Click;
@@ -124,6 +132,41 @@ namespace CncControlApp
             panel.CenterXOuterClicked += Panel_CenterXOuterClicked;
             panel.CenterYOuterClicked += Panel_CenterYOuterClicked;
             panel.CenterXYOuterClicked += Panel_CenterXYOuterClicked;
+            panel.ZMappingRequested += Panel_ZMappingRequested;
+        }
+
+        /// <summary>
+        /// Z Mapping grid çizimi için event handler
+        /// </summary>
+        private void Panel_ZMappingRequested(object sender, ZMappingEventArgs e)
+        {
+            DrawZMappingGrid(e.RowCount, e.ColumnCount);
+        }
+
+        /// <summary>
+        /// Z Mapping grid'i MainWindow canvas üzerine çizer
+        /// Local koordinat sıfır noktasından başlayarak belirtilen satır/sütun sayısına göre grid oluşturur
+        /// </summary>
+        private void DrawZMappingGrid(int rows, int columns)
+        {
+            _zMappingRows = rows;
+            _zMappingColumns = columns;
+            _zMappingGridVisible = true;
+
+            App.MainController?.AddLogMessage($"> 🗺️ Z Mapping Grid: {rows} satır x {columns} sütun");
+            
+            // TODO: Canvas üzerine grid çizimi yapılacak
+            // Local koordinat sıfır noktasından başlayarak:
+            // - X ekseni boyunca 'columns' adet nokta
+            // - Y ekseni boyunca 'rows' adet nokta
+            // Her nokta bir probe noktasını temsil eder
+            
+            Controls.MessageDialog.ShowInfo("Z Mapping Grid", 
+                $"Grid oluşturuldu:\n\n" +
+                $"Satır (Y): {rows}\n" +
+                $"Sütun (X): {columns}\n" +
+                $"Toplam nokta: {rows * columns}\n\n" +
+                $"Local koordinat sıfırdan başlanacak.");
         }
 
         // Canvas elements removed from probe panel
@@ -167,6 +210,9 @@ namespace CncControlApp
                     MainProbePanel.Visibility = Visibility.Visible;
                     _probePanelVisible = true;
 
+                    // Show probe history panel and resize canvas
+                    ShowProbeHistoryPanel();
+
                     // Canvas removed - no initialization needed
                     // Dispatcher.BeginInvoke(new Action(InitializeProbePanel),
                     //     System.Windows.Threading.DispatcherPriority.Loaded);
@@ -192,6 +238,10 @@ namespace CncControlApp
                 {
                     MainProbePanel.Visibility = Visibility.Collapsed;
                     MainCoordinatesView.Visibility = Visibility.Visible;
+                    
+                    // Hide probe history panel
+                    HideProbeHistoryPanel();
+                    
                     LogProbe("> ⚪ Probe panel closed");
                 }
             }
@@ -1447,5 +1497,110 @@ namespace CncControlApp
             }
             e.Handled = true;
         }
+
+        #region Probe History Panel Management
+
+        private void ShowProbeHistoryPanel()
+        {
+            try
+            {
+                if (ProbeHistoryPanel != null)
+                {
+                    // Set column width to 30% of available space
+                    ProbeHistoryColumn.Width = new GridLength(0.35, GridUnitType.Star);
+                    ProbeHistoryPanel.Visibility = Visibility.Visible;
+                    
+                    // Bind to probe history manager
+                    ProbeHistoryDataGrid.ItemsSource = ProbeHistoryManager.Instance.ProbeRecords;
+                    
+                    LogProbe("> 📋 Probe history panel opened");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error showing probe history panel: {ex.Message}");
+            }
+        }
+
+        private void HideProbeHistoryPanel()
+        {
+            try
+            {
+                if (ProbeHistoryPanel != null)
+                {
+                    ProbeHistoryPanel.Visibility = Visibility.Collapsed;
+                    ProbeHistoryColumn.Width = new GridLength(0);
+                    
+                    LogProbe("> 📋 Probe history panel closed");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error hiding probe history panel: {ex.Message}");
+            }
+        }
+
+        private void ClearProbeHistory_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var result = MessageBox.Show(
+                    "Tüm probe geçmişi silinecek. Emin misiniz?",
+                    "Probe Geçmişini Temizle",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    ProbeHistoryManager.Instance.Clear();
+                    App.MainController?.AddLogMessage("> 🗑️ Probe geçmişi temizlendi");
+                }
+            }
+            catch (Exception ex)
+            {
+                App.MainController?.AddLogMessage($"> ❌ Probe geçmişi temizleme hatası: {ex.Message}");
+            }
+        }
+
+        private void ExportProbeHistory_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var dialog = new SaveFileDialog
+                {
+                    Filter = "CSV Dosyası (*.csv)|*.csv|Tüm Dosyalar (*.*)|*.*",
+                    DefaultExt = ".csv",
+                    FileName = $"ProbeHistory_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    ProbeHistoryManager.Instance.ExportToCsv(dialog.FileName);
+                    App.MainController?.AddLogMessage($"> 💾 Probe geçmişi dışa aktarıldı: {dialog.FileName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                App.MainController?.AddLogMessage($"> ❌ Probe geçmişi dışa aktarma hatası: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Call this method when a probe operation completes to record the result
+        /// </summary>
+        public void RecordProbeResult(string probeType, double x, double y, double z)
+        {
+            try
+            {
+                ProbeHistoryManager.Instance.AddProbe(probeType, x, y, z);
+                LogProbe($"> 📌 Probe recorded: {probeType} @ X:{x:F3} Y:{y:F3} Z:{z:F3}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error recording probe result: {ex.Message}");
+            }
+        }
+
+        #endregion
     }
 }

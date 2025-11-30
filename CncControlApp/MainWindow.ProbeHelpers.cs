@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Collections.Generic;
+using CncControlApp.Helpers;
 
 namespace CncControlApp
 {
@@ -590,9 +591,9 @@ namespace CncControlApp
                 mc?.AddLogMessage("> ✅ Sequence complete");
                 streamPopup.Append("> ✅ Sequence complete");
 
-                // Keep popup open for3 seconds before auto-closing
+                // Keep popup open for 1.5 seconds before auto-closing
                 await Task.Delay(1500);
-                try { streamPopup?.Close(); } catch { }
+                try { streamPopup?.ForceClose(); } catch { }
                 return true;
             }
             catch (Exception ex)
@@ -604,10 +605,10 @@ namespace CncControlApp
             }
             finally
             {
-  // END PROBE SESSION - release UI lock
-     RunUiLocker.EndProbeSession();
-       }
-  }
+                // END PROBE SESSION - release UI lock
+                RunUiLocker.EndProbeSession();
+            }
+        }
 
         // === Full Y outer-center sequence (fixed to return a bool and compute center) ===
         private async Task<bool> CenterYOuterSequenceAsync()
@@ -1068,8 +1069,9 @@ namespace CncControlApp
                 await mc.SendGCodeCommandWithConfirmationAsync("G90");
                 streamPopup.Append("> ✅ Y sequence complete");
 
+                // Keep popup open for 1.5 seconds before auto-closing
                 await Task.Delay(1500);
-                try { streamPopup?.Close(); } catch { }
+                try { streamPopup?.ForceClose(); } catch { }
                 return true;
             }
             catch (Exception ex)
@@ -1079,9 +1081,9 @@ namespace CncControlApp
             }
             finally
             {
-      // END PROBE SESSION - release UI lock
-   RunUiLocker.EndProbeSession();
-    }
+                // END PROBE SESSION - release UI lock
+                RunUiLocker.EndProbeSession();
+            }
         }
 
     // Probe helper methods for centering operations will be added here

@@ -1,9 +1,26 @@
 ﻿using System;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace CncControlApp.Controls
 {
+    /// <summary>
+    /// Z Mapping grid parametreleri için event args
+    /// </summary>
+    public class ZMappingEventArgs : EventArgs
+    {
+        public int RowCount { get; }
+        public int ColumnCount { get; }
+
+        public ZMappingEventArgs(int rows, int columns)
+        {
+            RowCount = rows;
+            ColumnCount = columns;
+        }
+    }
+
     public partial class ProbePanelView : UserControl
     {
         public event RoutedEventHandler ZProbeClicked;
@@ -20,6 +37,9 @@ namespace CncControlApp.Controls
         public event RoutedEventHandler CenterXOuterClicked;
         public event RoutedEventHandler CenterYOuterClicked;
         public event RoutedEventHandler CenterXYOuterClicked;
+
+        // Z Mapping event
+        public event EventHandler<ZMappingEventArgs> ZMappingRequested;
 
         public ProbePanelView()
         {
@@ -41,6 +61,42 @@ namespace CncControlApp.Controls
         private void CenterXOuter_Click(object sender, RoutedEventArgs e) => CenterXOuterClicked?.Invoke(sender, e);
         private void CenterYOuter_Click(object sender, RoutedEventArgs e) => CenterYOuterClicked?.Invoke(sender, e);
         private void CenterXYOuter_Click(object sender, RoutedEventArgs e) => CenterXYOuterClicked?.Invoke(sender, e);
+
+        // Sadece sayı girişine izin ver
+        private void NumericOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            e.Handled = !Regex.IsMatch(e.Text, @"^[0-9]+$");
+        }
+
+        // Z Mapping OK button handler - inline textbox'lardan değer alır
+        private void ZMappingOk_Click(object sender, RoutedEventArgs e)
+        {
+            if (int.TryParse(RowCountTextBox?.Text, out int rows) &&
+                int.TryParse(ColumnCountTextBox?.Text, out int cols))
+            {
+                if (rows < 2 || rows > 20)
+                {
+                    MessageDialog.ShowError("Geçersiz Değer", "Satır sayısı 2-20 arasında olmalıdır.");
+                    RowCountTextBox?.Focus();
+                    RowCountTextBox?.SelectAll();
+                    return;
+                }
+
+                if (cols < 2 || cols > 20)
+                {
+                    MessageDialog.ShowError("Geçersiz Değer", "Sütun sayısı 2-20 arasında olmalıdır.");
+                    ColumnCountTextBox?.Focus();
+                    ColumnCountTextBox?.SelectAll();
+                    return;
+                }
+
+                ZMappingRequested?.Invoke(this, new ZMappingEventArgs(rows, cols));
+            }
+            else
+            {
+                MessageDialog.ShowError("Geçersiz Giriş", "Lütfen geçerli sayılar girin.");
+            }
+        }
 
         // Canvas elements removed - no longer needed
         /*

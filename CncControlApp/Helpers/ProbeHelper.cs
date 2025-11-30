@@ -183,34 +183,35 @@ return $"{moveType} {BuildAxisMove(axis, distanceMm)}";
             Func<string, Task<bool>> sendCommand,
     Func<string> getStatus,
     ProbeSequenceStep[] steps,
-            Action<string> logger = null)
+            Action<string> logger = null,
+            string sequenceName = null)
         {
-    foreach (var step in steps)
-  {
-      logger?.Invoke($"> {step.Description}");
+            foreach (var step in steps)
+            {
+                logger?.Invoke($"> {step.Description}");
 
-        if (!await sendCommand(step.Command))
-       {
-   logger?.Invoke($"> ❌ Command failed: {step.Command}");
-     return false;
-        }
+                if (!await sendCommand(step.Command))
+                {
+                    logger?.Invoke($"> ❌ Command failed: {step.Command}");
+                    return false;
+                }
 
-    if (step.WaitForIdle)
-     {
-      if (!await WaitForIdleAsync(getStatus, step.TimeoutMs, step.Tag, logger))
-       {
-      logger?.Invoke($"> ❌ Idle wait failed for: {step.Tag}");
-       return false;
-   }
-      }
+                if (step.WaitForIdle)
+                {
+                    if (!await WaitForIdleAsync(getStatus, step.TimeoutMs, step.Tag, logger))
+                    {
+                        logger?.Invoke($"> ❌ Idle wait failed for: {step.Tag}");
+                        return false;
+                    }
+                }
 
-if (step.DelayMs > 0)
-       {
-  await Task.Delay(step.DelayMs);
-             }
-  }
+                if (step.DelayMs > 0)
+                {
+                    await Task.Delay(step.DelayMs);
+                }
+            }
 
-    return true;
+            return true;
       }
     }
 

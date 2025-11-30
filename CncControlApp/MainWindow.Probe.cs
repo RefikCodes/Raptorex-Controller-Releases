@@ -36,10 +36,18 @@ namespace CncControlApp
    private async void ZProbeButton_Click(object sender, RoutedEventArgs e)
         {
  IDisposable fastScope = null;
+ Controls.StreamingPopup streamPopup = null;
  try
  {
+ // StreamingPopup oluştur
+ streamPopup = new Controls.StreamingPopup { Owner = this };
+ streamPopup.SetTitle("Z Probe");
+ streamPopup.SetSubtitle("Z ekseni probelaması başlatılıyor...");
+ streamPopup.Show();
+ 
  RunUiLocker.BeginProbeUiGate();
  App.MainController?.AddLogMessage("> 🔧 Z Probe başlatılıyor (YENİ SEKANS)...");
+ streamPopup?.Append("🔧 Z Probe başlatılıyor...");
  
  // Probe süresince merkezi sorgu frekansını200ms yap
  fastScope = App.MainController?.BeginScopedCentralStatusOverride(200);
@@ -116,6 +124,7 @@ if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G91"))
      // ===== COARSE PROBE =====
     // 1. 2mm geri çek
      App.MainController?.AddLogMessage("> 🔼 Coarse:2mm geri çek");
+     streamPopup?.Append("🔼 Coarse: 2mm geri çekiliyor...");
       if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G00 Z2.000"))
       {
        App.MainController?.AddLogMessage("> ❌2mm geri çekme başarısız");
@@ -136,6 +145,7 @@ if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G91"))
     // 3. Coarse Probe başla (daha hızlı)
      string coarseCmd = $"G38.2 Z-30.000 F{coarseFeed}";
           App.MainController?.AddLogMessage($"> 🔍 Coarse probe: {coarseCmd}");
+     streamPopup?.Append("🔍 Coarse probe başlatılıyor...");
         if (!await App.MainController.SendGCodeCommandWithConfirmationAsync(coarseCmd))
              {
          App.MainController?.AddLogMessage("> ❌ Coarse probe gönderilemedi");
@@ -160,6 +170,9 @@ if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G91"))
  double avgUsed =0.0;
  double tolerance =0.0;
  int usedA = -1, usedB = -1;
+ 
+ streamPopup?.Append("✅ Coarse probe tamamlandı");
+ streamPopup?.Append("🎯 Fine probelar başlıyor...");
 
  for (int i =0; i <6; i++)
  {
@@ -188,6 +201,7 @@ if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G91"))
  DateTime fineStartTs = DateTime.UtcNow;
  string fineCmd = $"G38.2 Z-6.000 F{fineFeed}";
  App.MainController?.AddLogMessage($"> 🎯 Fine#{stepIndex} probe: {fineCmd}");
+ streamPopup?.Append($"🎯 Fine #{stepIndex} probelanıyor...");
  if (!await App.MainController.SendGCodeCommandWithConfirmationAsync(fineCmd))
  {
  App.MainController?.AddLogMessage($"> ❌ Fine#{stepIndex} probe gönderilemedi");
@@ -242,6 +256,7 @@ if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G91"))
  tolerance = Math.Abs(fineContacts[bestI] - fineContacts[bestJ]);
  validated = true;
  App.MainController?.AddLogMessage($"> ✅ Doğrulama sağlandı: Fine#{bestI +1} ve Fine#{bestJ +1} fark={tolerance:0.000} mm < {toleranceThreshold:0.000} mm, ortalama={avgUsed:0.000} mm");
+ streamPopup?.Append($"✅ Doğrulama OK: {avgUsed:0.000} mm");
  break; // erken bitir
  }
  else
@@ -255,6 +270,7 @@ if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G91"))
  if (!validated)
  {
  string list = string.Join("\n", fineContacts.Select((v, idx) => $"Fine#{idx +1}: {v:F3} mm"));
+ streamPopup?.Append("❌ Doğrulama başarısız!");
  Controls.MessageDialog.ShowError("Z Probe Hatası",
      $"Doğrulama başarısız!\n" +
      $"Eşik: {toleranceThreshold:0.000} mm\n\n" +
@@ -264,6 +280,7 @@ if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G91"))
  }
 
  // ===== SON: avgUsed+10 hedefe git ve Z=10mm olarak sıfırla =====
+ streamPopup?.Append("🔼 10mm geri çekiliyor...");
  double currentMZ2 = App.MainController?.MStatus?.Z ?? double.NaN;
  if (!IsFinite(currentMZ2)) currentMZ2 = avgUsed; // güvenlik
  double targetMZ = avgUsed +10.0; // avgUsed'e göre10mm yukarı (bu makinede +Z)
@@ -303,6 +320,7 @@ if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G91"))
 
  // Popup: tüm değerler, kullanılan iki ölçüm, ortalama ve tolerans
  string allVals = string.Join("\n", fineContacts.Select((v, idx) => $"Fine#{idx +1}: {v:F3} mm"));
+ streamPopup?.Append($"✅ Z Probe tamamlandı: {avgUsed:0.000} mm");
  Controls.MessageDialog.ShowInfo("Z Probe Tamamlandı",
      $"Ölçümler:\n{allVals}\n\n" +
      $"Kullanılan: Fine#{usedA +1} ve Fine#{usedB +1}\n" +
@@ -360,6 +378,13 @@ if (!await App.MainController.SendGCodeCommandWithConfirmationAsync("G91"))
  catch (Exception cleanupEx)
  {
      App.MainController?.AddLogMessage($"> ⚠️ Cleanup hatası: {cleanupEx.Message}");
+ }
+ 
+ // Popup kapat (1.5 sn gecikme ile)
+ if (streamPopup != null)
+ {
+     await Task.Delay(1500);
+     streamPopup.ForceClose();
  }
  
  RunUiLocker.EndProbeUiGate();
@@ -522,10 +547,38 @@ int dir = directionSign >= 0 ? 1 : -1;
 
      #region Probe Button Handlers
 
-        private async void PlusXProbeButton_Click(object sender, RoutedEventArgs e) => await UnifiedProbeAsync('X', +1);
-        private async void MinusXProbeButton_Click(object sender, RoutedEventArgs e) => await UnifiedProbeAsync('X', -1);
-        private async void PlusYProbeButton_Click(object sender, RoutedEventArgs e) => await UnifiedProbeAsync('Y', +1);
-        private async void MinusYProbeButton_Click(object sender, RoutedEventArgs e) => await UnifiedProbeAsync('Y', -1);
+        private async void PlusXProbeButton_Click(object sender, RoutedEventArgs e) => await UnifiedProbeWithPopupAsync('X', +1);
+        private async void MinusXProbeButton_Click(object sender, RoutedEventArgs e) => await UnifiedProbeWithPopupAsync('X', -1);
+        private async void PlusYProbeButton_Click(object sender, RoutedEventArgs e) => await UnifiedProbeWithPopupAsync('Y', +1);
+        private async void MinusYProbeButton_Click(object sender, RoutedEventArgs e) => await UnifiedProbeWithPopupAsync('Y', -1);
+
+        /// <summary>
+        /// Wrapper that creates StreamingPopup for axis probes
+        /// </summary>
+        private async Task UnifiedProbeWithPopupAsync(char axis, int direction)
+        {
+            Controls.StreamingPopup streamPopup = null;
+            try
+            {
+                string axisName = axis == 'X' ? "X" : "Y";
+                string dirName = direction > 0 ? "+" : "-";
+                
+                // Create and show streaming popup
+                streamPopup = new Controls.StreamingPopup { Owner = this };
+                streamPopup.SetTitle($"{axisName}{dirName} Probe");
+                streamPopup.SetSubtitle($"> {axisName}{dirName} axis probe sequence\n> Real-time progress shown below:");
+                streamPopup.Show();
+                
+                await UnifiedProbeAsync(axis, direction, silent: true, stream: streamPopup);
+                
+                // Keep popup open briefly before auto-close
+                await Task.Delay(1500);
+            }
+            finally
+            {
+                try { streamPopup?.ForceClose(); } catch { }
+            }
+        }
 
         /// <summary>
         /// Unified probe using centralized ProbeManager for X/Y axes
@@ -540,19 +593,23 @@ int dir = directionSign >= 0 ? 1 : -1;
                 string axisName = axis == 'X' ? "X" : "Y";
                 string dirName = direction > 0 ? "+" : "-";
                 App.MainController?.AddLogMessage($"> 🔧 {axisName}{dirName} Probe (Unified ProbeManager)");
-                if (stream != null) try { stream.Append($"> 🔧 {axisName}{dirName} Probe (Unified) started..."); } catch { }
+                stream?.Append($"> 🔧 {axisName}{dirName} Probe starting...");
 
                 fastScope = App.MainController?.BeginScopedCentralStatusOverride(200);
 
                 if (App.MainController?.IsConnected != true)
                 {
                     App.MainController?.AddLogMessage("> ❌ CNC bağlı değil");
-                    if (stream != null) try { stream.Append("> ❌ CNC bağlı değil"); } catch { }
+                    stream?.Append("> ❌ CNC not connected");
                     return;
                 }
 
+                stream?.Append("> 📡 Connecting to ProbeManager...");
                 var probeManager = new Services.ProbeManager(App.MainController);
                 Services.ProbeResult result = null;
+                
+                stream?.Append($"> 🔍 Starting {axisName}{dirName} probe sequence...");
+                stream?.Append("> ⏳ Coarse probe in progress...");
                 
                 if (axis == 'X')
                     result = direction > 0 ? await probeManager.ProbeXPlusAsync(30.0) : await probeManager.ProbeXMinusAsync(30.0);
@@ -561,36 +618,32 @@ int dir = directionSign >= 0 ? 1 : -1;
 
                 if (result == null || !result.Success)
                 {
-                    string msg = result?.ErrorMessage ?? "Sonuç alınamadı";
+                    string msg = result?.ErrorMessage ?? "No result received";
                     App.MainController?.AddLogMessage($"> ❌ Probe başarısız: {msg}");
-                    if (silent)
+                    stream?.Append($"> ❌ Probe failed: {msg}");
+                    if (!silent)
                     {
-                        if (stream != null) try { stream.Append($"> ❌ Probe başarısız: {msg}"); } catch { }
-                        return;
+                        Controls.MessageDialog.ShowError("Probe Hatası", $"{axisName}{dirName} Probe başarısız!\n\n{msg}");
                     }
-                    Controls.MessageDialog.ShowError("Probe Hatası", $"{axisName}{dirName} Probe başarısız!\n\n{msg}");
                     return;
                 }
 
                 double contact = result.ContactPosition;
+                stream?.Append($"> ✅ Probe contact at: {contact:F3} mm");
+                stream?.Append($"> 📏 Tolerance: {result.Tolerance:F3} mm");
+                stream?.Append($"> 📊 Fine readings: {result.FineReadings.Count}");
+                
                 App.MainController?.AddLogMessage($"> ✅ {axisName}{dirName} Probe başarılı! Temas: {contact:F3} mm, Tolerans: {result.Tolerance:F3} mm");
 
+                stream?.Append($"> 🔧 Setting {axisName}=0 at contact point...");
                 string setZeroCmd = $"G10 L20 P0 {axis}0";
                 if (await App.MainController.SendGCodeCommandWithConfirmationAsync(setZeroCmd))
                 {
                     App.MainController?.AddLogMessage($"> ✅ {axisName} ekseni sıfırlandı");
-                    if (silent)
-                    {
-                        if (stream != null)
-                        {
-                            try
-                            {
-                                stream.Append($"> ✅ {axisName}{dirName} Probe tamamlandı – Temas: {contact:F3} mm, Tol: {result.Tolerance:F3} mm; {axisName}=0 yapıldı");
-                            }
-                            catch { }
-                        }
-                    }
-                    else
+                    stream?.Append($"> ✅ {axisName} axis zeroed successfully");
+                    stream?.Append($"> ✅ {axisName}{dirName} Probe complete!");
+                    
+                    if (!silent)
                     {
                         Controls.MessageDialog.ShowInfo("Probe Başarılı", 
                             $"{axisName}{dirName} Probe tamamlandı!\n\n" +
@@ -604,13 +657,10 @@ int dir = directionSign >= 0 ? 1 : -1;
             catch (Exception ex)
             {
                 App.MainController?.AddLogMessage($"> ❌ Hata: {ex.Message}");
+                stream?.Append($"> ❌ Error: {ex.Message}");
                 if (!silent)
                 {
                     Controls.MessageDialog.ShowError("Probe Hatası", $"Probe hatası:\n{ex.Message}");
-                }
-                else
-                {
-                    if (stream != null) try { stream.Append($"> ❌ Probe hatası: {ex.Message}"); } catch { }
                 }
             }
             finally
@@ -620,6 +670,7 @@ int dir = directionSign >= 0 ? 1 : -1;
                 {
                     if (App.MainController?.IsConnected == true)
                     {
+                        stream?.Append("> 🔄 Restoring G90 absolute mode...");
                         await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
                         App.MainController?.AddLogMessage("> 🔄 G90 absolute mod");
                     }

@@ -397,19 +397,114 @@
      VerticalAlignment="Top"
         Visibility="Collapsed" />
 
-     <!-- NEW: Workspace Canvas (expands to fill remaining space) -->
-     <ctrls:PanelJogCanvasView x:Name="MainPanelJogCanvas"
-  Grid.Row="2"
-        Margin="5,0,5,0"
-       VerticalAlignment="Stretch"
-   HorizontalAlignment="Stretch"
-   Visibility="Visible" />
+     <!-- NEW: Workspace Canvas and Probe History Container -->
+     <Grid Grid.Row="2">
+       <Grid.ColumnDefinitions>
+         <ColumnDefinition Width="*"/>
+         <ColumnDefinition x:Name="ProbeHistoryColumn" Width="0"/>
+       </Grid.ColumnDefinitions>
+       
+       <!-- Canvas (left side, expands to fill) -->
+       <ctrls:PanelJogCanvasView x:Name="MainPanelJogCanvas"
+         Grid.Column="0"
+         Margin="5,0,5,0"
+         VerticalAlignment="Stretch"
+         HorizontalAlignment="Stretch"
+         Visibility="Visible" />
+       
+       <!-- Probe History Panel (right side, visible only in Probe mode) -->
+       <Border x:Name="ProbeHistoryPanel"
+         Grid.Column="1"
+         Background="#FF2D2D30"
+         BorderBrush="#FFA2A2A4"
+         BorderThickness="1"
+         CornerRadius="10"
+         Margin="5,0,5,0"
+         Visibility="Collapsed">
+         <Grid>
+           <Grid.RowDefinitions>
+             <RowDefinition Height="Auto"/>
+             <RowDefinition Height="*"/>
+             <RowDefinition Height="Auto"/>
+           </Grid.RowDefinitions>
+           
+           <!-- Header -->
+           <Border Grid.Row="0" Background="#FF3E3E40" CornerRadius="8,8,0,0" Padding="8,6">
+             <TextBlock Text="Probe Geçmişi" 
+               FontSize="14" FontWeight="SemiBold" 
+               Foreground="#FF4CAF50" 
+               HorizontalAlignment="Center"/>
+           </Border>
+           
+           <!-- Probe List (DataGrid style) -->
+           <DataGrid x:Name="ProbeHistoryDataGrid"
+             Grid.Row="1"
+             AutoGenerateColumns="False"
+             IsReadOnly="True"
+             HeadersVisibility="Column"
+             GridLinesVisibility="Horizontal"
+             Background="#FF2D2D30"
+             Foreground="#FFEEEEEE"
+             BorderThickness="0"
+             RowBackground="#FF2D2D30"
+             AlternatingRowBackground="#FF3E3E40"
+             CanUserAddRows="False"
+             CanUserDeleteRows="False"
+             CanUserResizeRows="False"
+             SelectionMode="Single"
+             FontSize="11">
+             <DataGrid.ColumnHeaderStyle>
+               <Style TargetType="DataGridColumnHeader">
+                 <Setter Property="Background" Value="#FF4A4A4C"/>
+                 <Setter Property="Foreground" Value="#FFEEEEEE"/>
+                 <Setter Property="FontWeight" Value="SemiBold"/>
+                 <Setter Property="Padding" Value="6,4"/>
+                 <Setter Property="BorderBrush" Value="#FF5A5A5C"/>
+                 <Setter Property="BorderThickness" Value="0,0,1,1"/>
+               </Style>
+             </DataGrid.ColumnHeaderStyle>
+             <DataGrid.CellStyle>
+               <Style TargetType="DataGridCell">
+                 <Setter Property="Padding" Value="4,2"/>
+                 <Setter Property="BorderThickness" Value="0"/>
+                 <Style.Triggers>
+                   <Trigger Property="IsSelected" Value="True">
+                     <Setter Property="Background" Value="#FF5A8AC4"/>
+                     <Setter Property="Foreground" Value="White"/>
+                   </Trigger>
+                 </Style.Triggers>
+               </Style>
+             </DataGrid.CellStyle>
+             <DataGrid.Columns>
+               <DataGridTextColumn Header="Tip" Binding="{Binding Type}" Width="50"/>
+               <DataGridTextColumn Header="X" Binding="{Binding X, StringFormat=F3}" Width="65"/>
+               <DataGridTextColumn Header="Y" Binding="{Binding Y, StringFormat=F3}" Width="65"/>
+               <DataGridTextColumn Header="Z" Binding="{Binding Z, StringFormat=F3}" Width="65"/>
+             </DataGrid.Columns>
+           </DataGrid>
+           
+           <!-- Bottom buttons -->
+           <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="5">
+             <Button x:Name="ClearProbeHistoryBtn" Content="Temizle" 
+               Width="70" Height="28" Margin="2,0"
+               Background="#FF4A4A4C" Foreground="#FFEEEEEE"
+               BorderBrush="#FF707072" BorderThickness="1"
+               Click="ClearProbeHistory_Click"/>
+             <Button x:Name="ExportProbeHistoryBtn" Content="Dışa Aktar" 
+               Width="80" Height="28" Margin="2,0"
+               Background="#FF4A4A4C" Foreground="#FFEEEEEE"
+               BorderBrush="#FF707072" BorderThickness="1"
+               Click="ExportProbeHistory_Click"/>
+           </StackPanel>
+         </Grid>
+       </Border>
+     </Grid>
 
  <!-- Probe panel sits in bottom row during Probe menu -->
   <ctrls:ProbePanelView x:Name="MainProbePanel"
     Grid.Row="1"
-        Grid.RowSpan="2"
   Margin="5,0,5,0"
+  VerticalAlignment="Top"
   Visibility="Collapsed" />
 
   <!-- Settings/Status blank panel overlays all rows when visible -->

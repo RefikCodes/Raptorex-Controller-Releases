@@ -1423,6 +1423,7 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
         }
 
         // Central status querier controls
+        
         public bool CentralStatusQuerierEnabled
         {
             get => _centralStatusQuerierEnabled;

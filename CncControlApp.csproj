@@ -189,7 +189,9 @@
     <Compile Include="CncControlApp\Managers\GCodeOverlayManager.cs" />
     <Compile Include="CncControlApp\Managers\GCodeResponseHandler.cs" />
     <Compile Include="CncControlApp\Managers\MemoryLogManager.cs" />
+    <Compile Include="CncControlApp\Managers\ProbeHistoryManager.cs" />
     <Compile Include="CncControlApp\Managers\UIPropertiesManager.cs" />
+    <Compile Include="CncControlApp\Models\ProbeRecord.cs" />
     <Compile Include="CncControlApp\NumberPadPopup.xaml.cs">
       <DependentUpon>NumberPadPopup.xaml</DependentUpon>
       <SubType>Code</SubType>
