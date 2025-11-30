@@ -42,12 +42,14 @@ namespace CncControlApp.Controls
         private void CenterYOuter_Click(object sender, RoutedEventArgs e) => CenterYOuterClicked?.Invoke(sender, e);
         private void CenterXYOuter_Click(object sender, RoutedEventArgs e) => CenterXYOuterClicked?.Invoke(sender, e);
 
-        // Expose named elements for host to access if needed
+        // Canvas elements removed - no longer needed
+        /*
         public Canvas GridLinesCanvas => MainGridLinesCanvas;
         public Canvas ProbeCoordinatesCanvas => MainProbeCoordinatesCanvas;
         public Canvas CrosshairCanvas => MainCrosshairCanvas;
         public TextBlock ProbeXText => MainProbeXCoordinate;
         public TextBlock ProbeYText => MainProbeYCoordinate;
         public TextBlock ProbeZText => MainProbeZCoordinate;
+        */
     }
 }

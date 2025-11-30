@@ -496,7 +496,8 @@ int dir = directionSign >= 0 ? 1 : -1;
    await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
   App.MainController?.AddLogMessage("> ⚙️ Absolut mod aktif (G90)");
 
-        UpdateMainProbeCoordinates();
+        // Canvas removed - coordinate update not needed
+        // UpdateMainProbeCoordinates();
 
   double delta = secondContactAxis - firstContactAxis;
   double deltaAbs = Math.Abs(delta);

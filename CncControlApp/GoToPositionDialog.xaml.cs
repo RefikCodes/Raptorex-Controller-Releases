@@ -18,6 +18,7 @@ namespace CncControlApp
     {
         private bool _useLocalCoordinates = true;
         private double _maxFeedRate = 6000; // Default rapid rate
+        private TextBox _lastFocusedTextBox; // Track last focused textbox for keypad
         
         // Renkler
         private static readonly SolidColorBrush LocalColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF4CAF50"));
@@ -35,9 +36,27 @@ namespace CncControlApp
             {
                 InitializeFeedRateSlider();
                 LoadCurrentCoordinates();
+                
+                // Set up focus tracking for keypad
+                XPositionTextBox.GotFocus += TextBox_GotFocus;
+                YPositionTextBox.GotFocus += TextBox_GotFocus;
+                ZPositionTextBox.GotFocus += TextBox_GotFocus;
+                
                 XPositionTextBox.Focus();
                 XPositionTextBox.SelectAll();
+                _lastFocusedTextBox = XPositionTextBox;
             };
+        }
+        
+        /// <summary>
+        /// Track which textbox was last focused for keypad input
+        /// </summary>
+        private void TextBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb)
+            {
+                _lastFocusedTextBox = tb;
+            }
         }
 
         /// <summary>
@@ -347,6 +366,82 @@ namespace CncControlApp
         private void ShowError(string message)
         {
             MessageBox.Show(message, "Giriş Hatası", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        /// <summary>
+        /// Keypad button click handler
+        /// </summary>
+        private void KeypadButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                string value = btn.Content?.ToString();
+                if (!string.IsNullOrEmpty(value))
+                {
+                    InsertTextAtCursor(value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Clear button - clears the focused textbox
+        /// </summary>
+        private void ClearButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_lastFocusedTextBox != null)
+            {
+                _lastFocusedTextBox.Clear();
+                _lastFocusedTextBox.Focus();
+            }
+        }
+
+        /// <summary>
+        /// Backspace button - deletes character before cursor
+        /// </summary>
+        private void BackspaceButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_lastFocusedTextBox != null && _lastFocusedTextBox.Text.Length > 0)
+            {
+                int cursorPos = _lastFocusedTextBox.SelectionStart;
+                if (_lastFocusedTextBox.SelectionLength > 0)
+                {
+                    // Delete selection
+                    _lastFocusedTextBox.SelectedText = "";
+                }
+                else if (cursorPos > 0)
+                {
+                    // Delete character before cursor
+                    _lastFocusedTextBox.Text = _lastFocusedTextBox.Text.Remove(cursorPos - 1, 1);
+                    _lastFocusedTextBox.SelectionStart = cursorPos - 1;
+                }
+                _lastFocusedTextBox.Focus();
+            }
+        }
+
+        /// <summary>
+        /// Insert text at cursor position in focused textbox
+        /// </summary>
+        private void InsertTextAtCursor(string text)
+        {
+            if (_lastFocusedTextBox != null)
+            {
+                int cursorPos = _lastFocusedTextBox.SelectionStart;
+                
+                // If there's a selection, replace it
+                if (_lastFocusedTextBox.SelectionLength > 0)
+                {
+                    _lastFocusedTextBox.SelectedText = text;
+                    cursorPos = _lastFocusedTextBox.SelectionStart;
+                }
+                else
+                {
+                    // Insert at cursor position
+                    _lastFocusedTextBox.Text = _lastFocusedTextBox.Text.Insert(cursorPos, text);
+                    _lastFocusedTextBox.SelectionStart = cursorPos + text.Length;
+                }
+                
+                _lastFocusedTextBox.Focus();
+            }
         }
     }
 }

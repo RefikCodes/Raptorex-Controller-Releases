@@ -273,6 +273,14 @@ namespace CncControlApp
                             GCodeTextBox.CaretIndex = Math.Max(0, index - 1);
                         }
                         break;
+                    case "DELETE":
+                        if (!string.IsNullOrEmpty(GCodeTextBox.Text) && GCodeTextBox.CaretIndex < GCodeTextBox.Text.Length)
+                        {
+                            int index = GCodeTextBox.CaretIndex;
+                            GCodeTextBox.Text = GCodeTextBox.Text.Remove(index, 1);
+                            GCodeTextBox.CaretIndex = index;
+                        }
+                        break;
                     case "CLEAR":
                         GCodeTextBox.Clear();
                         GCodeTextBox.Focus();

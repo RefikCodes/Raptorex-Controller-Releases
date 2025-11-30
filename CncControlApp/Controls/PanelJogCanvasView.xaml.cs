@@ -273,7 +273,7 @@ if (settings != null && settings.Count > 10) // Wait for substantial number of s
   Canvas.SetTop(boundary, originY - boundary.Height);
     GridLinesCanvas.Children.Add(boundary);
 
-// Grid lines
+// Grid lines with scale markings
  double step = 25.0;
        for (double x = step; x < _maxX; x += step)
         {
@@ -287,6 +287,33 @@ X1 = cx, Y1 = originY,
      Opacity = 0.3,
     StrokeDashArray = new DoubleCollection { 2, 2 }
       });
+      
+      // X-axis scale markings every 50mm
+      if (x % 50 == 0)
+      {
+          // Tick mark on X-axis
+          GridLinesCanvas.Children.Add(new Line
+          {
+              X1 = cx, Y1 = originY,
+              X2 = cx, Y2 = originY + 8,
+              Stroke = Brushes.White,
+              StrokeThickness = 2
+          });
+          
+          // Scale number
+          var scaleLabel = new TextBlock
+          {
+              Text = $"{x:F0}",
+              Foreground = Brushes.White,
+              FontSize = 9,
+              FontWeight = FontWeights.Bold,
+              Background = Brushes.Transparent,
+              Padding = new Thickness(2, 0, 2, 0)
+          };
+          Canvas.SetLeft(scaleLabel, cx - 12);
+          Canvas.SetTop(scaleLabel, originY + 10);
+          GridLinesCanvas.Children.Add(scaleLabel);
+      }
   }
 
   for (double y = step; y < _maxY; y += step)
@@ -301,49 +328,34 @@ Stroke = Brushes.DarkGray,
  Opacity = 0.3,
  StrokeDashArray = new DoubleCollection { 2, 2 }
       });
-      }
-
-  // Axes
-    CrosshairCanvas.Children.Add(new Line
+      
+      // Y-axis scale markings every 50mm
+      if (y % 50 == 0)
       {
-   X1 = originX, Y1 = originY,
-    X2 = originX + workspaceWidth, Y2 = originY,
-         Stroke = Brushes.Red,
-  StrokeThickness = 2
-  });
-
-  CrosshairCanvas.Children.Add(new Line
-      {
-X1 = originX, Y1 = originY,
- X2 = originX, Y2 = originY - workspaceHeight,
-        Stroke = Brushes.LimeGreen,
-    StrokeThickness = 2
+          // Tick mark on Y-axis
+          GridLinesCanvas.Children.Add(new Line
+          {
+              X1 = originX, Y1 = cy,
+              X2 = originX - 8, Y2 = cy,
+              Stroke = Brushes.White,
+              StrokeThickness = 2
           });
-
-// Labels
-   var xLabel = new TextBlock
-  {
-  Text = $"X",
- Foreground = Brushes.Red,
-   FontSize = 11,
-   FontWeight = FontWeights.Bold,
-  Background = new SolidColorBrush(Color.FromArgb(150, 0, 0, 0))
-  };
-    Canvas.SetLeft(xLabel, originX + workspaceWidth - 15);
-        Canvas.SetTop(xLabel, originY + 5);
-    CrosshairCanvas.Children.Add(xLabel);
-
-     var yLabel = new TextBlock
-      {
-Text = $"Y",
-  Foreground = Brushes.LimeGreen,
- FontSize = 11,
-         FontWeight = FontWeights.Bold,
-      Background = new SolidColorBrush(Color.FromArgb(150, 0, 0, 0))
-     };
-    Canvas.SetLeft(yLabel, originX + 5);
-       Canvas.SetTop(yLabel, originY - workspaceHeight + 5);
-   CrosshairCanvas.Children.Add(yLabel);
+          
+          // Scale number
+          var scaleLabel = new TextBlock
+          {
+              Text = $"{y:F0}",
+              Foreground = Brushes.White,
+              FontSize = 9,
+              FontWeight = FontWeights.Bold,
+              Background = Brushes.Transparent,
+              Padding = new Thickness(2, 0, 2, 0)
+          };
+          Canvas.SetLeft(scaleLabel, originX - 32);
+          Canvas.SetTop(scaleLabel, cy - 8);
+          GridLinesCanvas.Children.Add(scaleLabel);
+      }
+      }
 
 // Origin
  var originDot = new Ellipse

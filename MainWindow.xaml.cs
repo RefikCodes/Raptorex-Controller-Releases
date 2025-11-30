@@ -82,7 +82,8 @@ namespace CncControlApp
 
             if (App.MainController?.MStatus != null)
             {
-                App.MainController.MStatus.PropertyChanged += MStatusPropertyChanged;
+                // Canvas removed - position tracking not needed
+                // App.MainController.MStatus.PropertyChanged += MStatusPropertyChanged;
             }
 
             // In constructor AFTER InitializeComponent():
@@ -125,13 +126,15 @@ namespace CncControlApp
             panel.CenterXYOuterClicked += Panel_CenterXYOuterClicked;
         }
 
-        // Proxies to canvases and labels inside ProbePanelView
+        // Canvas elements removed from probe panel
+        /*
         private Canvas MainGridLinesCanvas => (MainProbePanel as ProbePanelView)?.GridLinesCanvas;
         private Canvas MainProbeCoordinatesCanvas => (MainProbePanel as ProbePanelView)?.ProbeCoordinatesCanvas;
         private Canvas MainCrosshairCanvas => (MainProbePanel as ProbePanelView)?.CrosshairCanvas;
         private TextBlock MainProbeXCoordinate => (MainProbePanel as ProbePanelView)?.ProbeXText;
         private TextBlock MainProbeYCoordinate => (MainProbePanel as ProbePanelView)?.ProbeYText;
         private TextBlock MainProbeZCoordinate => (MainProbePanel as ProbePanelView)?.ProbeZText;
+        */
 
         public bool IsKioskMode => _isKioskMode;
 
@@ -164,8 +167,9 @@ namespace CncControlApp
                     MainProbePanel.Visibility = Visibility.Visible;
                     _probePanelVisible = true;
 
-                    Dispatcher.BeginInvoke(new Action(InitializeProbePanel),
-                        System.Windows.Threading.DispatcherPriority.Loaded);
+                    // Canvas removed - no initialization needed
+                    // Dispatcher.BeginInvoke(new Action(InitializeProbePanel),
+                    //     System.Windows.Threading.DispatcherPriority.Loaded);
 
                     LogProbe("> 🟢 Probe panel opened (coordinates kept visible)");
                 }
@@ -197,6 +201,7 @@ namespace CncControlApp
             }
         }
 
+        /* Canvas removed - methods no longer needed
         private void InitializeProbePanel()
         {
             try
@@ -715,8 +720,10 @@ namespace CncControlApp
             }
         }
 
+        */
         #endregion
 
+        /* Canvas position tracking removed
         #region Current Position Tracking
 
         private void MStatusPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -738,6 +745,7 @@ namespace CncControlApp
         }
 
         #endregion
+        */
 
         #region Probe Action Button Event Handlers (RESTORED)
 
@@ -877,7 +885,8 @@ namespace CncControlApp
                 if (ok)
                 {
                     App.MainController?.AddLogMessage($"> ✅ {axis} ekseni sıfırlandı");
-                    UpdateMainProbeCoordinates();
+                    // Canvas removed - coordinate update not needed
+                    // UpdateMainProbeCoordinates();
                 }
                 else
                 {
@@ -983,7 +992,8 @@ namespace CncControlApp
                 else
                     App.MainController?.AddLogMessage("> ✅ [EVT] X=0 ayarlandı (geçici G92)");
 
-                UpdateMainProbeCoordinates();
+                // Canvas removed - coordinate update not needed
+                // UpdateMainProbeCoordinates();
                 return true;
             }
             catch (Exception ex)
@@ -1077,7 +1087,8 @@ namespace CncControlApp
                 else
                     App.MainController?.AddLogMessage("> ✅ [EVT] Y=0 ayarlandı (geçici G92)");
 
-                UpdateMainProbeCoordinates();
+                // Canvas removed - coordinate update not needed
+                // UpdateMainProbeCoordinates();
                 return true;
             }
             catch (Exception ex)
@@ -1244,7 +1255,8 @@ namespace CncControlApp
  MainProbePanel.Visibility = Visibility.Visible; // show probe UI in bottom row
  }
  ToggleRightBlank(false);
- Dispatcher.BeginInvoke(new Action(InitializeProbePanel), System.Windows.Threading.DispatcherPriority.Loaded);
+ // Canvas removed - no initialization needed
+ // Dispatcher.BeginInvoke(new Action(InitializeProbePanel), System.Windows.Threading.DispatcherPriority.Loaded);
  break;
  }
  }

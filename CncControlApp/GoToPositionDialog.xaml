@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None"
         ResizeMode="NoResize"
-        Width="420"
+        Width="750"
         Height="540"
         Background="Transparent"
         AllowsTransparency="True"
@@ -13,6 +13,41 @@
         KeyDown="Window_KeyDown">
 
     <Window.Resources>
+        <!-- Keypad Button Style -->
+        <Style x:Key="KeypadButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#FF4A4A4C"/>
+            <Setter Property="Foreground" Value="#FFEEEEEE"/>
+            <Setter Property="BorderBrush" Value="#FF707072"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Width" Value="65"/>
+            <Setter Property="Height" Value="55"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF5A5A5C"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF3C3C3E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Toggle Button Style for Local/Machine -->
         <Style x:Key="CoordToggleStyle" TargetType="ToggleButton">
             <Setter Property="Background" Value="#FF3E3E40"/>
@@ -89,9 +124,13 @@
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
 
-            <!-- Header -->
-            <Border Grid.Row="0" Background="#FF3D3D40" Padding="18,12" CornerRadius="14,14,0,0">
+            <!-- Header (spans both columns) -->
+            <Border Grid.Row="0" Grid.ColumnSpan="2" Background="#FF3D3D40" Padding="18,12" CornerRadius="14,14,0,0">
                 <DockPanel>
                     <TextBlock Text="📍"
                                FontSize="22"
@@ -115,7 +154,7 @@
             </Border>
 
             <!-- Toggle: Local / Machine -->
-            <Grid Grid.Row="1" Margin="20,16,20,8">
+            <Grid Grid.Row="1" Grid.Column="0" Margin="20,16,20,8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="10"/>
@@ -142,7 +181,7 @@
             </Grid>
 
             <!-- Coordinate Input Fields -->
-            <StackPanel Grid.Row="2" Margin="20,12,20,12">
+            <StackPanel Grid.Row="2" Grid.Column="0" Margin="20,12,20,12">
                 
                 <!-- X Position -->
                 <Grid x:Name="XGrid" Margin="0,0,0,10">
@@ -323,8 +362,68 @@
 
             </StackPanel>
 
+            <!-- Numeric Keypad -->
+            <Border Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" 
+                    Background="#FF3A3A3C"
+                    BorderBrush="#FF5A5A5C"
+                    BorderThickness="1,0,0,0"
+                    Padding="12,8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Row 1: 7, 8, 9 -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="7" Style="{StaticResource KeypadButtonStyle}" Click="KeypadButton_Click"/>
+                        <Button Content="8" Style="{StaticResource KeypadButtonStyle}" Click="KeypadButton_Click"/>
+                        <Button Content="9" Style="{StaticResource KeypadButtonStyle}" Click="KeypadButton_Click"/>
+                    </StackPanel>
+
+                    <!-- Row 2: 4, 5, 6 -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="4" Style="{StaticResource KeypadButtonStyle}" Click="KeypadButton_Click"/>
+                        <Button Content="5" Style="{StaticResource KeypadButtonStyle}" Click="KeypadButton_Click"/>
+                        <Button Content="6" Style="{StaticResource KeypadButtonStyle}" Click="KeypadButton_Click"/>
+                    </StackPanel>
+
+                    <!-- Row 3: 1, 2, 3 -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="1" Style="{StaticResource KeypadButtonStyle}" Click="KeypadButton_Click"/>
+                        <Button Content="2" Style="{StaticResource KeypadButtonStyle}" Click="KeypadButton_Click"/>
+                        <Button Content="3" Style="{StaticResource KeypadButtonStyle}" Click="KeypadButton_Click"/>
+                    </StackPanel>
+
+                    <!-- Row 4: -, 0, . -->
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="-" Style="{StaticResource KeypadButtonStyle}" Click="KeypadButton_Click"/>
+                        <Button Content="0" Style="{StaticResource KeypadButtonStyle}" Click="KeypadButton_Click"/>
+                        <Button Content="." Style="{StaticResource KeypadButtonStyle}" Click="KeypadButton_Click"/>
+                    </StackPanel>
+
+                    <!-- Row 5: Clear, Backspace -->
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <Button Content="C" 
+                                Style="{StaticResource KeypadButtonStyle}" 
+                                Click="ClearButton_Click"
+                                ToolTip="Clear"
+                                Background="#FFFF6B6B"
+                                Foreground="White"/>
+                        <Button Content="⌫" 
+                                Style="{StaticResource KeypadButtonStyle}" 
+                                Click="BackspaceButton_Click"
+                                ToolTip="Backspace"
+                                FontSize="20"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
             <!-- Buttons -->
-            <Grid Grid.Row="3" Margin="20,8,20,20">
+            <Grid Grid.Row="3" Grid.Column="0" Margin="20,8,20,20">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="15"/>
