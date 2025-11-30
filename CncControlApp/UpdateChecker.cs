@@ -523,12 +523,30 @@ namespace CncControlApp
         {
             try
             {
-                // Installer'ı silent modda başlat (/SILENT veya /VERYSILENT Inno Setup için)
-                // Program kapandıktan sonra kurulum başlayacak
+                // Batch dosyası oluştur: bekle, sonra installer'ı çalıştır
+                string batchPath = Path.Combine(Path.GetTempPath(), "RaptorexUpdate.bat");
+                string exePath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+                string exeName = Path.GetFileNameWithoutExtension(exePath);
+                
+                // Batch script: uygulamanın kapanmasını bekle, sonra installer'ı çalıştır
+                string batchContent = $@"@echo off
+:waitloop
+tasklist /FI ""IMAGENAME eq {exeName}.exe"" 2>NUL | find /I ""{exeName}.exe"" >NUL
+if ""%ERRORLEVEL%""==""0"" (
+    timeout /t 1 /nobreak >NUL
+    goto waitloop
+)
+start """" ""{installerPath}"" /SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS
+del ""%~f0""
+";
+                File.WriteAllText(batchPath, batchContent);
+                
+                // Batch'i gizli pencerede başlat
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = installerPath,
-                    Arguments = "/SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS",
+                    FileName = batchPath,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden,
                     UseShellExecute = true
                 };
                 
