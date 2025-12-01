@@ -55,5 +55,61 @@ namespace CncControlApp
  App.MainController?.AddLogMessage($"> ❌ Go To Position hata: {ex.Message}");
  }
  }
+
+ /// <summary>
+ /// GCode Move - Moves the GCode drawing origin to the current work position
+ /// by setting X=0, Y=0 at current position (using G92 X0 Y0)
+ /// This makes the GCode drawing appear at the current marker position
+ /// </summary>
+ private async void GCodeMoveButton_Click(object sender, RoutedEventArgs e)
+ {
+ var mc = App.MainController;
+ if (mc?.IsConnected != true)
+ {
+ mc?.AddLogMessage("> ❌ CNC bağlı değil - GCode Move yapılamaz");
+ return;
+ }
+
+ var btn = sender as Button;
+ btn.IsEnabled = false;
+
+ try
+ {
+ // Get current work position for logging
+ double workX = mc.MStatus?.WorkX ?? 0;
+ double workY = mc.MStatus?.WorkY ?? 0;
+
+ mc.AddLogMessage($"> 📐 GCode Move: Çizim orijini mevcut pozisyona taşınıyor (Work X={workX:F3}, Y={workY:F3})...");
+
+ // Set current position as X=0, Y=0 using G92
+ // This shifts the work coordinate system so GCode (0,0) is at current position
+ bool ok = await mc.SendGCodeCommandWithConfirmationAsync("G92 X0 Y0");
+
+ if (ok)
+ {
+ mc.AddLogMessage("> ✅ GCode orijini mevcut pozisyona taşındı - Çizim yenileniyor...");
+ 
+ // Refresh the PanelJogCanvas (koordinatların altındaki canvas) to show updated drawing
+ await System.Threading.Tasks.Task.Delay(100); // Wait for coordinate update
+ var mainWindow = Application.Current.MainWindow as MainWindow;
+ mainWindow?.PanelJogCanvasInstance?.RefreshCanvas();
+ 
+ mc.AddLogMessage("> ✅ GCode çizimi güncellendi");
+ }
+ else
+ {
+ mc.AddLogMessage("> ❌ GCode Move başarısız - G92 X0 Y0 komutu gönderilemedi");
+ }
+ }
+ catch (System.Exception ex)
+ {
+ mc?.AddLogMessage($"> ❌ GCode Move hatası: {ex.Message}");
+ ErrorLogger.LogError("HomeZeroPanelView.GCodeMoveButton_Click", ex);
+ }
+ finally
+ {
+ btn.IsEnabled = true;
+ }
+ }
  }
 }

@@ -598,6 +598,55 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
                     </StackPanel>
                 </Border>
 
+                <!-- Frame 4: LIVE SPEED DISPLAY - Feed Rate & Spindle Speed -->
+                <Border Background="#FF1E1E20"
+                        BorderBrush="#FF5F6368"
+                        BorderThickness="1"
+                        CornerRadius="5"
+                        Padding="8,4"
+                        Margin="20,0,0,0"
+                        Height="62"
+                        MinWidth="180">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Feed Rate Row -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" 
+                                   Text="F:" 
+                                   FontSize="13" FontWeight="Bold" 
+                                   Foreground="#FF00BFFF" 
+                                   VerticalAlignment="Center" 
+                                   Margin="0,0,6,0"/>
+                        <TextBlock x:Name="LiveFeedRateText" 
+                                   Grid.Row="0" Grid.Column="1" 
+                                   Text="0" 
+                                   FontSize="14" FontWeight="Bold" 
+                                   Foreground="#FF00BFFF" 
+                                   VerticalAlignment="Center"/>
+                        
+                        <!-- Spindle Speed Row -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" 
+                                   Text="S:" 
+                                   FontSize="13" FontWeight="Bold" 
+                                   Foreground="#FFFFAA00" 
+                                   VerticalAlignment="Center" 
+                                   Margin="0,0,6,0"/>
+                        <TextBlock x:Name="LiveSpindleSpeedText" 
+                                   Grid.Row="1" Grid.Column="1" 
+                                   Text="0" 
+                                   FontSize="14" FontWeight="Bold" 
+                                   Foreground="#FFFFAA00" 
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
                 <!-- Hidden STOP button -->
                 <Button x:Name="StopButton"
    Style="{StaticResource HorizontalMenuButtonStyle}"

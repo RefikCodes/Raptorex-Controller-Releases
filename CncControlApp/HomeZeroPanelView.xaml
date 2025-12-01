@@ -68,6 +68,7 @@
  <ColumnDefinition Width="*"/>
  <ColumnDefinition Width="*"/>
  <ColumnDefinition Width="*"/>
+ <ColumnDefinition Width="*"/>
  </Grid.ColumnDefinitions>
  <Grid.RowDefinitions>
  <RowDefinition Height="Auto"/>
@@ -113,7 +114,7 @@
  </Button>
 
  <!-- Go To Position with location pin icon -->
- <Button Grid.Row="1" Grid.Column="2" Style="{StaticResource DarkCoordButtonStyle}" Click="GoToButton_Click" Foreground="#FF90CAF9" Margin="8,0,15,0" Height="60" BorderBrush="#FF90CAF9">
+ <Button Grid.Row="1" Grid.Column="2" Style="{StaticResource DarkCoordButtonStyle}" Click="GoToButton_Click" Foreground="#FF90CAF9" Margin="8,0,8,0" Height="60" BorderBrush="#FF90CAF9">
  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
  <Viewbox Width="24" Height="24" Margin="0,0,8,0">
  <Canvas Width="24" Height="24">
@@ -123,6 +124,20 @@
  </Canvas>
  </Viewbox>
  <TextBlock Text="Go To" VerticalAlignment="Center"/>
+ </StackPanel>
+ </Button>
+
+ <!-- GCode Move - Move GCode origin to current work position -->
+ <Button Grid.Row="1" Grid.Column="3" Style="{StaticResource DarkCoordButtonStyle}" Click="GCodeMoveButton_Click" Foreground="#FF81C784" Margin="8,0,15,0" Height="60" BorderBrush="#FF81C784">
+ <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+ <Viewbox Width="24" Height="24" Margin="0,0,8,0">
+ <Canvas Width="24" Height="24">
+ <!-- Move/Arrow icon -->
+ <Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+ Data="M14,3 L14,5 L17.59,5 L10,12.59 L11.41,14 L19,6.41 L19,10 L21,10 L21,3 L14,3 Z M19,19 L5,19 L5,5 L12,5 L12,3 L5,3 C3.9,3 3,3.9 3,5 L3,19 C3,20.1 3.9,21 5,21 L19,21 C20.1,21 21,20.1 21,19 L21,12 L19,12 L19,19 Z"/>
+ </Canvas>
+ </Viewbox>
+ <TextBlock Text="GCode Move" VerticalAlignment="Center"/>
  </StackPanel>
  </Button>
  </Grid>

@@ -26,6 +26,16 @@ namespace CncControlApp
         private readonly JogView _jogView;
         private readonly ConsoleView _consoleView;
 
+        /// <summary>
+        /// Public access to GCodeView for canvas refresh operations
+        /// </summary>
+        public GCodeView GCodeViewInstance => _gcodeView;
+
+        /// <summary>
+        /// Public access to MainPanelJogCanvas for canvas refresh operations (koordinatların altındaki canvas)
+        /// </summary>
+        public Controls.PanelJogCanvasView PanelJogCanvasInstance => MainPanelJogCanvas;
+
         // Probe logging control
         private const bool ProbeLogVerbose = false;
         private const int MaxProbeFeed =300; // ← cap probe feed (mm/min) to250 (increased from180)

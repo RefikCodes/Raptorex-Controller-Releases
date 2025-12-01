@@ -81,6 +81,10 @@ namespace CncControlApp
                 App.MainController.PropertyChanged -= MainController_PropertyChanged;
                 App.MainController.StopSequenceCompleted -= OnStopSequenceCompleted;
 
+                // Unsubscribe from MachineStatus property changes
+                if (App.MainController.MStatus != null)
+                    App.MainController.MStatus.PropertyChanged -= OnMachineStatusPropertyChanged;
+
                 var manager = App.MainController.GCodeManager;
                 if (manager != null)
                 {

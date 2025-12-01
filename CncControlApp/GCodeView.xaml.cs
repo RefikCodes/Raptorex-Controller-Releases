@@ -146,6 +146,7 @@ private double _scrollFromOffset = 0;
  // Update overrides + progress panel each tick (live time / remaining)
      UpdateOverridesFromExecutionManager();
      UpdateTimeBasedProgress();
+     UpdateLiveSpeedDisplay(); // Update live F and S display
       }
    else
            {
@@ -162,10 +163,65 @@ private double _scrollFromOffset = 0;
             InitializeGCodeWorkspace();
 
             if (App.MainController != null)
+            {
                 App.MainController.CommandBlockedDueToHold += OnCommandBlockedDueToHold;
+                
+                // Subscribe to MachineStatus property changes for live speed updates
+                if (App.MainController.MStatus != null)
+                    App.MainController.MStatus.PropertyChanged += OnMachineStatusPropertyChanged;
+            }
 
     // Load LiveFit data at startup
       LoadTableDimensionsFromSettings(); // in LiveFit partial
+        }
+
+        private void OnMachineStatusPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            // Update live speed display when CurrentFeed changes
+            if (e.PropertyName == nameof(MachineStatus.CurrentFeed))
+            {
+                Dispatcher.BeginInvoke(new Action(() => UpdateLiveSpeedDisplay()));
+            }
+        }
+
+        /// <summary>
+        /// Update live Feed Rate (F) and Spindle Speed (S) display in the panel
+        /// Shows effective values after override percentages are applied
+        /// </summary>
+        private void UpdateLiveSpeedDisplay()
+        {
+            try
+            {
+                var mc = App.MainController;
+                if (mc == null) return;
+
+                // Get modal values
+                double modalFeed = mc.GCodeManager?.CurrentModalFeed ?? 0;
+                double modalSpindle = mc.GCodeManager?.CurrentModalSpindle ?? mc.SpindleSpeed;
+                
+                // Get override percentages
+                int feedPercent = _lastFeedOverridePercent;
+                int spindlePercent = _lastSpindleOverridePercent;
+                
+                // Calculate effective values with override
+                double effectiveFeed = modalFeed * feedPercent / 100.0;
+                double effectiveSpindle = modalSpindle * spindlePercent / 100.0;
+                
+                // Prefer real-time feed from GRBL if available
+                double liveFeed = mc.MStatus?.CurrentFeed ?? 0;
+                if (liveFeed > 0)
+                {
+                    effectiveFeed = liveFeed; // Use actual GRBL feed rate
+                }
+
+                // Update UI with effective values
+                if (LiveFeedRateText != null)
+                    LiveFeedRateText.Text = effectiveFeed > 0 ? $"{effectiveFeed:F0} mm/min" : "— mm/min";
+                
+                if (LiveSpindleSpeedText != null)
+                    LiveSpindleSpeedText.Text = effectiveSpindle > 0 ? $"{effectiveSpindle:F0} RPM" : "— RPM";
+            }
+            catch { }
         }
 
         private void OnCommandBlockedDueToHold(object sender, (string Command, string MachineStatus) e)
@@ -243,6 +299,22 @@ StatusTextBlock.Text = $"Paused (Hold) – skipped: {e.Command}";
                 EmptyStatePlaceholder.Visibility = hasContent ? Visibility.Collapsed : Visibility.Visible;
             }
             catch { }
+        }
+
+        /// <summary>
+        /// Refresh the top view canvas to reflect current work coordinates
+        /// </summary>
+        public void RefreshTopView()
+        {
+            try
+            {
+                // Use RedrawAllViewports for full refresh (same as panel switch)
+                _fileService?.RedrawAllViewports();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ RefreshTopView error: {ex.Message}");
+            }
         }
     }
 }

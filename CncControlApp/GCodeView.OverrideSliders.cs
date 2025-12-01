@@ -59,6 +59,9 @@ namespace CncControlApp
             {
                 CurrentSpindleDisplay = $"S: — ({spindlePercent}%)";
             }
+            
+            // Also update the live speed panel
+            UpdateLiveSpeedDisplay();
         }
 
         private void FeedOverrideSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

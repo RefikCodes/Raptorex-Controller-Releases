@@ -367,12 +367,25 @@ namespace CncControlApp.Managers
                 }
 
                 // NEW: Parse FS: feed,spindle and keep feed for UI (CurrentFeed)
+                // Also handle F: format (GRBL sometimes sends just F: without spindle)
                 var fsMatch = Regex.Match(statusReport, @"\|FS:([\d\.-]+),([\d\.-]+)");
                 if (fsMatch.Success)
                 {
                     if (double.TryParse(fsMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double feedVal))
                     {
                         machineStatus.CurrentFeed = feedVal;
+                    }
+                }
+                else
+                {
+                    // Try F: only format (without spindle)
+                    var fOnlyMatch = Regex.Match(statusReport, @"\|F:([\d\.-]+)");
+                    if (fOnlyMatch.Success)
+                    {
+                        if (double.TryParse(fOnlyMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double feedVal))
+                        {
+                            machineStatus.CurrentFeed = feedVal;
+                        }
                     }
                 }
 

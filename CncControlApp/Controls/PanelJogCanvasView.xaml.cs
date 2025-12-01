@@ -220,6 +220,14 @@ if (settings != null && settings.Count > 10) // Wait for substantial number of s
 }
         }
 
+        /// <summary>
+        /// Public method to force redraw the canvas (called after G92 origin change)
+        /// </summary>
+        public void RefreshCanvas()
+        {
+            Redraw();
+        }
+
         private void Redraw()
         {
   if (GridLinesCanvas == null || CrosshairCanvas == null) return;
