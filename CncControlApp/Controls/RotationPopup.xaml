@@ -2,7 +2,7 @@
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  Title="G-CODE ROTATION"
- WindowStyle="None" ResizeMode="NoResize" Width="900" Height="700" Background="Transparent" AllowsTransparency="True" WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Topmost="True">
+ WindowStyle="None" ResizeMode="NoResize" Width="1050" Height="800" Background="Transparent" AllowsTransparency="True" WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Topmost="True">
  <Window.Resources>
  <Style x:Key="GreenActionButtonStyle" TargetType="Button">
  <Setter Property="Background" Value="#FF4CAF50"/>
@@ -191,7 +191,7 @@
  <Grid Grid.Row="1">
  <Grid.ColumnDefinitions>
  <ColumnDefinition/>
- <ColumnDefinition Width="260"/>
+ <ColumnDefinition Width="320"/>
  </Grid.ColumnDefinitions>
 
  <!-- Left panel (stretch) -->
@@ -206,8 +206,22 @@
  <TextBlock Text="TOP VIEW (X-Y) - ROTATION PREVIEW" Foreground="#FFAAAAAA" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center"/>
  </Border>
  <Grid Grid.Row="1" x:Name="TopViewHost" Margin="5" ClipToBounds="True" Loaded="TopViewHost_Loaded" SizeChanged="TopViewHost_SizeChanged">
- <Canvas x:Name="TopViewCanvas" ClipToBounds="True" Background="#FF1E1E20" TouchDown="TopViewCanvas_TouchDown" MouseLeftButtonDown="TopViewCanvas_MouseLeftButtonDown"/>
+ <!-- Base canvas for GCode drawing - this one gets panned and rotated -->
+ <Canvas x:Name="TopViewCanvas" ClipToBounds="True" Background="#FF1E1E20">
+     <Canvas.RenderTransform>
+         <TransformGroup>
+             <RotateTransform x:Name="GCodeRotateTransform" Angle="0" CenterX="0" CenterY="0"/>
+             <TranslateTransform x:Name="GCodePanTransform" X="0" Y="0"/>
+         </TransformGroup>
+     </Canvas.RenderTransform>
+ </Canvas>
+ <!-- Overlay canvas for table borders, markers, labels - stays fixed -->
  <Canvas x:Name="TopViewOverlayCanvas" IsHitTestVisible="False" ClipToBounds="True" Background="Transparent"/>
+ <!-- Interaction layer for mouse/touch events - transparent, on top -->
+ <Canvas x:Name="TopViewInteractionCanvas" ClipToBounds="True" Background="Transparent"
+         TouchDown="TopViewCanvas_TouchDown" TouchMove="TopViewCanvas_TouchMove" TouchUp="TopViewCanvas_TouchUp"
+         MouseLeftButtonDown="TopViewCanvas_MouseLeftButtonDown" MouseMove="TopViewCanvas_MouseMove" MouseLeftButtonUp="TopViewCanvas_MouseLeftButtonUp"
+         MouseRightButtonDown="TopViewCanvas_MouseRightButtonDown"/>
  </Grid>
  <Border Grid.Row="2" CornerRadius="6" Margin="0" Padding="0" Background="#FF3E3E40">
  <Slider x:Name="RotationSlider" Orientation="Horizontal" Minimum="-180" Maximum="180" Value="0" Style="{StaticResource RotationSliderStyle}" ValueChanged="RotationSlider_ValueChanged" IsMoveToPointEnabled="True" IsSnapToTickEnabled="False" TickFrequency="15" SmallChange="0.5" LargeChange="15" Background="#FF19374F"/>
@@ -219,6 +233,7 @@
  <DockPanel Grid.Column="1" Margin="0,16,22,16" LastChildFill="True" VerticalAlignment="Stretch">
  <!-- Close button bottom -->
  <Button x:Name="CloseButton" DockPanel.Dock="Bottom" Content="Close" Width="Auto" Height="50" Style="{StaticResource RedActionButtonStyle}" FontSize="14" Click="CloseButton_Click" Margin="0,14,0,0"/>
+ 
  <!-- Info panel fills remaining height above close -->
  <Border Background="#FF1E1E20" CornerRadius="8" BorderBrush="#FF4A4A4C" BorderThickness="2" Padding="0" DockPanel.Dock="Top">
  <Grid>
@@ -235,16 +250,12 @@
  <RowDefinition Height="Auto"/> <!--0 ANGLE -->
  <RowDefinition Height="Auto"/> <!--1 FIT -->
  <RowDefinition Height="Auto"/> <!--2 Sep -->
- <RowDefinition Height="Auto"/> <!--3 X coords -->
- <RowDefinition Height="Auto"/> <!--4 Y coords -->
- <RowDefinition Height="Auto"/> <!--5 Z coords -->
- <RowDefinition Height="Auto"/> <!--6 Sep -->
- <RowDefinition Height="Auto"/> <!--7 Auto-zero text -->
- <RowDefinition Height="Auto"/> <!--8 Sep -->
- <RowDefinition Height="Auto"/> <!--9 GoTo button -->
- <RowDefinition Height="Auto"/> <!--10 Sep -->
- <RowDefinition Height="Auto"/> <!--11 Apply -->
- <RowDefinition Height="Auto"/> <!--12 Reset -->
+ <RowDefinition Height="Auto"/> <!--3 Coords Box -->
+ <RowDefinition Height="Auto"/> <!--4 Sep -->
+ <RowDefinition Height="Auto"/> <!--5 Apply Movement -->
+ <RowDefinition Height="Auto"/> <!--6 Apply Rotation -->
+ <RowDefinition Height="Auto"/> <!--7 Sep -->
+ <RowDefinition Height="Auto"/> <!--8 Reset All -->
  </Grid.RowDefinitions>
  <Grid.ColumnDefinitions>
  <ColumnDefinition Width="*"/>
@@ -252,11 +263,12 @@
  </Grid.ColumnDefinitions>
 
  <!-- Angle / Fit -->
- <TextBlock Grid.Row="0" Grid.Column="0" Text="ANGLE" FontSize="10" Foreground="YellowGreen"/>
- <TextBlock Grid.Row="0" Grid.Column="1" x:Name="AngleValueText" Text="0.0°" FontSize="16" Foreground="#FFDDDDDD" HorizontalAlignment="Right"/>
- <TextBlock Grid.Row="1" Grid.Column="0" Text="FIT" FontSize="10" Foreground="#FFAAAAAA"/>
- <TextBlock Grid.Row="1" Grid.Column="1" x:Name="FitLiveStatusText" Text="-" FontFamily="Segoe UI Symbol" FontSize="18" Foreground="#FFDDDDDD" HorizontalAlignment="Right"/>
- <Separator Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,8" Background="#FF555555"/>
+ <TextBlock Grid.Row="0" Grid.Column="0" Text="ANGLE" FontSize="16" FontWeight="Bold" Foreground="YellowGreen" VerticalAlignment="Center"/>
+ <TextBlock Grid.Row="0" Grid.Column="1" x:Name="AngleValueText" Text="0.0°" FontSize="22" FontWeight="Bold" Foreground="#FFDDDDDD" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+ <TextBlock Grid.Row="1" Grid.Column="0" Text="FIT" FontSize="16" FontWeight="Bold" Foreground="#FFAAAAAA" VerticalAlignment="Center"/>
+ <TextBlock Grid.Row="1" Grid.Column="1" x:Name="FitLiveStatusText" Text="-" FontFamily="Segoe UI Symbol" FontSize="28" FontWeight="Bold" Foreground="#FFDDDDDD" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+
+ <Separator Grid.Row="2" Grid.ColumnSpan="2" Margin="0,4,0,8" Background="#FF555555"/>
 
  <!-- Coordinate Boxes -->
  <Border Grid.Row="3" Grid.ColumnSpan="2" Background="#FF2A2A2C" CornerRadius="4" Padding="6" Margin="3,5,3,5">
@@ -294,16 +306,19 @@
  </Grid>
  </Border>
  
- <Separator Grid.Row="6" Grid.ColumnSpan="2" Margin="0,8,0,8" Background="#FF555555"/>
+ <Separator Grid.Row="4" Grid.ColumnSpan="2" Margin="0,8,0,8" Background="#FF555555"/>
 
- <Separator Grid.Row="8" Grid.ColumnSpan="2" Margin="0,8,0,8" Background="#FF555555"/>
+ <!-- Single Apply All Changes Button -->
+ <Button Grid.Row="5" Grid.ColumnSpan="2" x:Name="ApplyAllChangesButton" Content="Değişiklikleri Onayla" Height="90" Style="{StaticResource YellowActionButtonStyle}" FontSize="20" FontWeight="Bold" IsEnabled="False" Click="ApplyAllChangesButton_Click" Margin="0,6,0,4" ToolTip="Önce konuma git, sonra döndürmeyi uygula"/>
 
- <Button Grid.Row="9" Grid.ColumnSpan="2" x:Name="GotoTouchedCoordButton" Content="Go to yellow marker with G00" Height="40" Style="{StaticResource YellowActionButtonStyle}" FontSize="14" IsEnabled="False" Click="GotoTouchedCoordButton_Click" Margin="0,10,0,10"/>
+ <!-- Hidden buttons for backward compatibility -->
+ <Button Grid.Row="6" Grid.ColumnSpan="2" x:Name="GotoTouchedCoordButton" Visibility="Collapsed" Click="GotoTouchedCoordButton_Click"/>
+ <Button Grid.Row="6" Grid.ColumnSpan="2" x:Name="ApplyButton" Visibility="Collapsed" Click="ApplyButton_Click"/>
 
- <Separator Grid.Row="10" Grid.ColumnSpan="2" Margin="0,8,0,8" Background="#FF555555"/>
+ <Separator Grid.Row="7" Grid.ColumnSpan="2" Margin="0,8,0,8" Background="#FF555555"/>
 
- <Button Grid.Row="11" Grid.ColumnSpan="2" x:Name="ApplyButton" Content="Apply Rotation" Height="40" Style="{StaticResource BlueActionButtonStyle}" FontSize="14" Click="ApplyButton_Click" Margin="0,10,0,5" IsEnabled="False"/>
- <Button Grid.Row="12" Grid.ColumnSpan="2" x:Name="ResetButton" Content="Reset" Height="40" Margin="0,6,0,0" Style="{StaticResource BlueSecondaryActionButtonStyle}" FontSize="14" Click="ResetButton_Click" IsEnabled="False"/>
+ <!-- Single Reset button for all -->
+ <Button Grid.Row="8" Grid.ColumnSpan="2" x:Name="ResetButton" Content="Tümünü Sıfırla" Height="72" Margin="0,4,0,0" Style="{StaticResource BlueSecondaryActionButtonStyle}" FontSize="16" FontWeight="Bold" Click="ResetButton_Click" ToolTip="Döndürme ve pan'ı sıfırla"/>
  </Grid>
  </ScrollViewer>
  </Grid> <!-- end info grid -->

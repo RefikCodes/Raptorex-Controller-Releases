@@ -28,6 +28,14 @@ namespace CncControlApp
         }
 
         public (bool Fits, string Details) CheckLiveFitAtAngle(double angleDegrees)
+        {
+            return CheckLiveFitAtAngle(angleDegrees, 0, 0);
+        }
+
+        /// <summary>
+        /// Check if GCode fits within table bounds at given angle and pan offset (in mm)
+        /// </summary>
+        public (bool Fits, string Details) CheckLiveFitAtAngle(double angleDegrees, double panOffsetMmX, double panOffsetMmY)
  {
          try
             {
@@ -50,8 +58,6 @@ namespace CncControlApp
 
          if (tableMaxX <= 0 || tableMaxY <= 0) return (false, "Invalid table dimensions");
 
-             var b = CalculateRotatedBounds(segments, angleDegrees);
-
               double originMachineX = 0, originMachineY = 0;
     if (App.MainController?.MStatus != null)
             {
@@ -59,14 +65,31 @@ namespace CncControlApp
     originMachineY = App.MainController.MStatus.Y;
                 }
 
+                // Add pan offset to simulate where spindle would be after pan confirm
+                originMachineX += panOffsetMmX;
+                originMachineY += panOffsetMmY;
+
+             // Calculate rotated bounds - rotation happens around (0,0) in GCode space
+             // Then we translate to absolute machine coordinates
+             var b = CalculateRotatedBounds(segments, angleDegrees);
+
+                System.Diagnostics.Debug.WriteLine($"[FIT] Angle={angleDegrees:F1}° Pan=({panOffsetMmX:F1},{panOffsetMmY:F1})mm");
+                System.Diagnostics.Debug.WriteLine($"[FIT] GCode bounds after rotation: MinX={b.MinX:F1} MaxX={b.MaxX:F1} MinY={b.MinY:F1} MaxY={b.MaxY:F1}");
+                System.Diagnostics.Debug.WriteLine($"[FIT] Origin (machine+pan): X={originMachineX:F1} Y={originMachineY:F1}");
+
       double absMinX = b.MinX + originMachineX;
                 double absMaxX = b.MaxX + originMachineX;
     double absMinY = b.MinY + originMachineY;
     double absMaxY = b.MaxY + originMachineY;
 
+                System.Diagnostics.Debug.WriteLine($"[FIT] Absolute bounds: X=[{absMinX:F1},{absMaxX:F1}] Y=[{absMinY:F1},{absMaxY:F1}]");
+                System.Diagnostics.Debug.WriteLine($"[FIT] Table limits: X=[0,{tableMaxX:F0}] Y=[0,{tableMaxY:F0}]");
+
    bool fitsX = absMinX >= 0 && absMaxX <= tableMaxX;
        bool fitsY = absMinY >= 0 && absMaxY <= tableMaxY;
      bool fits = fitsX && fitsY;
+
+                System.Diagnostics.Debug.WriteLine($"[FIT] Result: fitsX={fitsX} fitsY={fitsY} => fits={fits}");
 
                 string details;
           if (fits)

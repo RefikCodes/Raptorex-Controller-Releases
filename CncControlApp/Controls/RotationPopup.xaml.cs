@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.ComponentModel;
 using System.Windows;
@@ -38,6 +39,13 @@ namespace CncControlApp.Controls
 
         // New field to control zero prompt gating
         private bool _awaitingZeroPrompt = false; // debounce to avoid random/duplicate prompts
+
+        // ✅ Pan (drag) support for canvas
+        private bool _isPanning = false;
+        private Point _panStartPoint;
+        private double _panOffsetX = 0;
+        private double _panOffsetY = 0;
+        private DateTime _lastFitCheckTime = DateTime.MinValue; // Throttle fit checks during pan
 
         // ✅ ADD: Helper method for logging (eliminates nullable method group issues)
         private void Log(string message) => App.MainController?.AddLogMessage(message);
@@ -248,15 +256,28 @@ namespace CncControlApp.Controls
             catch { }
         }
 
-        // Helper to refresh Apply/Reset enable state based on current angle
+        // Helper to refresh Apply/Reset enable state based on current state
         private void RefreshApplyResetState()
         {
             try
             {
                 double angle = _pendingAngle;
                 bool hasRotation = Math.Abs(angle) > 0.0001;
+                
+                // Check pan from transform values directly
+                double panX = GCodePanTransform?.X ?? 0;
+                double panY = GCodePanTransform?.Y ?? 0;
+                bool hasPan = Math.Abs(panX) > 0.1 || Math.Abs(panY) > 0.1;
+                
+                // ApplyAllChangesButton - enabled if any change exists (rotation or pan)
+                if (ApplyAllChangesButton != null) ApplyAllChangesButton.IsEnabled = hasRotation || hasPan;
+                
+                // Hidden buttons - keep them in sync for backward compatibility
                 if (ApplyButton != null) ApplyButton.IsEnabled = hasRotation;
-                if (ResetButton != null) ResetButton.IsEnabled = hasRotation;
+                if (GotoTouchedCoordButton != null) GotoTouchedCoordButton.IsEnabled = hasPan;
+                
+                // Reset button - enabled if any change exists (rotation or pan)
+                if (ResetButton != null) ResetButton.IsEnabled = hasRotation || hasPan;
             }
             catch { }
         }
@@ -277,25 +298,24 @@ namespace CncControlApp.Controls
 
                 // Apply instant rotation transform for smooth visual feedback
                 // Rotate around G-code origin (machine position on canvas)
-                if (TopViewCanvas != null && !_isInitialLoad)
+                if (TopViewCanvas != null && !_isInitialLoad && GCodeRotateTransform != null)
                 {
-                    var rotateTransform = new RotateTransform { Angle = angle };
-
                     // Calculate G-code origin position on canvas (where machine currently is)
                     var originPoint = _gcodeView?.GetGCodeOriginCanvasPosition(TopViewCanvas);
                     if (originPoint.HasValue)
                     {
                         // Set rotation center to G-code origin position
-                        rotateTransform.CenterX = originPoint.Value.X;
-                        rotateTransform.CenterY = originPoint.Value.Y;
+                        GCodeRotateTransform.CenterX = originPoint.Value.X;
+                        GCodeRotateTransform.CenterY = originPoint.Value.Y;
                     }
                     else
                     {
                         // Fallback to canvas center if we can't get origin position
-                        TopViewCanvas.RenderTransformOrigin = new Point(0.5, 0.5);
+                        GCodeRotateTransform.CenterX = TopViewCanvas.ActualWidth / 2;
+                        GCodeRotateTransform.CenterY = TopViewCanvas.ActualHeight / 2;
                     }
 
-                    TopViewCanvas.RenderTransform = rotateTransform;
+                    GCodeRotateTransform.Angle = angle;
                 }
 
                 // Debounce the full redraw (expensive operation)
@@ -330,10 +350,30 @@ namespace CncControlApp.Controls
         {
             try
             {
+                Log("> Reset ALL: rotation, pan, marker");
                 _redrawDebounceTimer.Stop(); // Stop any pending redraws
+                
+                // 1. Reset rotation
                 RotationSlider.Value = 0;
                 _pendingAngle = 0;
                 _gcodeView?.ResetRotation();
+
+                // 2. Reset pan offset
+                ResetPan();
+
+                // 3. Reset marker (touch point)
+                _lastTouchedMachineX = null;
+                _lastTouchedMachineY = null;
+                if (_touchPointMarker != null)
+                {
+                    TopViewOverlayCanvas?.Children.Remove(_touchPointMarker);
+                    _touchPointMarker = null;
+                }
+                if (_touchPointLabel != null)
+                {
+                    TopViewOverlayCanvas?.Children.Remove(_touchPointLabel);
+                    _touchPointLabel = null;
+                }
 
                 // Immediate redraw on reset
                 if (TopViewCanvas != null && TopViewOverlayCanvas != null)
@@ -363,10 +403,16 @@ namespace CncControlApp.Controls
                 // Apply rotation (reparse, rebuild, redraw main views)
                 await _gcodeView?.ApplyRotation();
 
-                // Clear any transient transform and reset angle
-                if (TopViewCanvas != null) TopViewCanvas.RenderTransform = null;
+                // Clear rotation transform and reset angle
+                if (GCodeRotateTransform != null)
+                {
+                    GCodeRotateTransform.Angle = 0;
+                }
                 RotationSlider.Value = 0; // will update angle text and pending angle via ValueChanged
                 _pendingAngle = 0;
+
+                // Also reset pan offset - the rotation is now baked into GCode
+                ResetPan();
 
                 // Redraw popup canvas from fresh data
                 if (TopViewCanvas != null && TopViewOverlayCanvas != null)
@@ -381,6 +427,211 @@ namespace CncControlApp.Controls
             catch (Exception ex)
             {
                 App.MainController?.AddLogMessage($"> ❌ ApplyRotation error: {ex.Message}");
+            }
+            finally
+            {
+                RefreshApplyResetState();
+            }
+        }
+
+        /// <summary>
+        /// Unified button that applies all changes in sequence:
+        /// 1. Move spindle to panned position (if pan exists)
+        /// 2. Ask for zero confirmation
+        /// 3. Apply rotation to GCode (if rotation exists)
+        /// </summary>
+        private async void ApplyAllChangesButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Disable button to prevent re-entrancy
+                if (ApplyAllChangesButton != null) ApplyAllChangesButton.IsEnabled = false;
+                if (ResetButton != null) ResetButton.IsEnabled = false;
+                _redrawDebounceTimer.Stop();
+
+                double panX = GCodePanTransform?.X ?? 0;
+                double panY = GCodePanTransform?.Y ?? 0;
+                bool hasPan = Math.Abs(panX) > 0.1 || Math.Abs(panY) > 0.1;
+                bool hasRotation = Math.Abs(_pendingAngle) > 0.0001;
+
+                Log($"> ApplyAllChanges: hasPan={hasPan}, hasRotation={hasRotation}, angle={_pendingAngle:F1}°");
+
+                // ═══════════════════════════════════════════════════════════
+                // STEP 1: Move spindle if pan exists
+                // ═══════════════════════════════════════════════════════════
+                if (hasPan)
+                {
+                    if (App.MainController?.IsConnected != true)
+                    {
+                        Log("> ❌ Not connected – cannot move");
+                        return;
+                    }
+
+                    double canvasWidth = TopViewCanvas?.ActualWidth ?? 0;
+                    double canvasHeight = TopViewCanvas?.ActualHeight ?? 0;
+                    if (canvasWidth <= 0 || canvasHeight <= 0)
+                    {
+                        Log("> ⚠️ Invalid canvas size");
+                        return;
+                    }
+
+                    if (!CncControlApp.Helpers.WorkspaceTransform.TryCreateFromSettings(canvasWidth, canvasHeight, out var xf))
+                    {
+                        Log("> ⚠️ Cannot create workspace transform");
+                        return;
+                    }
+
+                    var mStatus = App.MainController.MStatus;
+                    double currentMachineX = mStatus?.X ?? 0;
+                    double currentMachineY = mStatus?.Y ?? 0;
+                    double currentWorkZ = mStatus?.WorkZ ?? 0;
+
+                    // Convert pan to mm
+                    double panMmX = panX / xf.Scale;
+                    double panMmY = -panY / xf.Scale;
+
+                    double targetMachineX = currentMachineX + panMmX;
+                    double targetMachineY = currentMachineY + panMmY;
+
+                    // Clamp to table limits
+                    double tableMaxX = xf.MaxX;
+                    double tableMaxY = xf.MaxY;
+                    if (targetMachineX < 0) targetMachineX = 0;
+                    if (targetMachineY < 0) targetMachineY = 0;
+                    if (targetMachineX > tableMaxX) targetMachineX = tableMaxX;
+                    if (targetMachineY > tableMaxY) targetMachineY = tableMaxY;
+
+                    Log($"> Moving: ({currentMachineX:F3}, {currentMachineY:F3}) -> ({targetMachineX:F3}, {targetMachineY:F3})");
+
+                    await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+
+                    if (currentWorkZ < 1.0)
+                    {
+                        string liftCmd = $"G91 G00 Z{SafeZLiftMm:F3}";
+                        await App.MainController.SendGCodeCommandWithConfirmationAsync(liftCmd);
+                        await System.Threading.Tasks.Task.Delay(100);
+                        await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
+                    }
+
+                    string cmd = string.Format(CultureInfo.InvariantCulture, "G53 G00 X{0:F3} Y{1:F3}", targetMachineX, targetMachineY);
+                    Log($"> Moving spindle: {cmd}");
+
+                    StartMachinePositionUpdateTimer();
+                    bool moveOk = await App.MainController.SendGCodeCommandWithConfirmationAsync(cmd);
+                    if (!moveOk)
+                    {
+                        Log("> ❌ Move failed");
+                        StopMachinePositionUpdateTimer();
+                        return;
+                    }
+
+                    await WaitForIdleState();
+                    StopMachinePositionUpdateTimer();
+
+                    // IMPORTANT: The canvas shows GCode drawn relative to OLD spindle position.
+                    // Pan transform was offsetting it to look correct on screen.
+                    // Now spindle moved to new position, we need to:
+                    // 1. Reset pan (so GCode is not offset)
+                    // 2. REDRAW canvas with new spindle position as origin
+                    // 3. Then update rotation center
+                    
+                    // First reset pan transform
+                    ResetPan();
+                    
+                    // Now redraw canvas - this draws GCode relative to NEW spindle position
+                    if (TopViewCanvas != null && TopViewOverlayCanvas != null)
+                    {
+                        _gcodeView?.RedrawPopupTopView(TopViewCanvas, TopViewOverlayCanvas);
+                    }
+                    
+                    // Update rotation center to new spindle position
+                    if (GCodeRotateTransform != null && hasRotation)
+                    {
+                        double cw = TopViewCanvas?.ActualWidth ?? 0;
+                        double ch = TopViewCanvas?.ActualHeight ?? 0;
+                        if (cw > 0 && ch > 0 &&
+                            CncControlApp.Helpers.WorkspaceTransform.TryCreateFromSettings(cw, ch, out var xf2))
+                        {
+                            var newOriginPt = xf2.ToCanvas(targetMachineX, targetMachineY);
+                            GCodeRotateTransform.CenterX = newOriginPt.X;
+                            GCodeRotateTransform.CenterY = newOriginPt.Y;
+                        }
+                    }
+                    
+                    UpdatePopupLiveFitLabel(_pendingAngle);
+                    
+                    // Wait for UI to complete rendering before showing dialog
+                    await System.Threading.Tasks.Task.Delay(50);
+                }
+
+                // ═══════════════════════════════════════════════════════════
+                // STEP 2: Zero confirmation dialog
+                // ═══════════════════════════════════════════════════════════
+                if (hasPan && App.MainController?.IsConnected == true)
+                {
+                    bool userConfirmed = await ShowZeroConfirmationDialog();
+                    if (userConfirmed)
+                    {
+                        Log("> User confirmed zero; sending G10 L20 P0 X0 Y0");
+                        bool zeroOk = await App.MainController.SendGCodeCommandWithConfirmationAsync("G10 L20 P0 X0 Y0");
+                        if (zeroOk)
+                        {
+                            await System.Threading.Tasks.Task.Delay(300);
+                            try { await App.MainController.SendGCodeCommandAsync("?"); } catch { }
+                            await System.Threading.Tasks.Task.Delay(150);
+                        }
+                    }
+                    else
+                    {
+                        Log("> User cancelled zero");
+                    }
+                }
+
+                // ═══════════════════════════════════════════════════════════
+                // STEP 3: Apply rotation if exists
+                // ═══════════════════════════════════════════════════════════
+                if (hasRotation)
+                {
+                    Log($"> Applying rotation: {_pendingAngle:F1}°");
+                    await _gcodeView?.ApplyRotation();
+
+                    // Clear rotation transform
+                    if (GCodeRotateTransform != null)
+                    {
+                        GCodeRotateTransform.Angle = 0;
+                    }
+                    RotationSlider.Value = 0;
+                    _pendingAngle = 0;
+                }
+
+                // ═══════════════════════════════════════════════════════════
+                // STEP 4: Final redraw
+                // ═══════════════════════════════════════════════════════════
+                UiHelper.RunOnUi(() =>
+                {
+                    if (TopViewCanvas != null && TopViewOverlayCanvas != null)
+                    {
+                        _gcodeView?.RedrawPopupTopView(TopViewCanvas, TopViewOverlayCanvas);
+                        UpdatePopupLiveFitLabel(0);
+                    }
+
+                    // Also refresh main viewports
+                    try
+                    {
+                        var field = _gcodeView?.GetType().GetField("_fileService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        var fileService = field?.GetValue(_gcodeView);
+                        var redrawMethod = fileService?.GetType().GetMethod("RedrawAllViewports");
+                        redrawMethod?.Invoke(fileService, null);
+                    }
+                    catch { }
+                }, DispatcherPriority.Send);
+
+                Log("> ✅ All changes applied successfully");
+                _awaitingZeroPrompt = false;
+            }
+            catch (Exception ex)
+            {
+                Log($"> ❌ ApplyAllChanges error: {ex.Message}");
             }
             finally
             {
@@ -407,12 +658,61 @@ namespace CncControlApp.Controls
             catch { }
         }
 
+        #region Canvas Pan (Drag) Support
+
         private void TopViewCanvas_TouchDown(object sender, TouchEventArgs e)
         {
             try
             {
-                var p = e.GetTouchPoint(TopViewCanvas).Position;
-                HandleTopViewTouch(p);
+                // Always pan mode - drag GCode with touch
+                _isPanning = true;
+                _panStartPoint = e.GetTouchPoint(TopViewHost).Position;
+                e.TouchDevice.Capture(TopViewInteractionCanvas);
+                e.Handled = true;
+            }
+            catch { }
+        }
+
+        private void TopViewCanvas_TouchMove(object sender, TouchEventArgs e)
+        {
+            try
+            {
+                if (_isPanning)
+                {
+                    var currentPoint = e.GetTouchPoint(TopViewHost).Position;
+                    double deltaX = currentPoint.X - _panStartPoint.X;
+                    double deltaY = currentPoint.Y - _panStartPoint.Y;
+                    
+                    ApplyPanOffset(_panOffsetX + deltaX, _panOffsetY + deltaY);
+                    _panStartPoint = currentPoint;
+                    _panOffsetX = GCodePanTransform.X;
+                    _panOffsetY = GCodePanTransform.Y;
+
+                    // Throttled fit check during pan (every 100ms max)
+                    var now = DateTime.Now;
+                    if ((now - _lastFitCheckTime).TotalMilliseconds > 100)
+                    {
+                        _lastFitCheckTime = now;
+                        UpdatePopupLiveFitLabel(_pendingAngle);
+                    }
+                    
+                    e.Handled = true;
+                }
+            }
+            catch { }
+        }
+
+        private void TopViewCanvas_TouchUp(object sender, TouchEventArgs e)
+        {
+            try
+            {
+                if (_isPanning)
+                {
+                    _isPanning = false;
+                    e.TouchDevice.Capture(null);
+                    RefreshApplyResetState(); // Update button states after pan
+                    UpdatePopupLiveFitLabel(_pendingAngle); // Final fit check after pan ends
+                }
                 e.Handled = true;
             }
             catch { }
@@ -422,11 +722,101 @@ namespace CncControlApp.Controls
         {
             try
             {
-                var p = e.GetPosition(TopViewCanvas);
-                HandleTopViewTouch(p);
+                // Always pan mode - drag GCode with mouse
+                _isPanning = true;
+                _panStartPoint = e.GetPosition(TopViewHost);
+                TopViewInteractionCanvas.CaptureMouse();
+                e.Handled = true;
             }
             catch { }
         }
+
+        private void TopViewCanvas_MouseMove(object sender, MouseEventArgs e)
+        {
+            try
+            {
+                // Pan when left button is pressed
+                if (_isPanning && e.LeftButton == MouseButtonState.Pressed)
+                {
+                    var currentPoint = e.GetPosition(TopViewHost);
+                    double deltaX = currentPoint.X - _panStartPoint.X;
+                    double deltaY = currentPoint.Y - _panStartPoint.Y;
+
+                    ApplyPanOffset(_panOffsetX + deltaX, _panOffsetY + deltaY);
+                    _panStartPoint = currentPoint;
+                    _panOffsetX = GCodePanTransform.X;
+                    _panOffsetY = GCodePanTransform.Y;
+
+                    // Throttled fit check during pan (every 100ms max)
+                    var now = DateTime.Now;
+                    if ((now - _lastFitCheckTime).TotalMilliseconds > 100)
+                    {
+                        _lastFitCheckTime = now;
+                        UpdatePopupLiveFitLabel(_pendingAngle);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void TopViewCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            try
+            {
+                if (_isPanning)
+                {
+                    _isPanning = false;
+                    TopViewInteractionCanvas.ReleaseMouseCapture();
+                    RefreshApplyResetState(); // Update button states after pan
+                    UpdatePopupLiveFitLabel(_pendingAngle); // Final fit check after pan ends
+                }
+            }
+            catch { }
+        }
+
+        private void TopViewCanvas_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            try
+            {
+                // Right-click to reset pan
+                ResetPan();
+                e.Handled = true;
+            }
+            catch { }
+        }
+        private void ApplyPanOffset(double x, double y)
+        {
+            try
+            {
+                // Only pan the GCode canvas, not the overlay (table borders, markers stay fixed)
+                if (GCodePanTransform != null)
+                {
+                    GCodePanTransform.X = x;
+                    GCodePanTransform.Y = y;
+                }
+            }
+            catch { }
+        }
+
+        private void ResetPan()
+        {
+            _panOffsetX = 0;
+            _panOffsetY = 0;
+            _isPanning = false;
+            ApplyPanOffset(0, 0);
+        }
+
+        private void PanResetButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ResetPan();
+                Log("> Pan reset");
+            }
+            catch { }
+        }
+
+        #endregion
 
         private void HandleTopViewTouch(Point canvasPoint)
         {
@@ -448,20 +838,17 @@ namespace CncControlApp.Controls
                         machineX, machineY);
                 }
 
-                // Enable G00 button
-                if (GotoTouchedCoordButton != null)
-                {
-                    GotoTouchedCoordButton.IsEnabled = true;
-                }
-
                 // Show touch point marker on canvas
                 UpdateTouchPointMarker(canvasPoint);
+                
+                // Update all button states (marker, pan, rotation)
+                RefreshApplyResetState();
             }
             catch { }
         }
 
         /// <summary>
-        /// Map canvas point to machine coordinates
+        /// Map canvas point to machine coordinates (accounting for pan and rotation transforms)
         /// </summary>
         private bool TryMapCanvasToMachineCoordinates(Point canvasPoint, out double machineX, out double machineY)
         {
@@ -475,10 +862,29 @@ namespace CncControlApp.Controls
                 double canvasHeight = TopViewCanvas.ActualHeight;
                 if (canvasWidth <= 0 || canvasHeight <= 0) return false;
 
+                // Adjust for pan offset - the GCode canvas has been translated
+                // So we need to reverse that translation on the click point
+                double adjustedX = canvasPoint.X - _panOffsetX;
+                double adjustedY = canvasPoint.Y - _panOffsetY;
+
+                // If there's rotation, we need to reverse it too
+                if (GCodeRotateTransform != null && Math.Abs(GCodeRotateTransform.Angle) > 0.001)
+                {
+                    double angle = -GCodeRotateTransform.Angle * Math.PI / 180.0; // Reverse rotation
+                    double centerX = GCodeRotateTransform.CenterX;
+                    double centerY = GCodeRotateTransform.CenterY;
+
+                    // Translate to origin, rotate, translate back
+                    double dx = adjustedX - centerX;
+                    double dy = adjustedY - centerY;
+                    adjustedX = dx * Math.Cos(angle) - dy * Math.Sin(angle) + centerX;
+                    adjustedY = dx * Math.Sin(angle) + dy * Math.Cos(angle) + centerY;
+                }
+
                 if (!CncControlApp.Helpers.WorkspaceTransform.TryCreateFromSettings(canvasWidth, canvasHeight, out var xf))
                     return false;
 
-                var mm = xf.ToMachine(canvasPoint.X, canvasPoint.Y);
+                var mm = xf.ToMachine(adjustedX, adjustedY);
                 machineX = mm.X;
                 machineY = mm.Y;
 
@@ -518,14 +924,33 @@ namespace CncControlApp.Controls
         }
 
         /// <summary>
-        /// Update live fit status label
+        /// Update live fit status label, including pan offset
         /// </summary>
         private void UpdatePopupLiveFitLabel(double angle)
         {
             try
             {
                 if (FitLiveStatusText == null || _gcodeView == null) return;
-                var (fits, details) = _gcodeView.CheckLiveFitAtAngle(angle);
+
+                // Calculate pan offset in mm
+                double panMmX = 0, panMmY = 0;
+                double panX = GCodePanTransform?.X ?? 0;
+                double panY = GCodePanTransform?.Y ?? 0;
+                
+                if (Math.Abs(panX) > 0.1 || Math.Abs(panY) > 0.1)
+                {
+                    // Convert pan pixels to mm using scale factor
+                    double canvasWidth = TopViewCanvas?.ActualWidth ?? 0;
+                    double canvasHeight = TopViewCanvas?.ActualHeight ?? 0;
+                    if (canvasWidth > 0 && canvasHeight > 0 &&
+                        CncControlApp.Helpers.WorkspaceTransform.TryCreateFromSettings(canvasWidth, canvasHeight, out var xf))
+                    {
+                        panMmX = panX / xf.Scale;
+                        panMmY = -panY / xf.Scale; // Y inverted
+                    }
+                }
+
+                var (fits, details) = _gcodeView.CheckLiveFitAtAngle(angle, panMmX, panMmY);
                 if (fits)
                 {
                     FitLiveStatusText.Text = "✔";
@@ -545,50 +970,76 @@ namespace CncControlApp.Controls
         {
             try
             {
-                // Homing kontrolü kaldırıldı: HOMING yapılmamış olsa da hareket engellenmeyecek
-
-                if (_lastTouchedMachineX.HasValue && _lastTouchedMachineY.HasValue && App.MainController?.IsConnected == true)
-                    if (!_lastTouchedMachineX.HasValue || !_lastTouchedMachineY.HasValue)
-                    {
-                        Log("> ⚠️ No touched point set – ignoring jog request");
-                        return;
-                    }
                 if (App.MainController?.IsConnected != true)
                 {
-                    Log("> ❌ Not connected – cannot jog");
+                    Log("> ❌ Not connected – cannot move");
                     return;
                 }
 
-                // Current status snapshot
+                // Calculate target from pan offset
+                // Pan offset is in pixels - we need to convert to mm
+                double panX = GCodePanTransform?.X ?? 0;
+                double panY = GCodePanTransform?.Y ?? 0;
+                
+                if (Math.Abs(panX) < 0.1 && Math.Abs(panY) < 0.1)
+                {
+                    Log("> ⚠️ No pan offset – nothing to do");
+                    return;
+                }
+
+                // Get canvas dimensions
+                double canvasWidth = TopViewCanvas?.ActualWidth ?? 0;
+                double canvasHeight = TopViewCanvas?.ActualHeight ?? 0;
+                if (canvasWidth <= 0 || canvasHeight <= 0)
+                {
+                    Log("> ⚠️ Invalid canvas size");
+                    return;
+                }
+
+                // Create transform to get the Scale factor (pixels per mm)
+                if (!CncControlApp.Helpers.WorkspaceTransform.TryCreateFromSettings(canvasWidth, canvasHeight, out var xf))
+                {
+                    Log("> ⚠️ Cannot create workspace transform");
+                    return;
+                }
+
+                // Current machine position
                 var mStatus = App.MainController.MStatus;
-                double currentMachineX = mStatus?.X ?? 0; // machine coords
+                double currentMachineX = mStatus?.X ?? 0;
                 double currentMachineY = mStatus?.Y ?? 0;
-                double currentWorkX = mStatus?.WorkX ?? 0; // work coords
-                double currentWorkY = mStatus?.WorkY ?? 0;
                 double currentWorkZ = mStatus?.WorkZ ?? 0;
 
-                // Selected point assumed MACHINE coordinates (produced by WorkspaceTransform.ToMachine)
-                double targetMachineX = _lastTouchedMachineX.Value;
-                double targetMachineY = _lastTouchedMachineY.Value;
+                // Convert pan offset from pixels to mm using the scale factor
+                // Scale = pixels per mm, so mm = pixels / scale
+                // 
+                // IMPORTANT: In TransformGroup, transforms apply in order: first Rotate, then Translate
+                // This means pan (Translate) is applied AFTER rotation, so pan is in SCREEN coordinates
+                // Screen coordinates = Machine coordinates (X right, Y up in machine but Y down in pixels)
+                // So NO rotation of pan offset is needed!
+                //
+                // When we pan RIGHT (panX > 0), GCode moves right on screen
+                // This means the GCode origin is now to the RIGHT of spindle
+                // So spindle needs to move RIGHT (positive X) to reach GCode origin
+                double panMmX = panX / xf.Scale;
+                double panMmY = -panY / xf.Scale;  // Y is inverted on canvas (down = positive pixel, but down = negative mm)
+
+                Log($"> Pending angle: {_pendingAngle:F1}° (pan is in screen coords, no rotation needed)");
+
+                // Target = current position + pan offset in mm
+                double targetMachineX = currentMachineX + panMmX;
+                double targetMachineY = currentMachineY + panMmY;
 
                 // Clamp to table limits (settings $130/$131)
-                double tableMaxX = double.MaxValue;
-                double tableMaxY = double.MaxValue;
-                try
-                {
-                    var xLimit = App.MainController.Settings?.FirstOrDefault(s => s.Id == 130);
-                    var yLimit = App.MainController.Settings?.FirstOrDefault(s => s.Id == 131);
-                    if (xLimit != null && double.TryParse(xLimit.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double limX)) tableMaxX = limX;
-                    if (yLimit != null && double.TryParse(yLimit.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double limY)) tableMaxY = limY;
-                }
-                catch { }
+                double tableMaxX = xf.MaxX;
+                double tableMaxY = xf.MaxY;
 
                 if (targetMachineX < 0) { Log($"> ⚠️ Clamping X {targetMachineX:F3} to 0"); targetMachineX = 0; }
                 if (targetMachineY < 0) { Log($"> ⚠️ Clamping Y {targetMachineY:F3} to 0"); targetMachineY = 0; }
                 if (targetMachineX > tableMaxX) { Log($"> ⚠️ Clamping X {targetMachineX:F3} to {tableMaxX:F3}"); targetMachineX = tableMaxX; }
                 if (targetMachineY > tableMaxY) { Log($"> ⚠️ Clamping Y {targetMachineY:F3} to {tableMaxY:F3}"); targetMachineY = tableMaxY; }
 
-                Log($"> Jog target (machine): X={targetMachineX:F3} Y={targetMachineY:F3} | Current MPos: X={currentMachineX:F3} Y={currentMachineY:F3} | WPos: X={currentWorkX:F3} Y={currentWorkY:F3}");
+                Log($"> Pan offset: pixels({panX:F1}, {panY:F1}) -> mm({panMmX:F3}, {panMmY:F3})");
+                Log($"> Current: X={currentMachineX:F3} Y={currentMachineY:F3} -> Target: X={targetMachineX:F3} Y={targetMachineY:F3}");
 
                 // Ensure absolute mode before issuing rapid (G53 uses machine but we still normalize modal state)
                 bool modalOk = await App.MainController.SendGCodeCommandWithConfirmationAsync("G90");
@@ -616,7 +1067,7 @@ namespace CncControlApp.Controls
                 bool ok = await App.MainController.SendGCodeCommandWithConfirmationAsync(cmd);
                 if (!ok)
                 {
-                    Log("> ❌ Jog command failed – aborting zero prompt");
+                    Log("> ❌ Move command failed – aborting");
                     StopMachinePositionUpdateTimer();
                     return;
                 }
@@ -626,20 +1077,35 @@ namespace CncControlApp.Controls
 
                 StopMachinePositionUpdateTimer();
 
-                // Redraw popup canvas BEFORE asking for Zero confirmation – ensures visual state is final
+                // Reset pan offset after movement (spindle is now at target position)
+                ResetPan();
+                
+                // Redraw popup canvas BEFORE asking for Zero confirmation
                 UiHelper.RunOnUi(() =>
                 {
                     if (TopViewCanvas != null && TopViewOverlayCanvas != null)
                     {
-                        Log("> Redraw after jog and before zero confirm");
+                        // Update rotation center to new spindle position BEFORE redraw
+                        // This ensures the rotated GCode appears correctly around the new origin
+                        if (GCodeRotateTransform != null && Math.Abs(_pendingAngle) > 0.01)
+                        {
+                            var newOrigin = _gcodeView?.GetGCodeOriginCanvasPosition(TopViewCanvas);
+                            if (newOrigin.HasValue)
+                            {
+                                Log($"> Updating rotation center to new spindle pos: ({newOrigin.Value.X:F1}, {newOrigin.Value.Y:F1})");
+                                GCodeRotateTransform.CenterX = newOrigin.Value.X;
+                                GCodeRotateTransform.CenterY = newOrigin.Value.Y;
+                            }
+                        }
+                        
+                        Log("> Redraw after move");
                         _gcodeView?.RedrawPopupTopView(TopViewCanvas, TopViewOverlayCanvas);
                         UpdatePopupLiveFitLabel(_pendingAngle);
-                        RepositionMarkersAfterResize();
                     }
                 }, DispatcherPriority.Send);
 
-                // Decide zero prompt based on toggle field
-                if (_autoZeroEnabled && !_awaitingZeroPrompt)
+                // Always show zero confirmation dialog after movement
+                if (!_awaitingZeroPrompt)
                 {
                     _awaitingZeroPrompt = true;
                     try
@@ -711,21 +1177,22 @@ namespace CncControlApp.Controls
                     }
                 }
 
-                // Final popup redraw (single occurrence – removed duplicates)
+                // Final popup redraw and update button states
                 UiHelper.RunOnUi(() =>
                 {
                     if (TopViewCanvas != null && TopViewOverlayCanvas != null)
                     {
-                        Log("> Final redraw after jog");
+                        Log("> Final redraw after move");
                         _gcodeView?.RedrawPopupTopView(TopViewCanvas, TopViewOverlayCanvas);
                     }
+                    RefreshApplyResetState();
                 });
             }
             catch (Exception ex)
             {
                 StopMachinePositionUpdateTimer();
                 _awaitingZeroPrompt = false; // ensure gate released on unexpected errors
-                Log($"> ❌ ERROR during jog sequence: {ex.Message}");
+                Log($"> ❌ ERROR during move sequence: {ex.Message}");
             }
         }
 
@@ -733,13 +1200,18 @@ namespace CncControlApp.Controls
         {
             try
             {
+                // Get current machine position for display
+                var mStatus = App.MainController?.MStatus;
+                double machineX = mStatus?.X ?? 0;
+                double machineY = mStatus?.Y ?? 0;
+                
                 string message = string.Format(CultureInfo.InvariantCulture,
-                    "Set X and Y to permanent zero at this position?\n\nMachine Position:\n X: {0:F3} mm\n Y: {1:F3} mm\n\nThis will execute: G10 L20 P0 X0 Y0\n(Permanent zero stored in EEPROM)",
-                    _lastTouchedMachineX.GetValueOrDefault(), _lastTouchedMachineY.GetValueOrDefault());
+                    "Bu konumu X ve Y sıfır noktası olarak ayarla?\n\nMakine Pozisyonu:\n X: {0:F3} mm\n Y: {1:F3} mm\n\nÇalıştırılacak komut: G10 L20 P0 X0 Y0\n(Kalıcı sıfır EEPROM'a kaydedilir)",
+                    machineX, machineY);
                 var disp = Application.Current?.Dispatcher;
                 if (disp == null || disp.CheckAccess())
-                    return MessageDialog.ShowConfirm("Set Zero Confirmation", message);
-                return disp.Invoke(new Func<bool>(() => MessageDialog.ShowConfirm("Set Zero Confirmation", message)), DispatcherPriority.Send);
+                    return MessageDialog.ShowConfirm("Sıfırlama Onayı", message);
+                return disp.Invoke(new Func<bool>(() => MessageDialog.ShowConfirm("Sıfırlama Onayı", message)), DispatcherPriority.Send);
             }
             catch (Exception ex)
             {
