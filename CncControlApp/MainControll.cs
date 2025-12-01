@@ -1443,10 +1443,10 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
             try
             {
                 if (_centralStatusQuerier != null) return;
-                _centralStatusQuerier = new CentralStatusQuerier(_connectionManager) { DefaultIntervalMs = 1000 };
+                _centralStatusQuerier = new CentralStatusQuerier(_connectionManager) { DefaultIntervalMs = 300 };
                 _centralStatusQuerier.Start();
                 // Idle: 1000ms
-                try { _centralStatusSubscription = _centralStatusQuerier.SubscribeMinimumInterval(1000); } catch { }
+                try { _centralStatusSubscription = _centralStatusQuerier.SubscribeMinimumInterval(300); } catch { }
                 AddLogMessage("> ✅ CentralStatusQuerier started (idle: 1000ms)");
                 StatusQueryService.RegisterCentralQuerier(_centralStatusQuerier, s => _connectionManager.SendGCodeCommandAsync(s));
             }

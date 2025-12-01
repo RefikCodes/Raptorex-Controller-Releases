@@ -75,6 +75,7 @@ namespace CncControlApp
         private async Task<bool> CenterXOuterSequenceAsync()
         {
             Controls.StreamingPopup streamPopup = null;
+            IDisposable fastStatusScope = null;
             try
             {
                 var mc = App.MainController;
@@ -87,6 +88,10 @@ namespace CncControlApp
 
                 // BEGIN PROBE SESSION for entire X center sequence (locks UI until complete)
                 RunUiLocker.BeginProbeSession();
+                
+                // Enable fast status updates (100ms) for the ENTIRE Center X sequence
+                fastStatusScope = mc?.BeginScopedCentralStatusOverride(100);
+                mc?.AddLogMessage("> ⚡ Fast status query (100ms) enabled for Center X sequence");
 
                 // Capture initial Work X for returning later
                 double startWorkX = mc.MStatus?.WorkX ??0.0;
@@ -200,6 +205,16 @@ namespace CncControlApp
                     bool probeSuccess = false;
                     bool edgeDetected = false;
 
+                    // STOP status query during probe to prevent interference
+                    bool wasQuerierRunning = mc.CentralStatusQuerierEnabled;
+                    if (wasQuerierRunning)
+                    {
+                        mc.StopCentralStatusQuerier();
+                        await Task.Delay(50);
+                    }
+
+                    try
+                    {
                     // Ensure relative mode before probe
                     await mc.SendGCodeCommandWithConfirmationAsync("G91");
 
@@ -208,11 +223,13 @@ namespace CncControlApp
                     streamPopup.Append($"> ▶ Z probe cmd: {zProbeCmd}");
                     await mc.SendGCodeCommandAsync(zProbeCmd);
 
-                    // Monitor WorkZ during probe motion
+                    // Monitor WorkZ during probe motion (manual status polling)
                     var monitorStart = DateTime.Now;
                     bool seenRunning = false; // only accept Idle completion after we've seen a non-idle state
                     while ((DateTime.Now - monitorStart).TotalSeconds <10) //10 second timeout
                     {
+                        // Manual status query since central querier is stopped
+                        await mc.SendGCodeCommandAsync("?");
                         await Task.Delay(50); // Check every50ms
 
                         var machineStatus = mc?.MachineStatus?.ToLowerInvariant() ?? string.Empty;
@@ -297,21 +314,31 @@ namespace CncControlApp
                         streamPopup.Append("> ❌ Probe timeout");
                         break;
                     }
-
-                    // Retract after successful probe - move to absolute Work Z=+10
-                    double currentWZ = mc.MStatus?.WorkZ ?? 0.0;
-                    double retractDelta = 10.0 - currentWZ; // Calculate delta to reach Work Z=+10
-                    if (retractDelta > 0.5) // Only retract if we need to move up significantly
+                    }
+                    finally
                     {
-                        await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                        string retractCmd = retractDelta.ToString("F3", CultureInfo.InvariantCulture);
-                        await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{retractCmd}");
-                        await WaitForIdleAsync(3000, "ProbeRetract");
-                        await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                        // ALWAYS restart status query after probe monitoring
+                        if (wasQuerierRunning)
+                        {
+                            await Task.Delay(50);
+                            mc?.StartCentralStatusQuerier();
+                        }
                     }
 
-                    double finalWorkZ = mc.MStatus?.WorkZ ??0.0;
-                    streamPopup.Append($"> After retract: Work Z={finalWorkZ:F3} (target was +10);");
+                    // Retract after successful probe - relative 5mm up (simple and reliable)
+                    double currentWZ = mc.MStatus?.WorkZ ?? 0.0;
+                    double currentMZ = mc.MStatus?.Z ?? 0.0;
+                    streamPopup.Append($"> Before retract: WorkZ={currentWZ:F3}, MachineZ={currentMZ:F3}");
+                    
+                    // Simple: just go up 5mm relative (G91)
+                    await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                    await mc.SendGCodeCommandWithConfirmationAsync("G00 Z5.000");
+                    await WaitForIdleAsync(3000, "ProbeRetract");
+                    await mc.SendGCodeCommandWithConfirmationAsync("G90");
+
+                    double finalWorkZ = mc.MStatus?.WorkZ ?? 0.0;
+                    double finalMZ = mc.MStatus?.Z ?? 0.0;
+                    streamPopup.Append($"> After retract: WorkZ={finalWorkZ:F3}, MachineZ={finalMZ:F3}");
                     mc?.AddLogMessage($"> Still on surface, continuing...");
                     streamPopup.Append($"> Still on surface, continuing...");
                 }
@@ -364,17 +391,37 @@ namespace CncControlApp
                     return false;
                 }
 
-                // Retract Z to WorkZ = +10mm (move, not set)
+                // Retract Z to WorkZ = +5mm (move, not set) - enough clearance for lateral move - WITH LIMIT CHECK
                 try
                 {
-                    double wzNow = mc.MStatus?.WorkZ ??0.0;
-                    double dz =10.0 - wzNow;
-                    string dzText = dz.ToString("F3", CultureInfo.InvariantCulture);
-                    streamPopup.Append($"> 🔼 Retracting to Work Z=+10 (ΔZ={dzText})...");
-                    await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                    await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText}");
-                    await WaitForIdleAsync(EstimateTimeoutMsForRapid(Math.Abs(dz),1000), "Retract_To_WZ10");
-                    await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                    double wzNow = mc.MStatus?.WorkZ ?? 0.0;
+                    double dz = 5.0 - wzNow;
+                    
+                    if (dz > 0.5)
+                    {
+                        // Check machine limits before retracting
+                        double safeZ = MachineLimitsHelper.GetSafeRetractDistance('Z', 1, dz, mc);
+                        
+                        if (safeZ < dz - 0.1)
+                        {
+                            streamPopup.Append($"> ⚠️ Z retract sınırlandı: {dz:F1}mm → {safeZ:F1}mm (limit yakın)");
+                            dz = safeZ;
+                        }
+                        
+                        if (dz > 0.5)
+                        {
+                            string dzText = dz.ToString("F3", CultureInfo.InvariantCulture);
+                            streamPopup.Append($"> 🔼 Retracting to Work Z=+10 (ΔZ={dzText})...");
+                            await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                            await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText}");
+                            await WaitForIdleAsync(EstimateTimeoutMsForRapid(Math.Abs(dz), 1000), "Retract_To_WZ10");
+                            await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                        }
+                        else
+                        {
+                            streamPopup.Append($"> ⚠️ Z retract atlandı - limit çok yakın");
+                        }
+                    }
                 }
                 catch { }
 
@@ -433,6 +480,18 @@ namespace CncControlApp
                     mc?.AddLogMessage($"> 📍 [Right] Probing Z at position {moveCountRight}...");
                     streamPopup.Append($"> 📍 [Right] Probing Z at position {moveCountRight}...");
 
+                    // STOP status query during probe to prevent interference
+                    bool wasQuerierRunningR = mc.CentralStatusQuerierEnabled;
+                    if (wasQuerierRunningR)
+                    {
+                        mc.StopCentralStatusQuerier();
+                        await Task.Delay(50);
+                    }
+
+                    bool edgeDetectedR = false;
+                    bool probeSuccessR = false;
+                    try
+                    {
                     // Ensure relative mode before probe
                     await mc.SendGCodeCommandWithConfirmationAsync("G91");
 
@@ -442,10 +501,10 @@ namespace CncControlApp
 
                     var monitorStartR = DateTime.Now;
                     bool seenRunningR = false;
-                    bool edgeDetectedR = false;
-                    bool probeSuccessR = false;
                     while ((DateTime.Now - monitorStartR).TotalSeconds <10)
                     {
+                        // Manual status query since central querier is stopped
+                        await mc.SendGCodeCommandAsync("?");
                         await Task.Delay(50);
                         var st = mc?.MachineStatus?.ToLowerInvariant() ?? string.Empty;
                         double wZ = mc.MStatus?.WorkZ ??0.0;
@@ -507,19 +566,28 @@ namespace CncControlApp
                         streamPopup.Append("> ❌ [Right] Probe timeout");
                         break;
                     }
-
-                    // Retract to absolute Work Z=+10 (not relative!)
-                    double currentWZR = mc.MStatus?.WorkZ ?? 0.0;
-                    double retractDeltaR = 10.0 - currentWZR;
-                    if (retractDeltaR > 0.5)
-                    {
-                        await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                        string retractCmdR = retractDeltaR.ToString("F3", CultureInfo.InvariantCulture);
-                        await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{retractCmdR}");
-                        await WaitForIdleAsync(3000, "Right_ProbeRetract");
-                        await mc.SendGCodeCommandWithConfirmationAsync("G90");
                     }
-                    streamPopup.Append($"> After retract: Work Z={(mc.MStatus?.WorkZ ?? 0.0):F3} (target +10)");
+                    finally
+                    {
+                        // ALWAYS restart status query after probe monitoring
+                        if (wasQuerierRunningR)
+                        {
+                            await Task.Delay(50);
+                            mc?.StartCentralStatusQuerier();
+                        }
+                    }
+
+                    // Retract after successful probe - relative 5mm up (simple and reliable)
+                    double currentWZR = mc.MStatus?.WorkZ ?? 0.0;
+                    double currentMZR = mc.MStatus?.Z ?? 0.0;
+                    streamPopup.Append($"> [Right] Before retract: WorkZ={currentWZR:F3}, MachineZ={currentMZR:F3}");
+                    
+                    await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                    await mc.SendGCodeCommandWithConfirmationAsync("G00 Z5.000");
+                    await WaitForIdleAsync(3000, "Right_ProbeRetract");
+                    await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                    
+                    streamPopup.Append($"> [Right] After retract: WorkZ={(mc.MStatus?.WorkZ ?? 0.0):F3}, MachineZ={(mc.MStatus?.Z ?? 0.0):F3}");
                 }
 
                 // Run X- probe and record edgeX2
@@ -543,17 +611,36 @@ namespace CncControlApp
                     streamPopup.Append($"> ❌ X- probe error: {xmEx.Message}");
                 }
 
-                // Retract Z to WorkZ = +10mm before moving to center
+                // Retract Z to WorkZ = +5mm before moving to center - WITH LIMIT CHECK
                 try
                 {
-                    double wzNow2 = mc.MStatus?.WorkZ ??0.0;
-                    double dz2 =10.0 - wzNow2;
-                    string dzText2 = dz2.ToString("F3", CultureInfo.InvariantCulture);
-                    streamPopup.Append($"> 🔼 Retracting to Work Z=+10 (ΔZ={dzText2}) before center move...");
-                    await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                    await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText2}");
-                    await WaitForIdleAsync(EstimateTimeoutMsForRapid(Math.Abs(dz2),1000), "Retract_To_WZ10_Final");
-                    await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                    double wzNow2 = mc.MStatus?.WorkZ ?? 0.0;
+                    double dz2 = 5.0 - wzNow2;
+                    
+                    if (dz2 > 0.5)
+                    {
+                        double safeZ2 = MachineLimitsHelper.GetSafeRetractDistance('Z', 1, dz2, mc);
+                        
+                        if (safeZ2 < dz2 - 0.1)
+                        {
+                            streamPopup.Append($"> ⚠️ Z retract sınırlandı: {dz2:F1}mm → {safeZ2:F1}mm");
+                            dz2 = safeZ2;
+                        }
+                        
+                        if (dz2 > 0.5)
+                        {
+                            string dzText2 = dz2.ToString("F3", CultureInfo.InvariantCulture);
+                            streamPopup.Append($"> 🔼 Retracting to Work Z=+5 (ΔZ={dzText2}) before center move...");
+                            await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                            await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText2}");
+                            await WaitForIdleAsync(EstimateTimeoutMsForRapid(Math.Abs(dz2), 1000), "Retract_To_WZ5_Final");
+                            await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                        }
+                        else
+                        {
+                            streamPopup.Append($"> ⚠️ Z retract atlandı - limit çok yakın");
+                        }
+                    }
                 }
                 catch { }
 
@@ -605,6 +692,9 @@ namespace CncControlApp
             }
             finally
             {
+                // Restore normal status query interval
+                try { fastStatusScope?.Dispose(); } catch { }
+                
                 // END PROBE SESSION - release UI lock
                 RunUiLocker.EndProbeSession();
             }
@@ -614,6 +704,7 @@ namespace CncControlApp
         private async Task<bool> CenterYOuterSequenceAsync()
         {
             Controls.StreamingPopup streamPopup = null;
+            IDisposable fastStatusScope = null;
             try
             {
                 var mc = App.MainController;
@@ -625,6 +716,10 @@ namespace CncControlApp
 
                 // BEGIN PROBE SESSION for entire Y center sequence (locks UI until complete)
                 RunUiLocker.BeginProbeSession();
+                
+                // Enable fast status updates (100ms) for the ENTIRE Center Y sequence
+                fastStatusScope = mc?.BeginScopedCentralStatusOverride(100);
+                mc?.AddLogMessage("> ⚡ Fast status query (100ms) enabled for Center Y sequence");
 
                 // Capture initial Work Y for returning later
                 double startWorkY = mc.MStatus?.WorkY ??0.0;
@@ -711,6 +806,19 @@ namespace CncControlApp
 
                     // Z probe with live monitoring
                     streamPopup.Append($"> 📍 Probing Z at position {moveCount}...");
+                    
+                    // STOP status query during probe to prevent interference
+                    bool wasQuerierRunningY = mc.CentralStatusQuerierEnabled;
+                    if (wasQuerierRunningY)
+                    {
+                        mc.StopCentralStatusQuerier();
+                        await Task.Delay(50);
+                    }
+
+                    bool edgeDetected = false;
+                    bool probeSuccess = false;
+                    try
+                    {
                     await mc.SendGCodeCommandWithConfirmationAsync("G91");
                     string zProbeCmd = string.Format(CultureInfo.InvariantCulture, "G38.2 Z-20 F{0}", zCoarseFeed);
                     streamPopup.Append($"> ▶ Z probe cmd: {zProbeCmd}");
@@ -718,10 +826,10 @@ namespace CncControlApp
 
                     var t0 = DateTime.Now;
                     bool seenRunning = false;
-                    bool edgeDetected = false;
-                    bool probeSuccess = false;
                     while ((DateTime.Now - t0).TotalSeconds <10)
                     {
+                        // Manual status query since central querier is stopped
+                        await mc.SendGCodeCommandAsync("?");
                         await Task.Delay(50);
                         var st = mc?.MachineStatus?.ToLowerInvariant() ?? string.Empty;
                         double wZ = mc.MStatus?.WorkZ ??0.0;
@@ -778,10 +886,20 @@ namespace CncControlApp
                         streamPopup.Append("> ❌ Probe timeout");
                         break;
                     }
+                    }
+                    finally
+                    {
+                        // ALWAYS restart status query after probe monitoring
+                        if (wasQuerierRunningY)
+                        {
+                            await Task.Delay(50);
+                            mc?.StartCentralStatusQuerier();
+                        }
+                    }
 
-                    // Retract to absolute Work Z=+10 (not relative!)
+                    // Retract to absolute Work Z=+5 - simple 5mm up
                     double currentWZY = mc.MStatus?.WorkZ ?? 0.0;
-                    double retractDeltaY = 10.0 - currentWZY;
+                    double retractDeltaY = 5.0 - currentWZY;
                     if (retractDeltaY > 0.5)
                     {
                         await mc.SendGCodeCommandWithConfirmationAsync("G91");
@@ -790,7 +908,7 @@ namespace CncControlApp
                         await WaitForIdleAsync(3000, "ProbeRetract_Y");
                         await mc.SendGCodeCommandWithConfirmationAsync("G90");
                     }
-                    streamPopup.Append($"> After retract: Work Z={(mc.MStatus?.WorkZ ?? 0.0):F3} (target +10)");
+                    streamPopup.Append($"> After retract: Work Z={(mc.MStatus?.WorkZ ?? 0.0):F3} (target +5)");
                 }
 
                 if (!edgeFound && moveCount >= MAX_MOVES)
@@ -839,17 +957,36 @@ namespace CncControlApp
                     return false;
                 }
 
-                // Retract Z to WorkZ = +10 (move, not set)
+                // Retract Z to WorkZ = +5 (move, not set) - enough clearance for lateral move - WITH LIMIT CHECK
                 try
                 {
-                    double wzNow = mc.MStatus?.WorkZ ??0.0;
-                    double dz =10.0 - wzNow;
-                    string dzText = dz.ToString("F3", CultureInfo.InvariantCulture);
-                    streamPopup.Append($"> 🔼 Retracting to Work Z=+10 (ΔZ={dzText})...");
-                    await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                    await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText}");
-                    await WaitForIdleAsync(EstimateTimeoutMsForRapid(Math.Abs(dz),1000), "Retract_To_WZ10");
-                    await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                    double wzNow = mc.MStatus?.WorkZ ?? 0.0;
+                    double dz = 5.0 - wzNow;
+                    
+                    if (dz > 0.5)
+                    {
+                        double safeZ = MachineLimitsHelper.GetSafeRetractDistance('Z', 1, dz, mc);
+                        
+                        if (safeZ < dz - 0.1)
+                        {
+                            streamPopup.Append($"> ⚠️ Z retract sınırlandı: {dz:F1}mm → {safeZ:F1}mm");
+                            dz = safeZ;
+                        }
+                        
+                        if (dz > 0.5)
+                        {
+                            string dzText = dz.ToString("F3", CultureInfo.InvariantCulture);
+                            streamPopup.Append($"> 🔼 Retracting to Work Z=+5 (ΔZ={dzText})...");
+                            await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                            await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText}");
+                            await WaitForIdleAsync(EstimateTimeoutMsForRapid(Math.Abs(dz), 1000), "Retract_To_WZ5");
+                            await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                        }
+                        else
+                        {
+                            streamPopup.Append($"> ⚠️ Z retract atlandı - limit çok yakın");
+                        }
+                    }
                 }
                 catch { }
 
@@ -902,6 +1039,19 @@ namespace CncControlApp
 
                     // Probe Z at this Y
                     streamPopup.Append($"> 📍 [Right] Probing Z at position {moveCountRight}...");
+                    
+                    // STOP status query during probe to prevent interference
+                    bool wasQuerierRunningRY = mc.CentralStatusQuerierEnabled;
+                    if (wasQuerierRunningRY)
+                    {
+                        mc.StopCentralStatusQuerier();
+                        await Task.Delay(50);
+                    }
+
+                    bool edgeDetectedR = false;
+                    bool probeSuccessR = false;
+                    try
+                    {
                     await mc.SendGCodeCommandWithConfirmationAsync("G91");
                     string zProbeCmdR = string.Format(CultureInfo.InvariantCulture, "G38.2 Z-20 F{0}", zCoarseFeed);
                     streamPopup.Append($"> ▶ Z probe cmd: {zProbeCmdR}");
@@ -909,10 +1059,10 @@ namespace CncControlApp
 
                     var tR = DateTime.Now;
                     bool seenRunningR = false;
-                    bool edgeDetectedR = false;
-                    bool probeSuccessR = false;
                     while ((DateTime.Now - tR).TotalSeconds <10)
                     {
+                        // Manual status query since central querier is stopped
+                        await mc.SendGCodeCommandAsync("?");
                         await Task.Delay(50);
                         var st = mc?.MachineStatus?.ToLowerInvariant() ?? string.Empty;
                         double wZ = mc.MStatus?.WorkZ ??0.0;
@@ -970,10 +1120,20 @@ namespace CncControlApp
                         streamPopup.Append("> ❌ [Right] Probe timeout");
                         break;
                     }
+                    }
+                    finally
+                    {
+                        // ALWAYS restart status query after probe monitoring
+                        if (wasQuerierRunningRY)
+                        {
+                            await Task.Delay(50);
+                            mc?.StartCentralStatusQuerier();
+                        }
+                    }
 
-                    // Retract to absolute Work Z=+10 (not relative!)
+                    // Retract - simple 5mm up
                     double currentWZRY = mc.MStatus?.WorkZ ?? 0.0;
-                    double retractDeltaRY = 10.0 - currentWZRY;
+                    double retractDeltaRY = 5.0 - currentWZRY;
                     if (retractDeltaRY > 0.5)
                     {
                         await mc.SendGCodeCommandWithConfirmationAsync("G91");
@@ -982,7 +1142,7 @@ namespace CncControlApp
                         await WaitForIdleAsync(3000, "Right_ProbeRetract_Y");
                         await mc.SendGCodeCommandWithConfirmationAsync("G90");
                     }
-                    streamPopup.Append($"> After retract: Work Z={(mc.MStatus?.WorkZ ?? 0.0):F3} (target +10)");
+                    streamPopup.Append($"> After retract: Work Z={(mc.MStatus?.WorkZ ?? 0.0):F3} (target +5)");
                 }
 
                 // Run Y- probe and record edgeY2
@@ -1023,17 +1183,36 @@ namespace CncControlApp
                     streamPopup.Append($"> ❌ Y- probe error: {ymEx.Message}");
                 }
 
-                // Retract Z to WorkZ = +10mm before moving to center
+                // Retract Z to WorkZ = +5mm before moving to center - WITH LIMIT CHECK
                 try
                 {
-                    double wzNow2 = mc.MStatus?.WorkZ ??0.0;
-                    double dz2 =10.0 - wzNow2;
-                    string dzText2 = dz2.ToString("F3", CultureInfo.InvariantCulture);
-                    streamPopup.Append($"> 🔼 Retracting to Work Z=+10 (ΔZ={dzText2}) before center move...");
-                    await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                    await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText2}");
-                    await WaitForIdleAsync(EstimateTimeoutMsForRapid(Math.Abs(dz2),1000), "Retract_To_WZ10_Final");
-                    await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                    double wzNow2 = mc.MStatus?.WorkZ ?? 0.0;
+                    double dz2 = 5.0 - wzNow2;
+                    
+                    if (dz2 > 0.5)
+                    {
+                        double safeZ2 = MachineLimitsHelper.GetSafeRetractDistance('Z', 1, dz2, mc);
+                        
+                        if (safeZ2 < dz2 - 0.1)
+                        {
+                            streamPopup.Append($"> ⚠️ Z retract sınırlandı: {dz2:F1}mm → {safeZ2:F1}mm");
+                            dz2 = safeZ2;
+                        }
+                        
+                        if (dz2 > 0.5)
+                        {
+                            string dzText2 = dz2.ToString("F3", CultureInfo.InvariantCulture);
+                            streamPopup.Append($"> 🔼 Retracting to Work Z=+5 (ΔZ={dzText2}) before center move...");
+                            await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                            await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText2}");
+                            await WaitForIdleAsync(EstimateTimeoutMsForRapid(Math.Abs(dz2), 1000), "Retract_To_WZ5_Final");
+                            await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                        }
+                        else
+                        {
+                            streamPopup.Append($"> ⚠️ Z retract atlandı - limit çok yakın");
+                        }
+                    }
                 }
                 catch { }
 
@@ -1081,6 +1260,9 @@ namespace CncControlApp
             }
             finally
             {
+                // Restore normal status query interval
+                try { fastStatusScope?.Dispose(); } catch { }
+                
                 // END PROBE SESSION - release UI lock
                 RunUiLocker.EndProbeSession();
             }

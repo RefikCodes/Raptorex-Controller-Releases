@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using CncControlApp.Managers;
+using CncControlApp.Helpers;
 
 namespace CncControlApp.Services
 {
@@ -205,8 +206,8 @@ namespace CncControlApp.Services
                     sessionStartedHere = true;
                 }
 
-                // Enable fast central status updates (200ms) during probing
-                fastScope = _controller?.BeginScopedCentralStatusOverride(200);
+                // Enable fast central status updates (100ms) during probing
+                fastScope = _controller?.BeginScopedCentralStatusOverride(100);
 
                 if (_controller?.IsConnected != true)
                 {
@@ -260,21 +261,36 @@ namespace CncControlApp.Services
 
                 // ===== FINAL RETRACT =====
                 double retractDirection = -direction; // Retract in opposite direction (away from contact)
-                // Use rapid move for final retract to avoid slow feed-limited motion
-                string retractCmd = FormatMoveCommand(axis, retractDirection * finalRetract, rapid: true);
                 
-                _controller?.AddLogMessage($"> 🔼 Final retract (rapid): {finalRetract:F1}mm");
-                if (!await SendCommandAsync(retractCmd))
+                // Apply safe retract calculation using machine limits
+                double safeRetract = MachineLimitsHelper.GetSafeRetractDistance(
+                    axis, 
+                    (int)retractDirection,
+                    finalRetract, 
+                    _controller);
+                
+                if (safeRetract < 0.5)
                 {
-                    await SendCommandAsync("G90");
-                    return ProbeResult.Failed($"{axis} final retract failed");
+                    _controller?.AddLogMessage($"> ⚠️ Final retract atlandı - {axis} limit çok yakın");
                 }
-
-                int retractTimeout = EstimateTimeoutMsForRapid(finalRetract, axisRapid);
-                if (!await WaitForIdleAsync(retractTimeout, $"{axis}Probe_FinalRetract"))
+                else
                 {
-                    await SendCommandAsync("G90");
-                    return ProbeResult.Failed($"{axis} final retract - idle timeout");
+                    // Use rapid move for final retract to avoid slow feed-limited motion
+                    string retractCmd = FormatMoveCommand(axis, retractDirection * safeRetract, rapid: true);
+                    
+                    _controller?.AddLogMessage($"> 🔼 Final retract (rapid): {safeRetract:F1}mm");
+                    if (!await SendCommandAsync(retractCmd))
+                    {
+                        await SendCommandAsync("G90");
+                        return ProbeResult.Failed($"{axis} final retract failed");
+                    }
+
+                    int retractTimeout = EstimateTimeoutMsForRapid(safeRetract, axisRapid);
+                    if (!await WaitForIdleAsync(retractTimeout, $"{axis}Probe_FinalRetract"))
+                    {
+                        await SendCommandAsync("G90");
+                        return ProbeResult.Failed($"{axis} final retract - idle timeout");
+                    }
                 }
 
                 // Switch back to absolute mode (G90)
@@ -310,35 +326,42 @@ namespace CncControlApp.Services
         private async Task<bool> ExecuteCoarseProbeAsync(
             char axis, int direction, double distance, double retract, int feed)
         {
-                // 1. Initial retract BEFORE coarse probe (Z probe style)
-                _controller?.AddLogMessage($"> 🔼 Coarse: {retract:F1}mm initial retract");
-                string initialRetractCmd = FormatMoveCommand(axis, -direction * retract, rapid: true);
-                if (!await SendCommandAsync(initialRetractCmd))
+                // 1. Initial retract BEFORE coarse probe - WITH LIMIT CHECK
+                double safeRetract = MachineLimitsHelper.GetSafeRetractDistance(
+                    axis, 
+                    -direction,  // Retract is opposite to probe direction
+                    retract, 
+                    _controller);
+                
+                if (safeRetract < 0.5)
                 {
-                    _controller?.AddLogMessage("> ❌ Coarse initial retract failed");
-                    return false;
+                    _controller?.AddLogMessage($"> ⚠️ Initial retract atlandı - {axis} limit çok yakın");
+                }
+                else
+                {
+                    _controller?.AddLogMessage($"> 🔼 Coarse: {safeRetract:F1}mm initial retract");
+                    string initialRetractCmd = FormatMoveCommand(axis, -direction * safeRetract, rapid: true);
+                    if (!await SendCommandAsync(initialRetractCmd))
+                    {
+                        _controller?.AddLogMessage("> ❌ Coarse initial retract failed");
+                        return false;
+                    }
+
+                    // 2. Wait for idle after initial retract
+                    if (!await WaitForIdleAsync(15000, $"{axis}Coarse_InitialRetract"))
+                    {
+                        _controller?.AddLogMessage("> ❌ Idle timeout (coarse initial retract)");
+                        return false;
+                    }
                 }
 
-                // 2. Wait for idle after initial retract
-                if (!await WaitForIdleAsync(15000, $"{axis}Coarse_InitialRetract"))
-                {
-                    _controller?.AddLogMessage("> ❌ Idle timeout (coarse initial retract)");
-                    return false;
-                }
-
-                // 3. Coarse probe
+                // 3. Coarse probe - with status query suspension
                 string probeCmd = FormatProbeCommand(axis, direction * distance, feed);
             _controller?.AddLogMessage($"> 🔍 Coarse probe: {probeCmd}");
-            if (!await SendCommandAsync(probeCmd))
+            
+            // Use SendProbeCommandAsync which suspends status query during probe
+            if (!await SendProbeCommandAsync(probeCmd, 45000, $"{axis}Coarse_Probe"))
             {
-                _controller?.AddLogMessage("> ❌ Coarse probe command failed");
-                return false;
-            }
-
-                // 4. Wait for idle (probe completion)
-            if (!await WaitForIdleAsync(45000, $"{axis}Coarse_Probe"))
-            {
-                _controller?.AddLogMessage("> ❌ Idle timeout (coarse probe)");
                 return false;
             }
 
@@ -363,37 +386,44 @@ namespace CncControlApp.Services
             {
                 int stepIndex = i + 1;
 
-                    // A. Retract before fine probe (Z probe style - always retract first)
-                    _controller?.AddLogMessage($"> 🔼 Fine#{stepIndex}: {retract:F1}mm retract");
-                    string retractCmd = FormatMoveCommand(axis, -direction * retract, rapid: true);
-                    if (!await SendCommandAsync(retractCmd))
+                    // A. Retract before fine probe - WITH LIMIT CHECK
+                    double safeRetract = MachineLimitsHelper.GetSafeRetractDistance(
+                        axis, 
+                        -direction,  // Retract is opposite to probe direction
+                        retract, 
+                        _controller);
+                    
+                    if (safeRetract < 0.5)
                     {
-                        _controller?.AddLogMessage($"> ❌ Fine#{stepIndex} retract failed");
-                        return ProbeResult.Failed($"Fine#{stepIndex} retract failed");
+                        _controller?.AddLogMessage($"> ⚠️ Fine#{stepIndex} retract atlandı - {axis} limit çok yakın");
+                    }
+                    else
+                    {
+                        _controller?.AddLogMessage($"> 🔼 Fine#{stepIndex}: {safeRetract:F1}mm retract");
+                        string retractCmd = FormatMoveCommand(axis, -direction * safeRetract, rapid: true);
+                        if (!await SendCommandAsync(retractCmd))
+                        {
+                            _controller?.AddLogMessage($"> ❌ Fine#{stepIndex} retract failed");
+                            return ProbeResult.Failed($"Fine#{stepIndex} retract failed");
+                        }
+
+                        // B. Wait for idle after retract
+                        if (!await WaitForIdleAsync(15000, $"{axis}Fine{stepIndex}_Retract"))
+                        {
+                            _controller?.AddLogMessage($"> ❌ Fine#{stepIndex} retract idle timeout");
+                            return ProbeResult.Failed($"Fine#{stepIndex} retract idle timeout");
+                        }
                     }
 
-                    // B. Wait for idle after retract
-                    if (!await WaitForIdleAsync(15000, $"{axis}Fine{stepIndex}_Retract"))
-                    {
-                        _controller?.AddLogMessage($"> ❌ Fine#{stepIndex} retract idle timeout");
-                        return ProbeResult.Failed($"Fine#{stepIndex} retract idle timeout");
-                    }
-
-                    // C. Fine probe
+                    // C. Fine probe - with status query suspension
                 DateTime fineStartTs = DateTime.UtcNow;
                 string probeCmd = FormatProbeCommand(axis, direction * distance, feed);
                 _controller?.AddLogMessage($"> 🎯 Fine#{stepIndex} probe: {probeCmd}");
-                if (!await SendCommandAsync(probeCmd))
+                
+                // Use SendProbeCommandAsync which suspends status query during probe
+                if (!await SendProbeCommandAsync(probeCmd, 30000, $"{axis}Fine{stepIndex}_Probe"))
                 {
-                    _controller?.AddLogMessage($"> ❌ Fine#{stepIndex} probe command failed");
-                    return ProbeResult.Failed($"Fine#{stepIndex} probe command failed");
-                }
-
-                    // D. Wait for idle (probe completion)
-                if (!await WaitForIdleAsync(30000, $"{axis}Fine{stepIndex}_Probe"))
-                {
-                    _controller?.AddLogMessage($"> ❌ Fine#{stepIndex} probe idle timeout");
-                    return ProbeResult.Failed($"Fine#{stepIndex} probe idle timeout");
+                    return ProbeResult.Failed($"Fine#{stepIndex} probe failed");
                 }
 
                     // E. Wait 400ms before reading (Z probe does this)
@@ -588,46 +618,55 @@ namespace CncControlApp.Services
             var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
             bool seenNonIdle = false;
             int consecutiveIdleCount = 0;
-  const int requiredIdleCount = 2; // Require 2 consecutive Idle readings for stability
+            const int requiredIdleCount = 2; // Require 2 consecutive Idle readings for stability
 
-    while (DateTime.UtcNow < deadline)
- {
-  string state = _controller?.MachineStatus ?? string.Empty;
+            while (DateTime.UtcNow < deadline)
+            {
+                // CRITICAL: Send manual status query since CentralStatusQuerier may be stopped during probes
+                // This ensures we get fresh status even when status query is suspended
+                try
+                {
+                    await _controller?.SendGCodeCommandAsync("?");
+                    await Task.Delay(50); // Wait for response to be processed
+                }
+                catch { /* Ignore query errors */ }
 
-        // Check for Idle state
-        if (state.Equals("Idle", StringComparison.OrdinalIgnoreCase))
- {
-            consecutiveIdleCount++;
-            
-            // For probe commands: accept immediate Idle (contact can be instant)
-            // For other commands: accept Idle after seeing non-Idle OR after 2 consecutive Idles
-        if (context.Contains("Probe") || seenNonIdle || consecutiveIdleCount >= requiredIdleCount)
-         {
-_controller?.AddLogMessage($"> ✅ Idle confirmed in {context} (consecutive: {consecutiveIdleCount})");
-     return true;
+                string state = _controller?.MachineStatus ?? string.Empty;
+
+                // Check for Idle state
+                if (state.Equals("Idle", StringComparison.OrdinalIgnoreCase))
+                {
+                    consecutiveIdleCount++;
+                    
+                    // For probe commands: accept immediate Idle (contact can be instant)
+                    // For other commands: accept Idle after seeing non-Idle OR after 2 consecutive Idles
+                    if (context.Contains("Probe") || seenNonIdle || consecutiveIdleCount >= requiredIdleCount)
+                    {
+                        _controller?.AddLogMessage($"> ✅ Idle confirmed in {context} (consecutive: {consecutiveIdleCount})");
+                        return true;
+                    }
+                }
+                else
+                {
+                    consecutiveIdleCount = 0; // Reset count if not Idle
+                    
+                    if (state.StartsWith("Run", StringComparison.OrdinalIgnoreCase) ||
+                        state.StartsWith("Jog", StringComparison.OrdinalIgnoreCase))
+                    {
+                        seenNonIdle = true;
+                    }
+                    else if (state.StartsWith("Alarm", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _controller?.AddLogMessage($"> ⚠️ ALARM detected during {context}");
+                        return false;
+                    }
+                }
+
+                await Task.Delay(100); // Poll every 100ms (50ms query + 50ms wait = 100ms total)
             }
-        }
-  else
-        {
-            consecutiveIdleCount = 0; // Reset count if not Idle
-            
-            if (state.StartsWith("Run", StringComparison.OrdinalIgnoreCase) ||
-       state.StartsWith("Jog", StringComparison.OrdinalIgnoreCase))
-        {
-       seenNonIdle = true;
-            }
-            else if (state.StartsWith("Alarm", StringComparison.OrdinalIgnoreCase))
-          {
-  _controller?.AddLogMessage($"> ⚠️ ALARM detected during {context}");
-    return false;
-        }
-        }
 
-   await Task.Delay(50);
- }
-
-    _controller?.AddLogMessage($"> ⚠️ Idle timeout in {context} (last state: {_controller?.MachineStatus})");
-    return false;
+            _controller?.AddLogMessage($"> ⚠️ Idle timeout in {context} (last state: {_controller?.MachineStatus})");
+            return false;
         }
 
         private int EstimateTimeoutMsForRapid(double distanceMm, double rapidMmMin, int minMs = 5000)
@@ -652,6 +691,52 @@ _controller?.AddLogMessage($"> ✅ Idle confirmed in {context} (consecutive: {co
         {
             if (_controller == null) return false;
             return await _controller.SendGCodeCommandWithConfirmationAsync(command);
+        }
+
+        /// <summary>
+        /// Send probe command with status query suspension to prevent interference.
+        /// Status query is stopped before probe, then restarted after idle is reached.
+        /// </summary>
+        private async Task<bool> SendProbeCommandAsync(string probeCmd, int timeoutMs, string context)
+        {
+            if (_controller == null) return false;
+
+            bool wasQuerierRunning = _controller.CentralStatusQuerierEnabled;
+            
+            try
+            {
+                // STOP status query before probe to prevent interference
+                if (wasQuerierRunning)
+                {
+                    _controller.StopCentralStatusQuerier();
+                    await Task.Delay(50); // Let pending queries finish
+                }
+
+                // Send probe command
+                if (!await _controller.SendGCodeCommandWithConfirmationAsync(probeCmd))
+                {
+                    _controller?.AddLogMessage($"> ❌ {context}: Probe command failed to send");
+                    return false;
+                }
+
+                // Wait for idle (probe completion)
+                if (!await WaitForIdleAsync(timeoutMs, context))
+                {
+                    _controller?.AddLogMessage($"> ❌ {context}: Idle timeout");
+                    return false;
+                }
+
+                return true;
+            }
+            finally
+            {
+                // ALWAYS restart status query (even on failure)
+                if (wasQuerierRunning)
+                {
+                    await Task.Delay(50);
+                    _controller?.StartCentralStatusQuerier();
+                }
+            }
         }
 
         #endregion

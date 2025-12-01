@@ -49,8 +49,8 @@ namespace CncControlApp
  App.MainController?.AddLogMessage("> 🔧 Z Probe başlatılıyor (YENİ SEKANS)...");
  streamPopup?.Append("🔧 Z Probe başlatılıyor...");
  
- // Probe süresince merkezi sorgu frekansını200ms yap
- fastScope = App.MainController?.BeginScopedCentralStatusOverride(200);
+ // Probe süresince merkezi sorgu frekansını100ms yap
+ fastScope = App.MainController?.BeginScopedCentralStatusOverride(100);
 
    if (App.MainController?.IsConnected != true)
     {
@@ -595,7 +595,7 @@ int dir = directionSign >= 0 ? 1 : -1;
                 App.MainController?.AddLogMessage($"> 🔧 {axisName}{dirName} Probe (Unified ProbeManager)");
                 stream?.Append($"> 🔧 {axisName}{dirName} Probe starting...");
 
-                fastScope = App.MainController?.BeginScopedCentralStatusOverride(200);
+                fastScope = App.MainController?.BeginScopedCentralStatusOverride(100);
 
                 if (App.MainController?.IsConnected != true)
                 {

@@ -56,6 +56,9 @@ namespace CncControlApp.Managers
         private double _currentModalSpindle;
         private double _currentExecutionZ; // Live Z level during execution
         
+        // Status query scope for GCode run (200ms while running)
+        private IDisposable _gcodeRunScope;
+        
         // Modal value tracking regex patterns
         private static readonly Regex FeedRatePattern = new Regex(@"F(\d+\.?\d*)", RegexOptions.Compiled);
         private static readonly Regex SpindleSpeedPattern = new Regex(@"S(\d+\.?\d*)", RegexOptions.Compiled);
@@ -119,9 +122,15 @@ namespace CncControlApp.Managers
                     
                     // Start/stop the live elapsed timer based on running state
                     if (_isGCodeRunning)
+                    {
                         _liveElapsedTimer?.Start();
+                    }
                     else
+                    {
                         _liveElapsedTimer?.Stop();
+                        // ✅ Dispose status query scope when execution ends (200ms → 300ms)
+                        try { _gcodeRunScope?.Dispose(); _gcodeRunScope = null; } catch { }
+                    }
                 }
             }
         }
@@ -480,8 +489,8 @@ CurrentlyExecutingLineIndex = -1;
        ErrorLogger.LogDebug($"GCode çalışma başladı - satır sayısı: {GCodeLines?.Count ?? 0}");
       
        // ✅ GCode çalışırken status query interval'ını 200ms'ye ayarla
-       IDisposable gcodeRunScope = null;
-       try { gcodeRunScope = App.MainController?.BeginScopedCentralStatusOverride(200); } catch { }
+       // Scope field olarak tutulur, IsGCodeRunning=false olduğunda dispose edilir
+       try { _gcodeRunScope?.Dispose(); _gcodeRunScope = App.MainController?.BeginScopedCentralStatusOverride(200); } catch { }
        
  _internalStreaming = true; _executionCts?.Dispose(); _executionCts = new CancellationTokenSource();
       
@@ -490,8 +499,8 @@ CurrentlyExecutingLineIndex = -1;
     bool streamedOk = await ExecuteOpenBuildsStreamingAsync(_executionCts.Token);
  _internalStreaming = false;
       
-       // ✅ GCode bitince scope'u dispose et (300ms'ye döner)
-       try { gcodeRunScope?.Dispose(); } catch { }
+       // NOT: Scope burada dispose edilMEZ! Makine hala çalışıyor olabilir.
+       // Scope, IsGCodeRunning=false olduğunda (setter'da) dispose edilir.
       
       if (!streamedOk) 
       { 

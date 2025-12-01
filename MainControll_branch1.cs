@@ -375,7 +375,7 @@ namespace CncControlApp
             _connectionManager.LoadingStatusChanged += OnLoadingStatusChanged;
             _connectionManager.SettingsCountChanged += OnSettingsCountChanged;
 
-            _statusAndProcessTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            _statusAndProcessTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
             _statusAndProcessTimer.Tick += StatusAndProcessTimer_Tick;
 
             MStatus.PropertyChanged += (s, e) =>
@@ -772,10 +772,10 @@ namespace CncControlApp
                     }
                     else
                     {
-                        // NORMAL QUERY: JOG değilse timer 500ms'ye geri dön (idle)
-                        if (_statusAndProcessTimer.Interval.TotalMilliseconds != 500)
+                        // NORMAL QUERY: JOG değilse timer 300ms'ye geri dön (idle)
+                        if (_statusAndProcessTimer.Interval.TotalMilliseconds != 300)
                         {
-                            _statusAndProcessTimer.Interval = TimeSpan.FromMilliseconds(500);
+                            _statusAndProcessTimer.Interval = TimeSpan.FromMilliseconds(300);
                         }
 
                         // Do not send periodic status queries when status queries are blocked by probe operations
@@ -1149,9 +1149,9 @@ namespace CncControlApp
             try
             {
                 if (_centralStatusQuerier != null) return;
-                _centralStatusQuerier = new CentralStatusQuerier(_connectionManager) { DefaultIntervalMs = 1000 };
+                _centralStatusQuerier = new CentralStatusQuerier(_connectionManager) { DefaultIntervalMs = 300 };
                 _centralStatusQuerier.Start();
-                try { _centralStatusSubscription = _centralStatusQuerier.SubscribeMinimumInterval(1000); } catch { }
+                try { _centralStatusSubscription = _centralStatusQuerier.SubscribeMinimumInterval(300); } catch { }
                 AddLogMessage("> ✅ CentralStatusQuerier started (idle: 1000ms)");
                 StatusQueryService.RegisterCentralQuerier(_centralStatusQuerier, s => _connectionManager.SendGCodeCommandAsync(s));
             }
