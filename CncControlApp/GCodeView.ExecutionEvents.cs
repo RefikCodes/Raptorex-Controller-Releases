@@ -206,9 +206,15 @@ _updateScheduled = false;
         {
  try
 {
+ ErrorLogger.LogDebug("OnStopSequenceCompleted BAŞLADI");
  Application.Current.Dispatcher.BeginInvoke(new Action(() =>
  {
+ ErrorLogger.LogDebug("OnStopSequenceCompleted - Dispatcher içinde");
+ // ✅ Önce satır durumlarını sıfırla
+ ErrorLogger.LogDebug("ResetAllLineStatus çağrılıyor...");
  ResetAllLineStatus();
+ ErrorLogger.LogDebug("ResetAllLineStatus tamamlandı");
+ 
  var mgr = App.MainController?.GCodeManager;
  mgr?.ResetExecutionState();
  if (ProgressTextBlock != null) ProgressTextBlock.Text = "0.0%";
@@ -222,9 +228,10 @@ _updateScheduled = false;
  UpdateOverridesFromExecutionManager();
  StopExecutionModalUpdates();
  ClearLiveTrace();
+ ErrorLogger.LogDebug("OnStopSequenceCompleted TAMAMLANDI");
  }), DispatcherPriority.Background);
  }
-catch { }
+catch (Exception ex) { ErrorLogger.LogError("OnStopSequenceCompleted HATA", ex); }
         }
    
         private void OnManagerLineCompleted(object sender, int lineIndex)
@@ -439,11 +446,22 @@ Application.Current.Dispatcher.BeginInvoke(new Action(() =>
        try
       {
       if (DisplayGCodeLines == null || App.MainController == null) return;
+      
+      // ✅ Stop/Idle durumunda satır güncellemesi yapma - negatif görüntü sorununu önle
+      if (!App.MainController.IsGCodeRunning) 
+      {
+          ErrorLogger.LogDebug("UpdateCurrentLineInDisplayCollection - IsGCodeRunning=false, güncelleme atlandı");
+          return;
+      }
+      
             var manager = App.MainController.GCodeManager;
     if (manager == null) return;
 
  int executingIndex = manager.CurrentlyExecutingLineIndex;
       int lastOk = manager.LastCompletedLineIndex;
+      
+      // ✅ Geçersiz index değerleri varsa güncelleme yapma
+      if (executingIndex < 0 && lastOk < 0) return;
 
       for (int i = 0; i < DisplayGCodeLines.Count; i++)
          {

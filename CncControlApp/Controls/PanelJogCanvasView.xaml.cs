@@ -240,6 +240,9 @@ if (settings != null && settings.Count > 10) // Wait for substantial number of s
    
    // ✅ FIX: Always redraw position indicator after canvas refresh
    UpdateCurrentPositionIndicator();
+   
+   // ✅ Z Mapping grid overlay (if active)
+   DrawZMappingGridOverlay();
 }
 
         private void DrawWorkspace(double canvasWidth, double canvasHeight)
@@ -704,5 +707,178 @@ if (lx + 100 > w) lx = cx - 110;
             }
             catch { }
         }
+
+        #region Z Mapping Grid Overlay
+        
+        private bool _zMappingGridVisible = false;
+        private int _zMappingRows = 0;
+        private int _zMappingColumns = 0;
+        private double _zMappingMinX, _zMappingMaxX, _zMappingMinY, _zMappingMaxY;
+
+        /// <summary>
+        /// Z Mapping grid overlay çizer - GCode bounding box etrafına çerçeve ve grid
+        /// </summary>
+        public void DrawZMappingGrid(double minX, double maxX, double minY, double maxY, int rows, int columns)
+        {
+            _zMappingGridVisible = true;
+            _zMappingRows = rows;
+            _zMappingColumns = columns;
+            _zMappingMinX = minX;
+            _zMappingMaxX = maxX;
+            _zMappingMinY = minY;
+            _zMappingMaxY = maxY;
+
+            // Yeniden çiz (mevcut workspace + grid overlay)
+            Redraw();
+        }
+
+        /// <summary>
+        /// Z Mapping grid overlay'i temizle
+        /// </summary>
+        public void ClearZMappingGrid()
+        {
+            _zMappingGridVisible = false;
+            Redraw();
+        }
+
+        /// <summary>
+        /// Z Mapping grid overlay'i çizer (Redraw içinden çağrılır)
+        /// GCode çizimi ile aynı koordinat sistemini kullanır
+        /// </summary>
+        private void DrawZMappingGridOverlay()
+        {
+            if (!_zMappingGridVisible || _zMappingRows < 2 || _zMappingColumns < 2) return;
+
+            try
+            {
+                double canvasWidth = GridLinesCanvas.ActualWidth;
+                double canvasHeight = GridLinesCanvas.ActualHeight;
+                if (canvasWidth <= 0 || canvasHeight <= 0) return;
+
+                // GCode çizimi ile aynı WorkspaceTransform kullan
+                if (!CncControlApp.Helpers.WorkspaceTransform.TryCreateFromSettings(canvasWidth, canvasHeight, out var xf))
+                {
+                    return; // no settings, can't draw
+                }
+
+                // Makine pozisyonu (GCode origin'i buraya çizilir)
+                double currentMachineX = 0;
+                double currentMachineY = 0;
+                if (App.MainController?.MStatus != null)
+                {
+                    currentMachineX = App.MainController.MStatus.X;
+                    currentMachineY = App.MainController.MStatus.Y;
+                }
+
+                // Makine pozisyonunun canvas koordinatı
+                var machineCanvasPt = xf.ToCanvas(currentMachineX, currentMachineY);
+                double machineCanvasX = machineCanvasPt.X;
+                double machineCanvasY = machineCanvasPt.Y;
+
+                // GCode bounds -> canvas coordinates (GCode origin = makine pozisyonu)
+                // GCode koordinatları makine pozisyonuna göre offset edilir
+                double left = machineCanvasX + _zMappingMinX * xf.Scale;
+                double right = machineCanvasX + _zMappingMaxX * xf.Scale;
+                double top = machineCanvasY - _zMappingMaxY * xf.Scale;    // Y flipped
+                double bottom = machineCanvasY - _zMappingMinY * xf.Scale; // Y flipped
+
+                double gridWidth = right - left;
+                double gridHeight = bottom - top;
+
+                if (gridWidth <= 0 || gridHeight <= 0) return;
+
+                // Bounding box çerçevesi (mavi kesikli çizgi)
+                var boundingRect = new Rectangle
+                {
+                    Width = gridWidth,
+                    Height = gridHeight,
+                    Stroke = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                    StrokeThickness = 2,
+                    StrokeDashArray = new DoubleCollection { 5, 3 },
+                    Fill = new SolidColorBrush(Color.FromArgb(30, 33, 150, 243))
+                };
+                Canvas.SetLeft(boundingRect, left);
+                Canvas.SetTop(boundingRect, top);
+                GridLinesCanvas.Children.Add(boundingRect);
+
+                // Grid çizgileri
+                double cellWidth = gridWidth / (_zMappingColumns - 1);
+                double cellHeight = gridHeight / (_zMappingRows - 1);
+
+                // Yatay grid çizgileri
+                for (int r = 0; r < _zMappingRows; r++)
+                {
+                    double y = top + r * cellHeight;
+                    var line = new Line
+                    {
+                        X1 = left,
+                        Y1 = y,
+                        X2 = right,
+                        Y2 = y,
+                        Stroke = new SolidColorBrush(Color.FromArgb(100, 255, 193, 7)),
+                        StrokeThickness = 1
+                    };
+                    GridLinesCanvas.Children.Add(line);
+                }
+
+                // Dikey grid çizgileri
+                for (int c = 0; c < _zMappingColumns; c++)
+                {
+                    double x = left + c * cellWidth;
+                    var line = new Line
+                    {
+                        X1 = x,
+                        Y1 = top,
+                        X2 = x,
+                        Y2 = bottom,
+                        Stroke = new SolidColorBrush(Color.FromArgb(100, 255, 193, 7)),
+                        StrokeThickness = 1
+                    };
+                    GridLinesCanvas.Children.Add(line);
+                }
+
+                // Probe noktaları (kesişim noktalarında)
+                for (int r = 0; r < _zMappingRows; r++)
+                {
+                    for (int c = 0; c < _zMappingColumns; c++)
+                    {
+                        double x = left + c * cellWidth;
+                        double y = top + r * cellHeight;
+
+                        var dot = new Ellipse
+                        {
+                            Width = 8,
+                            Height = 8,
+                            Fill = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                            Stroke = new SolidColorBrush(Colors.White),
+                            StrokeThickness = 1
+                        };
+                        Canvas.SetLeft(dot, x - 4);
+                        Canvas.SetTop(dot, y - 4);
+                        GridLinesCanvas.Children.Add(dot);
+                    }
+                }
+
+                // Grid bilgisi label
+                var label = new TextBlock
+                {
+                    Text = $"🗺️ Z Map: {_zMappingRows}x{_zMappingColumns} ({_zMappingRows * _zMappingColumns} nokta)",
+                    Foreground = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Background = new SolidColorBrush(Color.FromArgb(200, 30, 30, 30)),
+                    Padding = new Thickness(4, 2, 4, 2)
+                };
+                Canvas.SetLeft(label, left);
+                Canvas.SetTop(label, top - 20);
+                GridLinesCanvas.Children.Add(label);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"DrawZMappingGridOverlay error: {ex.Message}");
+            }
+        }
+
+        #endregion
     }
 }

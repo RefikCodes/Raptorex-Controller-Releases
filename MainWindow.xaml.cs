@@ -133,6 +133,29 @@ namespace CncControlApp
             panel.CenterYOuterClicked += Panel_CenterYOuterClicked;
             panel.CenterXYOuterClicked += Panel_CenterXYOuterClicked;
             panel.ZMappingRequested += Panel_ZMappingRequested;
+            
+            // Subscribe to MainController PropertyChanged for IsGCodeLoaded updates
+            if (App.MainController != null)
+            {
+                App.MainController.PropertyChanged += MainController_PropertyChanged;
+                // Initialize with current value
+                panel.IsGCodeLoaded = App.MainController.IsGCodeLoaded;
+            }
+        }
+        
+        private void MainController_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainControll.IsGCodeLoaded))
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    var panel = MainProbePanel as ProbePanelView;
+                    if (panel != null)
+                    {
+                        panel.IsGCodeLoaded = App.MainController?.IsGCodeLoaded ?? false;
+                    }
+                });
+            }
         }
 
         /// <summary>
@@ -144,8 +167,8 @@ namespace CncControlApp
         }
 
         /// <summary>
-        /// Z Mapping grid'i MainWindow canvas üzerine çizer
-        /// Local koordinat sıfır noktasından başlayarak belirtilen satır/sütun sayısına göre grid oluşturur
+        /// Z Mapping grid'i GCodeView canvas üzerine çizer
+        /// GCode şeklinin bounding box'ı etrafına çerçeve ve grid çizer
         /// </summary>
         private void DrawZMappingGrid(int rows, int columns)
         {
@@ -153,20 +176,36 @@ namespace CncControlApp
             _zMappingColumns = columns;
             _zMappingGridVisible = true;
 
+            // GCode bounds'u al
+            var bounds = _gcodeView?.GetCurrentGCodeBounds();
+            if (bounds == null)
+            {
+                Controls.MessageDialog.ShowError("Z Mapping Hatası", "GCode yüklü değil veya bounds hesaplanamadı.");
+                return;
+            }
+
+            var (minX, maxX, minY, maxY) = bounds.Value;
+            double width = maxX - minX;
+            double height = maxY - minY;
+
             App.MainController?.AddLogMessage($"> 🗺️ Z Mapping Grid: {rows} satır x {columns} sütun");
-            
-            // TODO: Canvas üzerine grid çizimi yapılacak
-            // Local koordinat sıfır noktasından başlayarak:
-            // - X ekseni boyunca 'columns' adet nokta
-            // - Y ekseni boyunca 'rows' adet nokta
-            // Her nokta bir probe noktasını temsil eder
-            
+            App.MainController?.AddLogMessage($">    Bounds: X[{minX:F2} - {maxX:F2}] Y[{minY:F2} - {maxY:F2}]");
+            App.MainController?.AddLogMessage($">    Boyut: {width:F2} x {height:F2} mm");
+
+            // MainPanelJogCanvas'a grid overlay çizdir
+            MainPanelJogCanvas?.DrawZMappingGrid(minX, maxX, minY, maxY, rows, columns);
+
+            // ProbePanelView'daki DataGrid'e noktaları yükle
+            var panel = MainProbePanel as ProbePanelView;
+            panel?.PopulateZMappingPoints(minX, maxX, minY, maxY, rows, columns);
+
             Controls.MessageDialog.ShowInfo("Z Mapping Grid", 
                 $"Grid oluşturuldu:\n\n" +
                 $"Satır (Y): {rows}\n" +
                 $"Sütun (X): {columns}\n" +
                 $"Toplam nokta: {rows * columns}\n\n" +
-                $"Local koordinat sıfırdan başlanacak.");
+                $"Boyut: {width:F1} x {height:F1} mm\n" +
+                $"Alan: X[{minX:F1} - {maxX:F1}] Y[{minY:F1} - {maxY:F1}]");
         }
 
         // Canvas elements removed from probe panel
@@ -210,8 +249,8 @@ namespace CncControlApp
                     MainProbePanel.Visibility = Visibility.Visible;
                     _probePanelVisible = true;
 
-                    // Show probe history panel and resize canvas
-                    ShowProbeHistoryPanel();
+                    // ✅ Probe history panel kaldırıldı - artık gösterilmiyor
+                    // ShowProbeHistoryPanel();
 
                     // Canvas removed - no initialization needed
                     // Dispatcher.BeginInvoke(new Action(InitializeProbePanel),

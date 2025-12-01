@@ -284,12 +284,17 @@ namespace CncControlApp
             try
             {
                 if (DisplayGCodeLines == null) return;
-                Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                ErrorLogger.LogDebug($"ResetAllLineStatus - {DisplayGCodeLines.Count} satır sıfırlanacak");
+                int count = 0;
+                // Sync reset - already in dispatcher context from OnStopSequenceCompleted
+                foreach (var item in DisplayGCodeLines) 
                 {
-                    foreach (var item in DisplayGCodeLines) item.ResetStatus();
-                }), DispatcherPriority.Background);
+                    item.ResetStatus();
+                    count++;
+                }
+                ErrorLogger.LogDebug($"ResetAllLineStatus - {count} satır sıfırlandı");
             }
-            catch { }
+            catch (Exception ex) { ErrorLogger.LogError("ResetAllLineStatus HATA", ex); }
         }
     }
 }

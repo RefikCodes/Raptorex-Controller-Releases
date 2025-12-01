@@ -375,7 +375,7 @@ namespace CncControlApp
             _connectionManager.LoadingStatusChanged += OnLoadingStatusChanged;
             _connectionManager.SettingsCountChanged += OnSettingsCountChanged;
 
-            _statusAndProcessTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+            _statusAndProcessTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _statusAndProcessTimer.Tick += StatusAndProcessTimer_Tick;
 
             MStatus.PropertyChanged += (s, e) =>
@@ -763,19 +763,19 @@ namespace CncControlApp
                     bool moving = MachineStatus.Contains("Run") || MachineStatus.Contains("Jog");
                     _joggingController.UpdateMachineState(MachineStatus, moving);
 
-                    // ✅ HIZLI QUERY: JOG sırasında timer'ı 25ms'ye ayarla
+                    // ✅ HIZLI QUERY: JOG sırasında timer'ı 100ms'ye ayarla
                     if (_joggingController.IsJogging)
                     {
-                        _statusAndProcessTimer.Interval = TimeSpan.FromMilliseconds(25);
+                        _statusAndProcessTimer.Interval = TimeSpan.FromMilliseconds(100);
                         // Her tick query gönder
-                        _ = QueryStatusOnce(200);
+                        _ = QueryStatusOnce(100);
                     }
                     else
                     {
-                        // NORMAL QUERY: JOG değilse timer 50ms'ye geri dön
-                        if (_statusAndProcessTimer.Interval.TotalMilliseconds != 50)
+                        // NORMAL QUERY: JOG değilse timer 500ms'ye geri dön (idle)
+                        if (_statusAndProcessTimer.Interval.TotalMilliseconds != 500)
                         {
-                            _statusAndProcessTimer.Interval = TimeSpan.FromMilliseconds(50);
+                            _statusAndProcessTimer.Interval = TimeSpan.FromMilliseconds(500);
                         }
 
                         // Do not send periodic status queries when status queries are blocked by probe operations
@@ -1149,10 +1149,10 @@ namespace CncControlApp
             try
             {
                 if (_centralStatusQuerier != null) return;
-                _centralStatusQuerier = new CentralStatusQuerier(_connectionManager) { DefaultIntervalMs =200 };
+                _centralStatusQuerier = new CentralStatusQuerier(_connectionManager) { DefaultIntervalMs = 1000 };
                 _centralStatusQuerier.Start();
-                try { _centralStatusSubscription = _centralStatusQuerier.SubscribeMinimumInterval(150); } catch { }
-                AddLogMessage("> ✅ CentralStatusQuerier started");
+                try { _centralStatusSubscription = _centralStatusQuerier.SubscribeMinimumInterval(1000); } catch { }
+                AddLogMessage("> ✅ CentralStatusQuerier started (idle: 1000ms)");
                 StatusQueryService.RegisterCentralQuerier(_centralStatusQuerier, s => _connectionManager.SendGCodeCommandAsync(s));
             }
             catch (Exception ex) { AddLogMessage($"> ❌ StartCentralStatusQuerier error: {ex.Message}"); }

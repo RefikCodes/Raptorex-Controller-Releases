@@ -479,12 +479,19 @@ CurrentlyExecutingLineIndex = -1;
        if (!IsGCodeRunning) { IsGCodeRunning = true; if ((GetMachineStatusSafe() ?? string.Empty).StartsWith("Idle", StringComparison.OrdinalIgnoreCase)) { SetMachineStatusSafe("Run"); } }
        ErrorLogger.LogDebug($"GCode çalışma başladı - satır sayısı: {GCodeLines?.Count ?? 0}");
       
+       // ✅ GCode çalışırken status query interval'ını 200ms'ye ayarla
+       IDisposable gcodeRunScope = null;
+       try { gcodeRunScope = App.MainController?.BeginScopedCentralStatusOverride(200); } catch { }
+       
  _internalStreaming = true; _executionCts?.Dispose(); _executionCts = new CancellationTokenSource();
       
 
       // ✅ Execute commands - this queues all commands into buffer and returns when queue is empty
     bool streamedOk = await ExecuteOpenBuildsStreamingAsync(_executionCts.Token);
  _internalStreaming = false;
+      
+       // ✅ GCode bitince scope'u dispose et (300ms'ye döner)
+       try { gcodeRunScope?.Dispose(); } catch { }
       
       if (!streamedOk) 
       { 

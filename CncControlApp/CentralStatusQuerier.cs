@@ -17,10 +17,10 @@ namespace CncControlApp
  {
  private readonly ConnectionManager _connectionManager;
  private Timer _timer;
- public int DefaultIntervalMs { get; set; } =200;
+ public int DefaultIntervalMs { get; set; } = 1000; // Idle interval
  private readonly ConcurrentDictionary<Guid, int> _subscribers = new ConcurrentDictionary<Guid, int>();
  private readonly object _timerLock = new object();
- private const int SAFETY_MIN_INTERVAL_MS =25; // do not go faster than this
+ private const int SAFETY_MIN_INTERVAL_MS = 25; // do not go faster than this
 
  public CentralStatusQuerier(ConnectionManager connectionManager)
  {

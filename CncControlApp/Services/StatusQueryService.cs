@@ -65,19 +65,10 @@ namespace CncControlApp.Services
 
  if (central != null)
  {
- int r = Math.Max(25, req);
- IDisposable sub = null;
- try
- {
- sub = central.SubscribeMinimumInterval(r);
- }
- catch
- {
+ // CentralStatusQuerier aktifse, onun timer'ına güveniyoruz
+ // Geçici subscription ekleme - bu timer'ı hızlandırıyor
+ // Sadece manuel sorgu gerekliyse direkt gönder
  if (send != null) return await send("?");
- return false;
- }
- int disposeMs = Math.Max(150, r *2);
- _ = Task.Run(async () => { try { await Task.Delay(disposeMs); } catch { } try { sub.Dispose(); } catch { } });
  return true;
  }
 

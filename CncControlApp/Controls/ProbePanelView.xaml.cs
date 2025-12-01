@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -21,8 +22,60 @@ namespace CncControlApp.Controls
         }
     }
 
+    /// <summary>
+    /// Z Mapping nokta verisi modeli
+    /// </summary>
+    public class ZMappingPoint
+    {
+        public int PointNumber { get; set; }
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Z { get; set; }
+        public double ZDifference { get; set; }
+        public bool IsProbed { get; set; }
+    }
+
     public partial class ProbePanelView : UserControl
     {
+        /// <summary>
+        /// Z Mapping noktaları koleksiyonu
+        /// </summary>
+        public ObservableCollection<ZMappingPoint> ZMappingPoints { get; } = new ObservableCollection<ZMappingPoint>();
+        /// <summary>
+        /// Dependency property for GCode loaded state - controls Haritalama button enabled state
+        /// </summary>
+        public static readonly DependencyProperty IsGCodeLoadedProperty =
+            DependencyProperty.Register("IsGCodeLoaded", typeof(bool), typeof(ProbePanelView),
+                new PropertyMetadata(false, OnIsGCodeLoadedChanged));
+
+        public bool IsGCodeLoaded
+        {
+            get => (bool)GetValue(IsGCodeLoadedProperty);
+            set => SetValue(IsGCodeLoadedProperty, value);
+        }
+
+        private static void OnIsGCodeLoadedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is ProbePanelView panel)
+            {
+                panel.UpdateHaritalamaState();
+            }
+        }
+
+        private void UpdateHaritalamaState()
+        {
+            if (FindCornerModeRadio != null)
+            {
+                FindCornerModeRadio.IsEnabled = IsGCodeLoaded;
+                
+                // GCode yüklü değilse ve haritalama seçiliyse, Probe moduna geç
+                if (!IsGCodeLoaded && FindCornerModeRadio.IsChecked == true)
+                {
+                    ProbeModeRadio.IsChecked = true;
+                }
+            }
+        }
+
         public event RoutedEventHandler ZProbeClicked;
         public event RoutedEventHandler PlusXProbeClicked;
         public event RoutedEventHandler MinusXProbeClicked;
@@ -45,6 +98,9 @@ namespace CncControlApp.Controls
         {
             InitializeComponent();
             this.DataContext = App.MainController; // inherit controller
+            
+            // Initial state - haritalama disabled until GCode loaded
+            Loaded += (s, e) => UpdateHaritalamaState();
         }
 
         private void ZProbeButton_Click(object sender, RoutedEventArgs e) => ZProbeClicked?.Invoke(sender, e);
@@ -90,12 +146,77 @@ namespace CncControlApp.Controls
                     return;
                 }
 
+                // Event'i tetikle - MainWindow grid'i çizecek ve bounds değerlerini gönderecek
                 ZMappingRequested?.Invoke(this, new ZMappingEventArgs(rows, cols));
             }
             else
             {
                 MessageDialog.ShowError("Geçersiz Giriş", "Lütfen geçerli sayılar girin.");
             }
+        }
+
+        /// <summary>
+        /// Z Mapping noktalarını DataGrid'e yükler
+        /// </summary>
+        public void PopulateZMappingPoints(double minX, double maxX, double minY, double maxY, int rows, int columns)
+        {
+            ZMappingPoints.Clear();
+
+            double width = maxX - minX;
+            double height = maxY - minY;
+            double cellWidth = width / (columns - 1);
+            double cellHeight = height / (rows - 1);
+
+            int pointNumber = 1;
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < columns; c++)
+                {
+                    double x = minX + c * cellWidth;
+                    double y = minY + r * cellHeight;
+
+                    ZMappingPoints.Add(new ZMappingPoint
+                    {
+                        PointNumber = pointNumber++,
+                        X = x,
+                        Y = y,
+                        Z = 0,
+                        ZDifference = 0,
+                        IsProbed = false
+                    });
+                }
+            }
+
+            // DataGrid'e bağla
+            ZMappingDataGrid.ItemsSource = ZMappingPoints;
+        }
+
+        /// <summary>
+        /// Belirli bir noktanın Z değerini günceller
+        /// </summary>
+        public void UpdateZMappingPointZ(int pointNumber, double zValue)
+        {
+            if (pointNumber < 1 || pointNumber > ZMappingPoints.Count) return;
+
+            var point = ZMappingPoints[pointNumber - 1];
+            point.Z = zValue;
+            point.IsProbed = true;
+
+            // İlk noktaya göre Z farkını hesapla
+            if (ZMappingPoints.Count > 0 && ZMappingPoints[0].IsProbed)
+            {
+                double referenceZ = ZMappingPoints[0].Z;
+                foreach (var p in ZMappingPoints)
+                {
+                    if (p.IsProbed)
+                    {
+                        p.ZDifference = p.Z - referenceZ;
+                    }
+                }
+            }
+
+            // DataGrid'i yenile
+            ZMappingDataGrid.Items.Refresh();
         }
 
         // Canvas elements removed - no longer needed

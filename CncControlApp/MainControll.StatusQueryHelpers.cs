@@ -112,9 +112,9 @@ if (_fastStatusScopes.ContainsKey(owner))
  return new ActionOnDispose(() =>
  {
  try { _centralStatusSubscription?.Dispose(); } catch { }
- // Restore baseline150ms
- try { _centralStatusSubscription = _centralStatusQuerier?.SubscribeMinimumInterval(150); } catch { }
- AddLogMessage($"> 🌐 Central status interval restored ->150ms");
+ // Restore baseline 1000ms (idle)
+ try { _centralStatusSubscription = _centralStatusQuerier?.SubscribeMinimumInterval(1000); } catch { }
+ AddLogMessage($"> 🌐 Central status interval restored -> 1000ms");
  });
  }
  catch (Exception ex)

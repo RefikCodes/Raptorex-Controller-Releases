@@ -1158,7 +1158,8 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
                 _pendingStopSequence = false;
                 _stopHoldPopupShown = false;
                 _stopSequenceRunning = false;
-                try { Application.Current?.Dispatcher?.BeginInvoke(new Action(() => { try { StopSequenceCompleted?.Invoke(); } catch { } }), DispatcherPriority.Background); } catch { }
+                AddLogMessage("> 🔔 StopSequenceCompleted event trigger ediliyor...");
+                try { Application.Current?.Dispatcher?.BeginInvoke(new Action(() => { try { AddLogMessage("> 🔔 StopSequenceCompleted.Invoke() çağrılıyor"); StopSequenceCompleted?.Invoke(); AddLogMessage("> 🔔 StopSequenceCompleted.Invoke() tamamlandı"); } catch (Exception ex) { AddLogMessage($"> ❌ StopSequenceCompleted invoke hatası: {ex.Message}"); } }), DispatcherPriority.Background); } catch { }
             }
         }
 
@@ -1301,7 +1302,7 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
                     try
                     {
                         // Varsa önceki popup'ı kapat
-                        try { _stopStreamingPopup?.Close(); } catch { }
+                        try { _stopStreamingPopup?.ForceClose(); } catch { }
 
                         // Create and show reusable streaming popup
                         _stopStreamingPopup = new Controls.StreamingPopup { Owner = Application.Current.MainWindow };
@@ -1315,19 +1316,21 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
                         {
                             try
                             {
+                                AddLogMessage("> 🔔 onCompleted handler çağrıldı");
                                 // Aboneliği kaldır (birikmeyi ve çoklu tetiklemeyi önler)
                                 try { this.StopSequenceCompleted -= onCompleted; } catch { }
 
                                 _stopStreamingPopup?.Append("> ✅ Stop sequence tamamlandı");
+                                AddLogMessage("> 🔔 Popup kapatma timer başlatılıyor");
                                 // Küçük bir gecikme ardından popup'ı otomatik kapat
                                 var closeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
                                 closeTimer.Tick += (ts, te) =>
                                 {
-                                    try { closeTimer.Stop(); _stopStreamingPopup?.Close(); } catch { }
+                                    try { closeTimer.Stop(); AddLogMessage("> 🔔 ForceClose çağrılıyor"); _stopStreamingPopup?.ForceClose(); AddLogMessage("> 🔔 ForceClose tamamlandı"); } catch (Exception ex) { AddLogMessage($"> ❌ ForceClose hatası: {ex.Message}"); }
                                 };
                                 closeTimer.Start();
                             }
-                            catch { }
+                            catch (Exception ex) { AddLogMessage($"> ❌ onCompleted hatası: {ex.Message}"); }
                         };
                         this.StopSequenceCompleted += onCompleted;
                     }
@@ -1440,11 +1443,11 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
             try
             {
                 if (_centralStatusQuerier != null) return;
-                _centralStatusQuerier = new CentralStatusQuerier(_connectionManager) { DefaultIntervalMs =200 };
+                _centralStatusQuerier = new CentralStatusQuerier(_connectionManager) { DefaultIntervalMs = 1000 };
                 _centralStatusQuerier.Start();
-                // Normal çalışma:150ms
-                try { _centralStatusSubscription = _centralStatusQuerier.SubscribeMinimumInterval(150); } catch { }
-                AddLogMessage("> ✅ CentralStatusQuerier started");
+                // Idle: 1000ms
+                try { _centralStatusSubscription = _centralStatusQuerier.SubscribeMinimumInterval(1000); } catch { }
+                AddLogMessage("> ✅ CentralStatusQuerier started (idle: 1000ms)");
                 StatusQueryService.RegisterCentralQuerier(_centralStatusQuerier, s => _connectionManager.SendGCodeCommandAsync(s));
             }
             catch (Exception ex) { AddLogMessage($"> ❌ StartCentralStatusQuerier error: {ex.Message}"); }

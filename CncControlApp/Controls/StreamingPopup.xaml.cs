@@ -15,12 +15,9 @@ namespace CncControlApp.Controls
             InitializeComponent();
             Owner = Application.Current?.MainWindow;
             
-            // Disable owner window when this popup is shown (modal-like behavior)
-            Loaded += (s, e) =>
-            {
-                if (Owner != null)
-                    Owner.IsEnabled = false;
-            };
+            // ✅ Owner'ı disable etmiyoruz - bu beyazlaşmaya neden oluyor
+            // Modal-like behavior yerine sadece topmost kullanıyoruz
+            Topmost = true;
         }
 
         /// <summary>
@@ -34,10 +31,6 @@ namespace CncControlApp.Controls
                 e.Cancel = true; // Block manual close attempts
                 return;
             }
-            
-            // Re-enable owner when actually closing
-            if (Owner != null)
-                Owner.IsEnabled = true;
                 
             base.OnClosing(e);
         }

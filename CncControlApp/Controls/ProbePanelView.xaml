@@ -167,6 +167,7 @@
  <Grid.RowDefinitions>
  <RowDefinition Height="Auto"/>
  <RowDefinition Height="Auto"/>
+ <RowDefinition Height="*"/>
  </Grid.RowDefinitions>
 
  <!-- TOP: Coordinates (Local, spacer, Machine, spacer, Buttons) -->
@@ -196,8 +197,12 @@
  <RadioButton x:Name="CenterInnerModeRadio" Grid.Column="2" GroupName="ProbeModes"
  Content="Center Inner" Margin="4,0"
  Style="{StaticResource ProbeModeRadioStyle}" Height="42"/>
+ <!-- ✅ Haritalama butonu şimdilik gizli - sonraki versiyonlarda aktif edilecek -->
  <RadioButton x:Name="FindCornerModeRadio" Grid.Column="3" GroupName="ProbeModes"
  Content="Haritalama" Margin="4,0"
+ Visibility="Collapsed"
+ IsEnabled="{Binding IsGCodeLoaded}"
+ ToolTip="{Binding IsGCodeLoaded, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter='GCode dosyası yükleyin'}"
  Style="{StaticResource ProbeModeRadioStyle}" Height="42"/>
  </Grid>
  </Border>
@@ -348,6 +353,82 @@
  Margin="12,0,0,0"
  Click="ZMappingOk_Click"/>
  </Grid>
+ </Grid>
+ </Border>
+
+ <!-- Z MAPPING DATA GRID - Sadece Haritalama modunda görünür -->
+ <Border Grid.Row="2"
+ Visibility="{Binding IsChecked, ElementName=FindCornerModeRadio, Converter={StaticResource BooleanToVisibilityConverter}}"
+ Background="#FF2D2D30"
+ CornerRadius="10"
+ Padding="8"
+ BorderThickness="1"
+ BorderBrush="#FFA2A2A4"
+ Margin="0,10,0,0"
+ MaxHeight="300">
+ <Grid>
+ <Grid.RowDefinitions>
+ <RowDefinition Height="Auto"/>
+ <RowDefinition Height="*"/>
+ </Grid.RowDefinitions>
+ 
+ <!-- Header -->
+ <TextBlock Grid.Row="0" Text="🗺️ Z Mapping Noktaları" 
+ Foreground="#FF2196F3" FontSize="13" FontWeight="SemiBold"
+ Margin="0,0,0,8"/>
+ 
+ <!-- DataGrid -->
+ <DataGrid x:Name="ZMappingDataGrid" Grid.Row="1"
+ AutoGenerateColumns="False"
+ IsReadOnly="True"
+ CanUserAddRows="False"
+ CanUserDeleteRows="False"
+ CanUserResizeRows="False"
+ HeadersVisibility="Column"
+ GridLinesVisibility="Horizontal"
+ Background="#FF1E1E1E"
+ Foreground="#FFEEEEEE"
+ BorderBrush="#FF5A5A5C"
+ BorderThickness="1"
+ RowBackground="#FF2A2A2C"
+ AlternatingRowBackground="#FF323234"
+ HorizontalGridLinesBrush="#FF4A4A4C"
+ VerticalScrollBarVisibility="Auto"
+ HorizontalScrollBarVisibility="Disabled">
+ 
+ <DataGrid.ColumnHeaderStyle>
+ <Style TargetType="DataGridColumnHeader">
+ <Setter Property="Background" Value="#FF3E3E40"/>
+ <Setter Property="Foreground" Value="#FF4CAF50"/>
+ <Setter Property="FontWeight" Value="SemiBold"/>
+ <Setter Property="FontSize" Value="11"/>
+ <Setter Property="Padding" Value="8,6"/>
+ <Setter Property="BorderBrush" Value="#FF5A5A5C"/>
+ <Setter Property="BorderThickness" Value="0,0,1,1"/>
+ </Style>
+ </DataGrid.ColumnHeaderStyle>
+ 
+ <DataGrid.CellStyle>
+ <Style TargetType="DataGridCell">
+ <Setter Property="Padding" Value="6,4"/>
+ <Setter Property="BorderThickness" Value="0"/>
+ <Setter Property="FontSize" Value="12"/>
+ <Style.Triggers>
+ <Trigger Property="IsSelected" Value="True">
+ <Setter Property="Background" Value="#FF0078D7"/>
+ <Setter Property="Foreground" Value="White"/>
+ </Trigger>
+ </Style.Triggers>
+ </Style>
+ </DataGrid.CellStyle>
+ 
+ <DataGrid.Columns>
+ <DataGridTextColumn Header="No" Binding="{Binding PointNumber}" Width="40"/>
+ <DataGridTextColumn Header="X (mm)" Binding="{Binding X, StringFormat=F2}" Width="70"/>
+ <DataGridTextColumn Header="Y (mm)" Binding="{Binding Y, StringFormat=F2}" Width="70"/>
+ <DataGridTextColumn Header="Z Fark" Binding="{Binding ZDifference, StringFormat=F3}" Width="70"/>
+ </DataGrid.Columns>
+ </DataGrid>
  </Grid>
  </Border>
  </Grid>
