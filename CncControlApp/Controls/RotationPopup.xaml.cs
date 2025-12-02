@@ -40,7 +40,7 @@ namespace CncControlApp.Controls
         // New field to control zero prompt gating
         private bool _awaitingZeroPrompt = false; // debounce to avoid random/duplicate prompts
 
-        // ✅ Pan (drag) support for canvas
+        // ✅ Pan (drag) support for canvas (using mouse events - touch promoted to mouse)
         private bool _isPanning = false;
         private Point _panStartPoint;
         private double _panOffsetX = 0;
@@ -659,76 +659,8 @@ namespace CncControlApp.Controls
         }
 
         #region Canvas Pan (Drag) Support
-
-        private void TopViewCanvas_TouchDown(object sender, TouchEventArgs e)
-        {
-            try
-            {
-                // Get touch point relative to the interaction canvas
-                var touchPoint = e.GetTouchPoint(TopViewInteractionCanvas).Position;
-                
-                // Check if touch is within canvas bounds
-                if (touchPoint.X < 0 || touchPoint.Y < 0 || 
-                    touchPoint.X > TopViewInteractionCanvas.ActualWidth || 
-                    touchPoint.Y > TopViewInteractionCanvas.ActualHeight)
-                {
-                    // Touch is outside canvas bounds, don't handle
-                    return;
-                }
-                
-                // Touch is inside canvas - start pan mode
-                _isPanning = true;
-                _panStartPoint = e.GetTouchPoint(TopViewHost).Position;
-                e.TouchDevice.Capture(TopViewInteractionCanvas);
-                e.Handled = true;
-            }
-            catch { }
-        }
-
-        private void TopViewCanvas_TouchMove(object sender, TouchEventArgs e)
-        {
-            try
-            {
-                if (_isPanning)
-                {
-                    var currentPoint = e.GetTouchPoint(TopViewHost).Position;
-                    double deltaX = currentPoint.X - _panStartPoint.X;
-                    double deltaY = currentPoint.Y - _panStartPoint.Y;
-                    
-                    ApplyPanOffset(_panOffsetX + deltaX, _panOffsetY + deltaY);
-                    _panStartPoint = currentPoint;
-                    _panOffsetX = GCodePanTransform.X;
-                    _panOffsetY = GCodePanTransform.Y;
-
-                    // Throttled fit check during pan (every 100ms max)
-                    var now = DateTime.Now;
-                    if ((now - _lastFitCheckTime).TotalMilliseconds > 100)
-                    {
-                        _lastFitCheckTime = now;
-                        UpdatePopupLiveFitLabel(_pendingAngle);
-                    }
-                    
-                    e.Handled = true;
-                }
-            }
-            catch { }
-        }
-
-        private void TopViewCanvas_TouchUp(object sender, TouchEventArgs e)
-        {
-            try
-            {
-                if (_isPanning)
-                {
-                    _isPanning = false;
-                    e.TouchDevice.Capture(null);
-                    RefreshApplyResetState(); // Update button states after pan
-                    UpdatePopupLiveFitLabel(_pendingAngle); // Final fit check after pan ends
-                }
-                e.Handled = true;
-            }
-            catch { }
-        }
+        // Touch events are promoted to mouse events via Stylus.IsPressAndHoldEnabled="False"
+        // This avoids touch capture issues that block other UI elements
 
         private void TopViewCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {

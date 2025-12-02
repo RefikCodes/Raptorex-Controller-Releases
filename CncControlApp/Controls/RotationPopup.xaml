@@ -218,8 +218,9 @@
  <!-- Overlay canvas for table borders, markers, labels - stays fixed -->
  <Canvas x:Name="TopViewOverlayCanvas" IsHitTestVisible="False" ClipToBounds="True" Background="Transparent"/>
  <!-- Interaction layer for mouse/touch events - transparent, on top -->
+ <!-- Using Stylus.IsPressAndHoldEnabled="False" to promote touch to mouse events -->
  <Canvas x:Name="TopViewInteractionCanvas" ClipToBounds="True" Background="Transparent"
-         TouchDown="TopViewCanvas_TouchDown" TouchMove="TopViewCanvas_TouchMove" TouchUp="TopViewCanvas_TouchUp"
+         Stylus.IsPressAndHoldEnabled="False"
          MouseLeftButtonDown="TopViewCanvas_MouseLeftButtonDown" MouseMove="TopViewCanvas_MouseMove" MouseLeftButtonUp="TopViewCanvas_MouseLeftButtonUp"
          MouseRightButtonDown="TopViewCanvas_MouseRightButtonDown"/>
  </Grid>
