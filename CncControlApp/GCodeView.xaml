@@ -980,13 +980,11 @@ VirtualizingStackPanel.VirtualizationMode="Recycling"
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="STATUS:" Foreground="#FF8E8E93" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" x:Name="StatusTextBlock" Text="Ready - G-Code Workspace" Foreground="#FF34C759" FontSize="16" FontWeight="Medium" Margin="8,0,0,0" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="2" x:Name="PartSizeTextBlock" Text="| PART: -" Foreground="#FFDDDDDD" FontSize="16" FontWeight="Medium" Margin="20,0,0,0" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="3" x:Name="FitStatusTextBlock" Text="| FIT: -" Foreground="#FFDDDDDD" FontSize="16" FontWeight="Medium" Margin="20,0,0,0" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="4" x:Name="OriginStatusTextBlock" Text="| ORIGIN: -" Foreground="#FFDDDDDD" FontSize="16" FontWeight="Medium" Margin="20,0,0,0" VerticalAlignment="Center"/>
             </Grid>
         </Border>
 

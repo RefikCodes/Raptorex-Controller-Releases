@@ -63,20 +63,20 @@ namespace CncControlApp
             {
                 // If no table dims or no file/segments, fall back to placeholders
                 if (!_tableDimensionsLoaded)
-                    return (false, "NO TABLE", "Table dimensions not loaded");
+                    return (false, "NO TABLE", "Table dimensions not loaded from GRBL ($130/$131)");
 
                 if (_fileService == null || _fileService.GCodeSegments == null || _fileService.GCodeSegments.Count == 0)
-                    return (true, "NO PART", "No G-Code loaded");
+                    return (true, "-", "No G-Code segments");
 
-                // Compute live fit using current rotation angle
+                // Compute live fit using current rotation angle - this checks POSITION not just size
                 var (fits, details) = CheckLiveFitAtAngle(_currentRotationAngle);
                 if (fits)
                 {
-                    return (true, "✅ FITS", details);
+                    return (true, "✓ OK", details);
                 }
                 else
                 {
-                    return (false, "❌ OUT OF BOUNDS", details);
+                    return (false, "✗ UNFIT", details);
                 }
             }
             catch (Exception ex)
@@ -92,36 +92,66 @@ namespace CncControlApp
             _currentPartHeight = height;
         }
 
-        // ✅ REFACTORED: Status bar update using StatusBarManager
+        /// <summary>
+        /// Public method to refresh status bar fit status - can be called from RotationPopup
+        /// </summary>
+        public void RefreshFitStatus()
+        {
+            UpdateStatusBarWithLiveFitCheck();
+        }
+
+        // ✅ REFACTORED: Status bar update using live fit check (position-based)
         private void UpdateStatusBarWithLiveFitCheck()
         {
             try
             {
-                // ✅ Create StatusBarManager with current state
-                var statusManager = new StatusBarManager(
-                    getPartDimensions: () => (_currentPartWidth, _currentPartHeight),
-                    getTableDimensions: () => (_tableDimensionsLoaded, _tableMaxX, _tableMaxY),
-                    getCurrentRotationAngle: () => _currentRotationAngle,
-                    getEnableFitOnRotation: () => _enableFitOnRotation,
-                    getIsFileLoaded: () => _fileService?.IsFileLoaded == true && DisplayGCodeLines?.Count > 0
-                );
+                bool isFileLoaded = _fileService?.IsFileLoaded == true && DisplayGCodeLines?.Count > 0;
 
-                // ✅ Get status bar info from manager
-                var (partText, fitText, fitColor, fitTooltip, originText) =
-                    statusManager.GetStatusBarInfo();
+                // Part size text
+                string partText;
+                if (isFileLoaded && (_currentPartWidth > 0 || _currentPartHeight > 0))
+                    partText = $"| PART: {_currentPartWidth:F1}×{_currentPartHeight:F1}mm";
+                else
+                    partText = "| PART: -";
 
-                // ✅ Apply to UI using UiHelper (eliminates manual Dispatcher.BeginInvoke)
+                // Fit status - use live position-based check
+                string fitText;
+                Color fitColor;
+                string fitTooltip;
+
+                if (!isFileLoaded)
+                {
+                    fitText = "| FIT: -";
+                    fitColor = Color.FromRgb(221, 221, 221); // gray
+                    fitTooltip = "No G-Code loaded";
+                }
+                else
+                {
+                    // Use CheckLiveFitStatus which checks actual position, not just size
+                    var (fits, fitStatus, detailedInfo) = CheckLiveFitStatus();
+                    fitText = $"| FIT: {fitStatus}";
+                    fitTooltip = detailedInfo;
+
+                    if (!_tableDimensionsLoaded)
+                        fitColor = Color.FromRgb(170, 170, 170); // gray
+                    else if (fits)
+                        fitColor = Color.FromRgb(52, 199, 89); // green
+                    else
+                        fitColor = Color.FromRgb(255, 59, 48); // red
+                }
+
+                // ✅ Apply to UI
                 UiHelper.RunOnUi(() =>
                 {
-                    UiHelper.SafeUpdateTextBlock(PartSizeTextBlock, partText);
-                    UiHelper.SafeUpdateTextBlock(FitStatusTextBlock, fitText, new SolidColorBrush(fitColor));
-
+                    if (PartSizeTextBlock != null)
+                        PartSizeTextBlock.Text = partText;
+                    
                     if (FitStatusTextBlock != null)
                     {
+                        FitStatusTextBlock.Text = fitText;
+                        FitStatusTextBlock.Foreground = new SolidColorBrush(fitColor);
                         FitStatusTextBlock.ToolTip = fitTooltip;
                     }
-
-                    UiHelper.SafeUpdateTextBlock(OriginStatusTextBlock, originText);
                 }, DispatcherPriority.Background);
             }
             catch (Exception ex)

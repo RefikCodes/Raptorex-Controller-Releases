@@ -664,7 +664,19 @@ namespace CncControlApp.Controls
         {
             try
             {
-                // Always pan mode - drag GCode with touch
+                // Get touch point relative to the interaction canvas
+                var touchPoint = e.GetTouchPoint(TopViewInteractionCanvas).Position;
+                
+                // Check if touch is within canvas bounds
+                if (touchPoint.X < 0 || touchPoint.Y < 0 || 
+                    touchPoint.X > TopViewInteractionCanvas.ActualWidth || 
+                    touchPoint.Y > TopViewInteractionCanvas.ActualHeight)
+                {
+                    // Touch is outside canvas bounds, don't handle
+                    return;
+                }
+                
+                // Touch is inside canvas - start pan mode
                 _isPanning = true;
                 _panStartPoint = e.GetTouchPoint(TopViewHost).Position;
                 e.TouchDevice.Capture(TopViewInteractionCanvas);
@@ -722,7 +734,19 @@ namespace CncControlApp.Controls
         {
             try
             {
-                // Always pan mode - drag GCode with mouse
+                // Get mouse point relative to the interaction canvas
+                var mousePoint = e.GetPosition(TopViewInteractionCanvas);
+                
+                // Check if mouse is within canvas bounds
+                if (mousePoint.X < 0 || mousePoint.Y < 0 || 
+                    mousePoint.X > TopViewInteractionCanvas.ActualWidth || 
+                    mousePoint.Y > TopViewInteractionCanvas.ActualHeight)
+                {
+                    // Mouse is outside canvas bounds, don't handle
+                    return;
+                }
+                
+                // Mouse is inside canvas - start pan mode
                 _isPanning = true;
                 _panStartPoint = e.GetPosition(TopViewHost);
                 TopViewInteractionCanvas.CaptureMouse();
@@ -962,6 +986,9 @@ namespace CncControlApp.Controls
                     FitLiveStatusText.Foreground = new SolidColorBrush(Color.FromRgb(255, 59, 48)); // red
                 }
                 FitLiveStatusText.ToolTip = details;
+                
+                // Sync with GCodeView status bar
+                _gcodeView.RefreshFitStatus();
             }
             catch { }
         }

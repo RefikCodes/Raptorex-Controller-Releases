@@ -41,6 +41,17 @@ namespace CncControlApp
                     return;
                 }
 
+                // ✅ FIT CHECK: Prevent run if part doesn't fit on table
+                var (fits, fitStatus, fitDetails) = CheckLiveFitStatus();
+                if (!fits && fitStatus != "-" && fitStatus != "NO TABLE")
+                {
+                    ShowErrorMessage(
+                        $"Part does not fit within table bounds!\n\n{fitDetails}\n\nPlease adjust rotation or position in Rotation Popup before running.",
+                        "Part Does Not Fit"
+                    );
+                    return;
+                }
+
                 if (RunButton != null) RunButton.IsEnabled = false;
 
                 // Start line-by-line logger

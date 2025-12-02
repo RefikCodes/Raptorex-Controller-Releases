@@ -61,18 +61,15 @@ fitColor = Color.FromRgb(221, 221, 221);
            tableDimensionsLoaded, tableMaxX, tableMaxY,
              currentAngle);
 
-          string settingText = enableFit ? "ON" : "OFF";
-           fitStatusText = $"| FIT: {settingText} ({fitStatus})";
+           fitStatusText = $"| FIT: {fitStatus}";
         fitTooltip = detailedInfo;
 
 if (!tableDimensionsLoaded)
             fitColor = Color.FromRgb(170, 170, 170); // gray
  else if (fits)
              fitColor = Color.FromRgb(52, 199, 89); // green
-      else if (fitStatus.Contains("TOO BIG"))
+      else
       fitColor = Color.FromRgb(255, 59, 48); // red
-    else
-        fitColor = Color.FromRgb(255, 149, 0); // orange
             }
 
         string originText;
@@ -97,22 +94,21 @@ if (!tableDimensionsLoaded)
    double currentAngle)
     {
       if (!tableDimensionsLoaded)
-    return (false, "NO TABLE", "Table dimensions not loaded");
+    return (false, "NO TABLE", "Table dimensions not loaded from GRBL ($130/$131)");
 
      if (partWidth <= 0 && partHeight <= 0)
-    return (true, "NO PART", "No G-Code loaded");
+    return (true, "-", "No part dimensions");
 
-            // Simple bounding box check (actual implementation would use segment bounds)
+            // Simple bounding box check
     bool fits = partWidth <= tableMaxX && partHeight <= tableMaxY;
 
         if (fits)
  {
-        return (true, "✅ FITS", $"Part {partWidth:F1}×{partHeight:F1}mm fits in table {tableMaxX:F0}×{tableMaxY:F0}mm");
+        return (true, "✓ OK", $"Part {partWidth:F1}×{partHeight:F1}mm fits in table {tableMaxX:F0}×{tableMaxY:F0}mm");
         }
   else
           {
-        string reason = partWidth > tableMaxX ? "Width exceeds table" : "Height exceeds table";
-      return (false, "❌ OUT OF BOUNDS", $"{reason}. Part: {partWidth:F1}×{partHeight:F1}mm, Table: {tableMaxX:F0}×{tableMaxY:F0}mm");
+        return (false, "✗ TOO BIG", $"Part {partWidth:F1}×{partHeight:F1}mm exceeds table {tableMaxX:F0}×{tableMaxY:F0}mm");
             }
     }
     }
