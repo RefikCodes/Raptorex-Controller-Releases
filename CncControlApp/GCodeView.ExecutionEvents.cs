@@ -122,12 +122,51 @@ namespace CncControlApp
    if (running)
    {
      if (!_executionModalValuesTimer.IsEnabled) _executionModalValuesTimer.Start();
+     // ✅ Reset idle tracking when execution starts
+     _idleTrackingActive = false;
+     _idleDetectedAtLine = -1;
    }
    else
    {
      if (_executionModalValuesTimer.IsEnabled) _executionModalValuesTimer.Stop();
      UpdateTimeBasedProgress(); // one last push
+     // ✅ Log final idle out if we were tracking idle
+     if (_idleTrackingActive)
+     {
+         LogIdleEnd("Execution stopped");
+         _idleTrackingActive = false;
+     }
    }
+  }
+
+  // ✅ IDLE DETECTION LOGGING: Track unexpected idle states during GCode run
+  if (e.PropertyName == nameof(MainControll.MachineStatus) && running)
+  {
+      bool allLinesSent = mgr != null && mgr.CurrentGCodeLineIndex >= mgr.GCodeLines.Count;
+      bool isIdle = state.StartsWith("Idle", StringComparison.OrdinalIgnoreCase);
+      bool isRun = state.StartsWith("Run", StringComparison.OrdinalIgnoreCase);
+      
+      // If we're running and machine goes Idle but NOT all lines sent - this is an unexpected idle!
+      if (isIdle && !allLinesSent && !_idleTrackingActive)
+      {
+          _idleTrackingActive = true;
+          _idleStartTime = DateTime.Now;
+          _idleDetectedAtLine = mgr?.LastCompletedLineIndex ?? -1;
+          int currentExec = mgr?.CurrentlyExecutingLineIndex ?? -1;
+          int totalLines = mgr?.GCodeLines?.Count ?? 0;
+          
+          // Log detailed info to file
+          ErrorLogger.LogWarning($"⚠️ UNEXPECTED IDLE DURING GCODE RUN - Line: {_idleDetectedAtLine + 1}/{totalLines} (exec: {currentExec + 1}), IdleStartTime: {_idleStartTime:HH:mm:ss.fff}, PrevStatus: {_lastKnownMachineStatus}");
+          App.MainController?.AddLogMessage($"> ⚠️ Unexpected Idle at line {_idleDetectedAtLine + 1}/{totalLines} - {_idleStartTime:HH:mm:ss.fff}");
+      }
+      // If we were tracking idle and now we're running again - log the idle duration
+      else if (isRun && _idleTrackingActive)
+      {
+          LogIdleEnd("Resumed to Run");
+          _idleTrackingActive = false;
+      }
+      
+      _lastKnownMachineStatus = state;
   }
      
      // CRITICAL: Detect execution completion when machine goes Idle after running
@@ -140,6 +179,13 @@ namespace CncControlApp
    
       if (allLinesSent)
      {
+       // ✅ Log idle end if we were tracking
+       if (_idleTrackingActive)
+       {
+           LogIdleEnd("All lines completed");
+           _idleTrackingActive = false;
+       }
+       
        App.MainController?.AddLogMessage("> ✅ Detected Idle with all lines completed – marking execution finished.");
           
  // Set controller run flag false
@@ -347,6 +393,9 @@ Application.Current.Dispatcher.BeginInvoke(new Action(() =>
    {
         try
          {
+ // ✅ DEBUG: Log the isSuccess value to understand why warnings popup is shown
+ ErrorLogger.LogInfo($"OnExecutionCompleted called with isSuccess={isSuccess}, sender={sender?.GetType().Name ?? "null"}");
+ 
  Application.Current.Dispatcher.BeginInvoke(new Action(() =>
         {
           try
@@ -496,6 +545,34 @@ Application.Current.Dispatcher.BeginInvoke(new Action(() =>
     }
     }
         catch { }
+        }
+
+        /// <summary>
+        /// Log idle end with duration and details to help debug runtime issues
+        /// </summary>
+        private void LogIdleEnd(string reason)
+        {
+            try
+            {
+                if (!_idleTrackingActive) return;
+                
+                var idleEndTime = DateTime.Now;
+                var idleDuration = idleEndTime - _idleStartTime;
+                var mgr = App.MainController?.GCodeManager;
+                int currentLine = mgr?.LastCompletedLineIndex ?? -1;
+                int totalLines = mgr?.GCodeLines?.Count ?? 0;
+                
+                // Log detailed info to file
+                ErrorLogger.LogWarning(
+                    $"⏱️ IDLE END - Reason: {reason}, " +
+                    $"StartLine: {_idleDetectedAtLine + 1}, EndLine: {currentLine + 1}/{totalLines}, " +
+                    $"IdleStart: {_idleStartTime:HH:mm:ss.fff}, IdleEnd: {idleEndTime:HH:mm:ss.fff}, " +
+                    $"Duration: {idleDuration.TotalMilliseconds:F0}ms ({idleDuration.TotalSeconds:F2}s)");
+                
+                App.MainController?.AddLogMessage(
+                    $"> ⏱️ Idle ended ({reason}) - Duration: {idleDuration.TotalMilliseconds:F0}ms, Lines: {_idleDetectedAtLine + 1}→{currentLine + 1}");
+            }
+            catch { }
         }
     }
 }

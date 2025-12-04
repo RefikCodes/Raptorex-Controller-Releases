@@ -579,20 +579,16 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
             _wasStopped = true; if (IsGCodeRunning) IsGCodeRunning = false; CurrentGCodeLineIndex = 0; LastCompletedLineIndex = -1; CurrentlyExecutingLineIndex = -1; UpdateExecutionProperties();
         }
 
-        // OpenBuilds-style event driven streaming with stall watchdog
+        // OpenBuilds-style event driven streaming (central status query handles stall detection)
         private async Task<bool> ExecuteOpenBuildsStreamingAsync(CancellationToken ct)
         {
             var inflight = new Queue<(string Cmd, int Line, int Bytes)>();
             int inflightBytes = 0;
             int errors = 0;
             bool aborted = false;
-            DateTime lastOkTime = DateTime.UtcNow;
-            DateTime lastStallLog = DateTime.MinValue;
             var allAckTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             object sync = new object();
 
-            const int STALL_THRESHOLD_MS = 2500; // time without OK before considering stall
-            const int STALL_LOG_INTERVAL_MS = 3000; // avoid spamming log
             const int INITIAL_FILL_DELAY_MS = 150; // Delay for first 15 commands
             const int NORMAL_SEND_DELAY_MS = 25;   // Delay for all subsequent commands
 
@@ -712,7 +708,6 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
                         var line = ln.Trim(); if (line.Length == 0) continue; var low = line.ToLowerInvariant();
                         if (low == "ok")
                         {
-                            lastOkTime = DateTime.UtcNow;
                             if (inflight.Count > 0)
                             {
                                 var item = inflight.Dequeue(); 
@@ -759,29 +754,6 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
                 }
             }
 
-            // Stall watchdog
-            async Task WatchdogAsync()
-            {
-                while (_internalStreaming && !ct.IsCancellationRequested && !aborted && !allAckTcs.Task.IsCompleted)
-                {
-                    await Task.Delay(500, ct).ContinueWith(_ => { });
-                    var now = DateTime.UtcNow;
-                    int pendingCount = 0;
-                    lock (sync) { pendingCount = inflight.Count; }
-
-                    if (pendingCount > 0 && (now - lastOkTime).TotalMilliseconds > STALL_THRESHOLD_MS)
-                    {
-                        if ((now - lastStallLog).TotalMilliseconds > STALL_LOG_INTERVAL_MS)
-                        {
-                            lastStallLog = now;
-                            _log($"> ⚠️ STALL: No 'ok' for {(now - lastOkTime).TotalMilliseconds:F0}ms; inflight={pendingCount}");
-                            // Poke controller with status query
-                            _ = _connectionManager.SendGCodeCommandAsync("?");
-                        }
-                    }
-                }
-            }
-
             _connectionManager.GcodeSender.ResponseReceived += OnResp;
             try
             {
@@ -796,7 +768,6 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
                     }
                 }
 
-                var wdTask = WatchdogAsync();
                 using (ct.Register(() => { allAckTcs.TrySetCanceled(); }))
                 {
                     bool success;
@@ -928,7 +899,18 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
             while (CurrentGCodeLineIndex < GCodeLines.Count)
             {
                 string raw = GCodeLines[CurrentGCodeLineIndex]; CurrentGCodeLineIndex++;
-                if (string.IsNullOrWhiteSpace(raw)) continue; string trimmed = raw.Trim(); if (trimmed.StartsWith(";") || trimmed.StartsWith("(")) continue;
+                if (string.IsNullOrWhiteSpace(raw)) continue;
+                string trimmed = raw.Trim();
+                
+                // ✅ FIX: Strip any previous error/note annotations before sending
+                // Annotations are added as "  ?" or "  ??" suffixes by MarkLineError/MarkLineNote
+                int annotationIdx = trimmed.IndexOf("  ?");
+                if (annotationIdx > 0) trimmed = trimmed.Substring(0, annotationIdx).TrimEnd();
+                
+                // If annotation stripping resulted in empty command, skip it
+                if (string.IsNullOrWhiteSpace(trimmed)) continue;
+                
+                if (trimmed.StartsWith(";") || trimmed.StartsWith("(")) continue;
                 command = trimmed; uiLineIndex = CurrentGCodeLineIndex - 1; return true;
             }
             return false;

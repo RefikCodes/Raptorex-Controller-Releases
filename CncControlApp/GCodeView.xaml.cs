@@ -79,6 +79,12 @@ private double _scrollFromOffset = 0;
       private DateTime _executionStartTime;
         private string _currentFileName = "";
 
+        // ✅ Idle detection during GCode run - for logging unexpected idle states
+        private bool _idleTrackingActive = false;
+        private DateTime _idleStartTime;
+        private int _idleDetectedAtLine = -1;
+        private string _lastKnownMachineStatus = "";
+
     #endregion
 
         #region Properties

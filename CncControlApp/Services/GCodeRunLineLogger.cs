@@ -35,11 +35,16 @@ namespace CncControlApp.Services
  try
  {
  if (mc == null) return;
+ 
+ // ✅ FIX: Clean up any existing subscriptions first to prevent duplicate logs
+ CleanupSubscriptions();
+ 
  _mc = mc;
  _mgr = mc.GCodeManager;
  _cm = mc.ConnectionManagerInstance;
  OpenLogFile();
  _active = true;
+ _lastLoggedRunState = null; // ✅ Reset run state tracking
  _lastErrorLine = -1; _lastErrorReason = null; _lastErrorTs = DateTime.MinValue;
  try { _mc.PropertyChanged += OnMainControllerPropertyChanged; } catch { }
  if (_mgr is INotifyPropertyChanged pc)
@@ -65,6 +70,23 @@ namespace CncControlApp.Services
  try
  {
  _active = false;
+ CleanupSubscriptions();
+ _mc = null;
+ _mgr = null;
+ _cm = null;
+ }
+ catch { }
+ finally
+ {
+ try { _writer?.Flush(); _writer?.Dispose(); } catch { }
+ _writer = null;
+ }
+ }
+
+ private void CleanupSubscriptions()
+ {
+ try
+ {
  if (_mc != null)
  {
  try { _mc.PropertyChanged -= OnMainControllerPropertyChanged; } catch { }
@@ -81,16 +103,8 @@ namespace CncControlApp.Services
  {
  try { _cm.LogMessageAdded -= OnConnectionLogMessage; } catch { }
  }
- _mc = null;
- _mgr = null;
- _cm = null;
  }
  catch { }
- finally
- {
- try { _writer?.Flush(); _writer?.Dispose(); } catch { }
- _writer = null;
- }
  }
 
  private void OpenLogFile()
@@ -119,6 +133,9 @@ namespace CncControlApp.Services
  catch { }
  }
 
+ // ✅ Track last logged run state to prevent duplicate RUN STARTED/ENDED logs
+ private bool? _lastLoggedRunState = null;
+
  private void OnMainControllerPropertyChanged(object sender, PropertyChangedEventArgs e)
  {
  if (!_active) return;
@@ -127,6 +144,11 @@ namespace CncControlApp.Services
  if (e.PropertyName == nameof(MainControll.IsGCodeRunning))
  {
  var running = _mc?.IsGCodeRunning == true;
+ 
+ // ✅ Prevent duplicate log entries
+ if (_lastLoggedRunState == running) return;
+ _lastLoggedRunState = running;
+ 
  _writer?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] === {(running ? "RUN STARTED" : "RUN ENDED")} ===");
  if (!running) End();
  }
