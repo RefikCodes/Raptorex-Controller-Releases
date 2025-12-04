@@ -672,7 +672,9 @@ namespace CncControlApp.Controls
             {
                 Log("> RotationPopup: Resetting all on close");
 
-                // 1. Reset rotation
+                // 1. Reset slider and rotation
+                RotationSlider.Value = 0;
+                _pendingAngle = 0;
                 _gcodeView?.ResetRotation();
 
                 // 2. Reset pan offset
