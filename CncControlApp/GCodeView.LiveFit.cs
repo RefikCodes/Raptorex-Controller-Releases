@@ -162,5 +162,10 @@ namespace CncControlApp
 
         // Back-compat shim (call this from old sites)
         private void UpdateStatusBar() => UpdateStatusBarWithLiveFitCheck();
+
+        /// <summary>
+        /// Public method to refresh status bar (FIT status) from external callers.
+        /// </summary>
+        public void RefreshStatusBar() => UpdateStatusBarWithLiveFitCheck();
     }
 }

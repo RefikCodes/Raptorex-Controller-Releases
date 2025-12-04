@@ -694,6 +694,9 @@ namespace CncControlApp.Controls
                 }
                 catch { }
 
+                // 5. Refresh main window status bar (FIT status)
+                _gcodeView?.RefreshStatusBar();
+
                 Log("> ✅ All reset on close");
             }
             catch (Exception ex)
