@@ -176,13 +176,13 @@ namespace CncControlApp
         public bool IsGoZButtonEnabled => IsConnected && _coordinateService.IsTargetDifferentFromCurrent(TargetZ, MStatus.WorkZ);
         public bool IsGoAButtonEnabled => IsConnected && _coordinateService.IsTargetDifferentFromCurrent(TargetA, MStatus.WorkA);
 
-        // MachineControlService (get only)
-        public bool IsSpindleOn { get => _machineControlService.IsSpindleOn; set { } }
+        // MachineControlService (get only) - Spindle/Coolant now read from MStatus (live from status report)
+        public bool IsSpindleOn => MStatus?.IsSpindleOn ?? false;
         public double SpindleSpeed { get => _machineControlService.SpindleSpeed; set => _machineControlService.SpindleSpeed = value; }
         public double MaxSpindleSpeed { get => _machineControlService.MaxSpindleSpeed; set => _machineControlService.MaxSpindleSpeed = value; }
         public string SpindleSpeedDisplay => _machineControlService.SpindleSpeedDisplay;
         public double SpindleSpeedPercentage { get => _machineControlService.SpindleSpeedPercentage; set => _machineControlService.SpindleSpeedPercentage = value; }
-        public bool IsCoolantOn { get => _machineControlService.IsCoolantOn; set { } }
+        public bool IsCoolantOn => MStatus?.IsCoolantOn ?? false;
         public bool IsMistOn { get => _machineControlService.IsMistOn; set { } }
         public bool IsLightsOn { get => _machineControlService.IsLightsOn; set { } }
         public bool IsToolChangeOn { get => _machineControlService.IsToolChangeOn; set { } }
@@ -467,6 +467,9 @@ namespace CncControlApp
                 if (e.PropertyName == nameof(MStatus.WorkY)) OnPropertyChanged(nameof(IsGoYButtonEnabled));
                 if (e.PropertyName == nameof(MStatus.WorkZ)) OnPropertyChanged(nameof(IsGoZButtonEnabled));
                 if (e.PropertyName == nameof(MStatus.WorkA)) OnPropertyChanged(nameof(IsGoAButtonEnabled));
+                // Spindle/Coolant LED updates from status report
+                if (e.PropertyName == nameof(MStatus.IsSpindleOn)) OnPropertyChanged(nameof(IsSpindleOn));
+                if (e.PropertyName == nameof(MStatus.IsCoolantOn)) OnPropertyChanged(nameof(IsCoolantOn));
             };
 
             AddLogMessage("> ✅ MainControll başlatıldı - Tüm servisler entegre edildi");

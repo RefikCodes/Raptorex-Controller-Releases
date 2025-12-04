@@ -389,6 +389,26 @@ namespace CncControlApp.Managers
                     }
                 }
 
+                // NEW: Parse accessory state (A: field) for spindle and coolant status
+                // GRBL format: |A:SFM where S=Spindle CW, C=Spindle CCW, F=Flood coolant, M=Mist coolant
+                try
+                {
+                    var aMatch = Regex.Match(statusReport, @"\|A:([SCFM]+)", RegexOptions.IgnoreCase);
+                    if (aMatch.Success)
+                    {
+                        string accessories = aMatch.Groups[1].Value.ToUpper();
+                        machineStatus.IsSpindleOn = accessories.Contains("S") || accessories.Contains("C");
+                        machineStatus.IsCoolantOn = accessories.Contains("F") || accessories.Contains("M");
+                    }
+                    else
+                    {
+                        // No A: field means spindle and coolant are off
+                        machineStatus.IsSpindleOn = false;
+                        machineStatus.IsCoolantOn = false;
+                    }
+                }
+                catch { }
+
                 // NEW: Parse executing line index (FluidNC/GrblHAL style) e.g. |Ln:123 or |line:123
                 try
                 {

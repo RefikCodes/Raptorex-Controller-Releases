@@ -133,6 +133,11 @@ namespace CncControlApp
         }
         #endregion
 
+        #region Accessory State Fields
+        private bool _isSpindleOn = false;
+        private bool _isCoolantOn = false;
+        #endregion
+
         #region Runtime Properties
         /// <summary>
         /// Current real-time feed rate (mm/min) reported by controller (FS: feed,spindle)
@@ -146,6 +151,38 @@ namespace CncControlApp
                 if (Math.Abs(_currentFeed - value) > 0.1)
                 {
                     _currentFeed = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Spindle state from status report (A: field contains S for CW, C for CCW)
+        /// </summary>
+        public bool IsSpindleOn
+        {
+            get => _isSpindleOn;
+            set
+            {
+                if (_isSpindleOn != value)
+                {
+                    _isSpindleOn = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Coolant state from status report (A: field contains F for Flood, M for Mist)
+        /// </summary>
+        public bool IsCoolantOn
+        {
+            get => _isCoolantOn;
+            set
+            {
+                if (_isCoolantOn != value)
+                {
+                    _isCoolantOn = value;
                     OnPropertyChanged();
                 }
             }
@@ -164,6 +201,8 @@ namespace CncControlApp
             WorkZ = 0;
             WorkA = 0;
             CurrentFeed = 0;
+            IsSpindleOn = false;
+            IsCoolantOn = false;
         }
         #endregion
 
