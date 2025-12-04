@@ -47,6 +47,10 @@ namespace CncControlApp.Controls
         private double _panOffsetY = 0;
         private DateTime _lastFitCheckTime = DateTime.MinValue; // Throttle fit checks during pan
 
+        // ✅ Store original state for cancel/close restore
+        private double _originalRotationAngle = 0; // Rotation angle when popup opened
+        private bool _changesApplied = false; // True if user applied changes (don't restore on close)
+
         // ✅ ADD: Helper method for logging (eliminates nullable method group issues)
         private void Log(string message) => App.MainController?.AddLogMessage(message);
 
@@ -70,6 +74,11 @@ namespace CncControlApp.Controls
             {
                 // Initialize slider to current angle from main view
                 double angle = _gcodeView?.GetCurrentRotationAngle() ?? 0;
+                
+                // ✅ Store original state for restore on cancel/close
+                _originalRotationAngle = angle;
+                _changesApplied = false;
+                
                 RotationSlider.Value = angle;
                 AngleValueText.Text = string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:F1}°", angle);
                 _pendingAngle = angle;
@@ -421,6 +430,9 @@ namespace CncControlApp.Controls
                     UpdatePopupLiveFitLabel(0);
                 }
 
+                // Mark that changes were applied (don't restore on close)
+                _changesApplied = true;
+
                 // Ensure next G00 shows zero popup if toggle is on
                 _awaitingZeroPrompt = false;
             }
@@ -627,6 +639,7 @@ namespace CncControlApp.Controls
                 }, DispatcherPriority.Send);
 
                 Log("> ✅ All changes applied successfully");
+                _changesApplied = true; // Mark that changes were applied (don't restore on close)
                 _awaitingZeroPrompt = false;
             }
             catch (Exception ex)
@@ -653,9 +666,50 @@ namespace CncControlApp.Controls
                 }
 
                 _redrawDebounceTimer?.Stop();
+
+                // ✅ If changes were NOT applied, restore original state
+                if (!_changesApplied)
+                {
+                    RestoreOriginalState();
+                }
+
                 Close();
             }
             catch { }
+        }
+
+        /// <summary>
+        /// Restores the original state when popup is closed without applying changes.
+        /// Resets rotation angle in GCodeView and triggers main canvas redraw.
+        /// </summary>
+        private void RestoreOriginalState()
+        {
+            try
+            {
+                Log($"> RotationPopup: Restoring original state (angle: {_originalRotationAngle:F1}°)");
+
+                // 1. Restore rotation angle in GCodeView
+                if (_gcodeView != null)
+                {
+                    _gcodeView.SetRotationAngle(_originalRotationAngle);
+                }
+
+                // 2. Trigger main canvas redraw with original rotation
+                try
+                {
+                    var field = _gcodeView?.GetType().GetField("_fileService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    var fileService = field?.GetValue(_gcodeView);
+                    var redrawMethod = fileService?.GetType().GetMethod("RedrawAllViewports");
+                    redrawMethod?.Invoke(fileService, null);
+                }
+                catch { }
+
+                Log($"> ✅ Original state restored");
+            }
+            catch (Exception ex)
+            {
+                Log($"> ❌ RestoreOriginalState error: {ex.Message}");
+            }
         }
 
         #region Canvas Pan (Drag) Support
