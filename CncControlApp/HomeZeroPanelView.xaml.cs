@@ -9,7 +9,7 @@ namespace CncControlApp
  public HomeZeroPanelView()
  {
  InitializeComponent();
- DataContext = App.MainController; // bind if needed later
+ DataContext = App.MainController;
  }
 
  private async void HomeAllButton_Click(object sender, RoutedEventArgs e)
@@ -108,7 +108,8 @@ namespace CncControlApp
  }
  finally
  {
- btn.IsEnabled = true;
+ // RunUiLocker will handle button state - don't manually enable here
+ RunUiLocker.ApplyNow();
  }
  }
  }

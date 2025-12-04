@@ -32,7 +32,7 @@ namespace CncControlApp
       // ✅ NEW: Buttons that require G-Code loaded but otherwise follow normal state rules
         private static readonly HashSet<string> RequiresGCodeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
      {
-        "GCodeTabButton","ViewTabButton","GCodeRotationButton"
+        "GCodeTabButton","ViewTabButton","GCodeRotationButton","GCodeMoveButton"
         };
 
         // ✅ NEW: Buttons that remain active during execution (viewing G-Code, changing views)

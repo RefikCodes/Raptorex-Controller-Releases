@@ -149,24 +149,26 @@ namespace CncControlApp
                 double maxZ = allZValues.Max();
 
                 // Get current machine position (where spindle is)
+                // G-Code (0,0) is drawn at spindle position
                 double currentMachineX = App.MainController?.MStatus?.X ?? 0;
                 double currentMachineY = App.MainController?.MStatus?.Y ?? 0;
 
-                // Use provided transform to get canvas position (NO RECALCULATION)
+                // Use provided transform to get canvas position
                 var machineCanvasPt = xf.ToCanvas(currentMachineX, currentMachineY);
 
                 System.Diagnostics.Debug.WriteLine($"✅ POSITIONING:");
-                System.Diagnostics.Debug.WriteLine($"   • Machine pos: ({currentMachineX:F1},{currentMachineY:F1})mm");
+                System.Diagnostics.Debug.WriteLine($"   • Spindle (Machine) pos: ({currentMachineX:F1},{currentMachineY:F1})mm");
                 System.Diagnostics.Debug.WriteLine($"   • Canvas pos: ({machineCanvasPt.X:F1},{machineCanvasPt.Y:F1})px");
                 System.Diagnostics.Debug.WriteLine($"   • Using scale: {xf.Scale:F3}");
 
                 // Use optimized StreamGeometry renderer
+                // G-Code (0,0) is placed at spindle position
                 OptimizedGCodeRenderer.DrawGCodeOptimized(canvas, segmentsToRender, xf.Scale, 
                     machineCanvasPt.X, machineCanvasPt.Y, minZ, maxZ);
 
                 System.Diagnostics.Debug.WriteLine($"✅ G-CODE DRAWN: {canvas.Children.Count} canvas children");
 
-                // Draw origin marker at machine position
+                // Draw origin marker at spindle position (G-code 0,0)
                 DrawOriginMarker(canvas, machineCanvasPt.X, machineCanvasPt.Y);
                 
                 return machineCanvasPt;

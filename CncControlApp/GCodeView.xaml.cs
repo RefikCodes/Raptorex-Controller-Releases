@@ -220,12 +220,12 @@ private double _scrollFromOffset = 0;
                     effectiveFeed = liveFeed; // Use actual GRBL feed rate
                 }
 
-                // Update UI with effective values
+                // Update UI with effective values (compact format for button caption)
                 if (LiveFeedRateText != null)
-                    LiveFeedRateText.Text = effectiveFeed > 0 ? $"{effectiveFeed:F0} mm/min" : "— mm/min";
+                    LiveFeedRateText.Text = effectiveFeed > 0 ? $"{effectiveFeed:F0}" : "—";
                 
                 if (LiveSpindleSpeedText != null)
-                    LiveSpindleSpeedText.Text = effectiveSpindle > 0 ? $"{effectiveSpindle:F0} RPM" : "— RPM";
+                    LiveSpindleSpeedText.Text = effectiveSpindle > 0 ? $"{effectiveSpindle:F0}" : "—";
             }
             catch { }
         }

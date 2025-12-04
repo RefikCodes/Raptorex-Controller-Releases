@@ -972,17 +972,27 @@ namespace CncControlApp.Controls
                 // Scale = pixels per mm, so mm = pixels / scale
                 // 
                 // IMPORTANT: In TransformGroup, transforms apply in order: first Rotate, then Translate
-                // This means pan (Translate) is applied AFTER rotation, so pan is in SCREEN coordinates
-                // Screen coordinates = Machine coordinates (X right, Y up in machine but Y down in pixels)
-                // So NO rotation of pan offset is needed!
-                //
-                // When we pan RIGHT (panX > 0), GCode moves right on screen
-                // This means the GCode origin is now to the RIGHT of spindle
-                // So spindle needs to move RIGHT (positive X) to reach GCode origin
-                double panMmX = panX / xf.Scale;
-                double panMmY = -panY / xf.Scale;  // Y is inverted on canvas (down = positive pixel, but down = negative mm)
+                // This means pan (Translate) is applied AFTER rotation, in SCREEN coordinates.
+                // However, screen coords != machine coords when there's rotation.
+                // 
+                // Pan offset (panX, panY) tells us how much the GCode canvas moved on screen.
+                // We need to convert this to machine coordinates by REVERSING the rotation.
+                // 
+                // Canvas Y is inverted: down = positive pixels, but machine Y up = positive mm
+                double panScreenMmX = panX / xf.Scale;
+                double panScreenMmY = -panY / xf.Scale;  // Y is inverted on canvas
+                
+                // Now rotate the pan offset from screen coordinates back to machine coordinates
+                // If GCode was rotated by angle θ, screen coords are rotated by θ from machine coords
+                // To get machine delta, we rotate by -θ
+                double angleRad = -_pendingAngle * Math.PI / 180.0;  // Negative to reverse
+                double cosA = Math.Cos(angleRad);
+                double sinA = Math.Sin(angleRad);
+                
+                double panMmX = panScreenMmX * cosA - panScreenMmY * sinA;
+                double panMmY = panScreenMmX * sinA + panScreenMmY * cosA;
 
-                Log($"> Pending angle: {_pendingAngle:F1}° (pan is in screen coords, no rotation needed)");
+                Log($"> Pending angle: {_pendingAngle:F1}° -> Pan screen({panScreenMmX:F3},{panScreenMmY:F3}) -> machine({panMmX:F3},{panMmY:F3})");
 
                 // Target = current position + pan offset in mm
                 double targetMachineX = currentMachineX + panMmX;

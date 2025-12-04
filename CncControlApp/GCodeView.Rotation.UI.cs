@@ -36,65 +36,62 @@ namespace CncControlApp
         /// Check if GCode fits within table bounds at given angle and pan offset (in mm)
         /// </summary>
         public (bool Fits, string Details) CheckLiveFitAtAngle(double angleDegrees, double panOffsetMmX, double panOffsetMmY)
- {
-         try
+        {
+            try
             {
-    if (_fileService == null) return (false, "No file service");
-          var segments = _fileService.GCodeSegments;
-      if (segments == null || segments.Count == 0)
-           return (true, "No G-Code loaded");
+                if (_fileService == null) return (false, "No file service");
+                var segments = _fileService.GCodeSegments;
+                if (segments == null || segments.Count == 0)
+                    return (true, "No G-Code loaded");
 
                 if (App.MainController?.Settings == null || App.MainController.Settings.Count == 0)
-       return (false, "Table dimensions not loaded");
+                    return (false, "Table dimensions not loaded");
 
                 var xLimit = App.MainController.Settings.FirstOrDefault(s => s.Id == 130);
-          var yLimit = App.MainController.Settings.FirstOrDefault(s => s.Id == 131);
+                var yLimit = App.MainController.Settings.FirstOrDefault(s => s.Id == 131);
                 if (xLimit == null || yLimit == null) return (false, "Missing $130/$131");
-    if (!double.TryParse(xLimit.Value, System.Globalization.NumberStyles.Any,
-             System.Globalization.CultureInfo.InvariantCulture, out double tableMaxX) ||
-           !double.TryParse(yLimit.Value, System.Globalization.NumberStyles.Any,
-           System.Globalization.CultureInfo.InvariantCulture, out double tableMaxY))
-      return (false, "Invalid table dimensions");
+                if (!double.TryParse(xLimit.Value, System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out double tableMaxX) ||
+                    !double.TryParse(yLimit.Value, System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out double tableMaxY))
+                    return (false, "Invalid table dimensions");
 
-         if (tableMaxX <= 0 || tableMaxY <= 0) return (false, "Invalid table dimensions");
+                if (tableMaxX <= 0 || tableMaxY <= 0) return (false, "Invalid table dimensions");
 
-              double originMachineX = 0, originMachineY = 0;
-    if (App.MainController?.MStatus != null)
-            {
-               originMachineX = App.MainController.MStatus.X;
-    originMachineY = App.MainController.MStatus.Y;
-                }
+                // Origin = current machine position (where spindle is = where GCode 0,0 will be placed)
+                double originMachineX = App.MainController?.MStatus?.X ?? 0;
+                double originMachineY = App.MainController?.MStatus?.Y ?? 0;
 
                 // Add pan offset to simulate where spindle would be after pan confirm
                 originMachineX += panOffsetMmX;
                 originMachineY += panOffsetMmY;
 
-             // Calculate rotated bounds - rotation happens around (0,0) in GCode space
-             // Then we translate to absolute machine coordinates
-             var b = CalculateRotatedBounds(segments, angleDegrees);
+                // Calculate rotated bounds - rotation happens around (0,0) in GCode space
+                // Then we translate to absolute machine coordinates
+                var b = CalculateRotatedBounds(segments, angleDegrees);
 
                 System.Diagnostics.Debug.WriteLine($"[FIT] Angle={angleDegrees:F1}° Pan=({panOffsetMmX:F1},{panOffsetMmY:F1})mm");
                 System.Diagnostics.Debug.WriteLine($"[FIT] GCode bounds after rotation: MinX={b.MinX:F1} MaxX={b.MaxX:F1} MinY={b.MinY:F1} MaxY={b.MaxY:F1}");
                 System.Diagnostics.Debug.WriteLine($"[FIT] Origin (machine+pan): X={originMachineX:F1} Y={originMachineY:F1}");
 
-      double absMinX = b.MinX + originMachineX;
+                double absMinX = b.MinX + originMachineX;
                 double absMaxX = b.MaxX + originMachineX;
-    double absMinY = b.MinY + originMachineY;
-    double absMaxY = b.MaxY + originMachineY;
+                double absMinY = b.MinY + originMachineY;
+                double absMaxY = b.MaxY + originMachineY;
 
                 System.Diagnostics.Debug.WriteLine($"[FIT] Absolute bounds: X=[{absMinX:F1},{absMaxX:F1}] Y=[{absMinY:F1},{absMaxY:F1}]");
                 System.Diagnostics.Debug.WriteLine($"[FIT] Table limits: X=[0,{tableMaxX:F0}] Y=[0,{tableMaxY:F0}]");
 
-   bool fitsX = absMinX >= 0 && absMaxX <= tableMaxX;
-       bool fitsY = absMinY >= 0 && absMaxY <= tableMaxY;
-     bool fits = fitsX && fitsY;
+                bool fitsX = absMinX >= 0 && absMaxX <= tableMaxX;
+                bool fitsY = absMinY >= 0 && absMaxY <= tableMaxY;
+                bool fits = fitsX && fitsY;
 
                 System.Diagnostics.Debug.WriteLine($"[FIT] Result: fitsX={fitsX} fitsY={fitsY} => fits={fits}");
 
                 string details;
-          if (fits)
-      {
-        details = $"Inside table {tableMaxX:F0}×{tableMaxY:F0} (X:[{absMinX:F1},{absMaxX:F1}] Y:[{absMinY:F1},{absMaxY:F1}])";
+                if (fits)
+                {
+                    details = $"Inside table {tableMaxX:F0}×{tableMaxY:F0} (X:[{absMinX:F1},{absMaxX:F1}] Y:[{absMinY:F1},{absMaxY:F1}])";
     }
   else
           {
@@ -601,8 +598,16 @@ if (start < end) start += 2.0 * Math.PI;
           double thStart = Math.Atan2(sy, sx);
          double thEnd = Math.Atan2(ey, ex);
 
-     var cardinals = new[] { 0.0, Math.PI * 0.5, Math.PI, Math.PI * 1.5 };
-             foreach (var th in cardinals)
+     // We need to check points that will be extremes AFTER rotation.
+     // These occur at t = k*PI/2 - angleRadians
+     var criticalAngles = new[] { 
+         -angleRadians, 
+         Math.PI * 0.5 - angleRadians, 
+         Math.PI - angleRadians, 
+         Math.PI * 1.5 - angleRadians 
+     };
+
+             foreach (var th in criticalAngles)
    {
    if (angleInSweep(thStart, thEnd, th, isClockwise))
       {
@@ -800,30 +805,27 @@ FontWeight = FontWeights.Bold
 
         public Point? GetGCodeOriginCanvasPosition(Canvas canvas)
         {
-    try
-       {
-      if (canvas == null) return null;
+            try
+            {
+                if (canvas == null) return null;
   
-          double canvasWidth = canvas.ActualWidth;
-       double canvasHeight = canvas.ActualHeight;
+                double canvasWidth = canvas.ActualWidth;
+                double canvasHeight = canvas.ActualHeight;
         
-          if (canvasWidth <= 0 || canvasHeight <= 0) return null;
+                if (canvasWidth <= 0 || canvasHeight <= 0) return null;
        
-                double currentMachineX = 0;
-    double currentMachineY = 0;
-        if (App.MainController?.MStatus != null)
-         {
-    currentMachineX = App.MainController.MStatus.X;
- currentMachineY = App.MainController.MStatus.Y;
-      }
+                // Get current spindle (machine) position
+                // G-Code (0,0) is drawn at spindle position
+                double currentMachineX = App.MainController?.MStatus?.X ?? 0;
+                double currentMachineY = App.MainController?.MStatus?.Y ?? 0;
        
-             if (!CncControlApp.Helpers.WorkspaceTransform.TryCreateFromSettings(canvasWidth, canvasHeight, out var xf))
-       return null;
+                if (!CncControlApp.Helpers.WorkspaceTransform.TryCreateFromSettings(canvasWidth, canvasHeight, out var xf))
+                    return null;
     
-   var calculatedOrigin = xf.ToCanvas(currentMachineX, currentMachineY);
-  System.Diagnostics.Debug.WriteLine($"🎯 Calculated G-code origin for canvas {canvasWidth:F0}x{canvasHeight:F0}: {calculatedOrigin} (scale={xf.Scale:F3})");
+                var calculatedOrigin = xf.ToCanvas(currentMachineX, currentMachineY);
+                System.Diagnostics.Debug.WriteLine($"🎯 Spindle pos for canvas {canvasWidth:F0}x{canvasHeight:F0}: Machine({currentMachineX:F1},{currentMachineY:F1}) -> Canvas({calculatedOrigin.X:F1},{calculatedOrigin.Y:F1}) (scale={xf.Scale:F3})");
                 
-     return calculatedOrigin;
+                return calculatedOrigin;
             }
   catch (Exception ex)
       {

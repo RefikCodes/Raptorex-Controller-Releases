@@ -149,7 +149,10 @@ namespace CncControlApp
             {
                 App.MainController.PropertyChanged += MainController_PropertyChanged;
                 // Initialize with current value
-                panel.IsGCodeLoaded = App.MainController.IsGCodeLoaded;
+                bool isLoaded = App.MainController.IsGCodeLoaded;
+                panel.IsGCodeLoaded = isLoaded;
+                
+                // HomeZeroPanelView is now controlled by RunUiLocker - no manual update needed
             }
         }
         
@@ -159,11 +162,15 @@ namespace CncControlApp
             {
                 Dispatcher.Invoke(() =>
                 {
-                    var panel = MainProbePanel as ProbePanelView;
-                    if (panel != null)
+                    bool isLoaded = App.MainController?.IsGCodeLoaded ?? false;
+                    
+                    var probePanel = MainProbePanel as ProbePanelView;
+                    if (probePanel != null)
                     {
-                        panel.IsGCodeLoaded = App.MainController?.IsGCodeLoaded ?? false;
+                        probePanel.IsGCodeLoaded = isLoaded;
                     }
+                    
+                    // HomeZeroPanelView is now controlled by RunUiLocker - no manual update needed
                 });
             }
         }
@@ -1373,6 +1380,8 @@ namespace CncControlApp
                 // Ensure initial page state reflects Status (Settings): show blank right panel, hide coordinates
                 NavigateToPage(MenuPage.Status);
                 EnterKioskMode();
+                
+                // HomeZeroPanelView is now controlled by RunUiLocker - no manual update needed
             }
             catch (Exception ex)
             {
