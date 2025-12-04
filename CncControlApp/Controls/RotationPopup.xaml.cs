@@ -47,10 +47,6 @@ namespace CncControlApp.Controls
         private double _panOffsetY = 0;
         private DateTime _lastFitCheckTime = DateTime.MinValue; // Throttle fit checks during pan
 
-        // ✅ Store original state for cancel/close restore
-        private double _originalRotationAngle = 0; // Rotation angle when popup opened
-        private bool _changesApplied = false; // True if user applied changes (don't restore on close)
-
         // ✅ ADD: Helper method for logging (eliminates nullable method group issues)
         private void Log(string message) => App.MainController?.AddLogMessage(message);
 
@@ -74,11 +70,6 @@ namespace CncControlApp.Controls
             {
                 // Initialize slider to current angle from main view
                 double angle = _gcodeView?.GetCurrentRotationAngle() ?? 0;
-                
-                // ✅ Store original state for restore on cancel/close
-                _originalRotationAngle = angle;
-                _changesApplied = false;
-                
                 RotationSlider.Value = angle;
                 AngleValueText.Text = string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:F1}°", angle);
                 _pendingAngle = angle;
@@ -430,9 +421,6 @@ namespace CncControlApp.Controls
                     UpdatePopupLiveFitLabel(0);
                 }
 
-                // Mark that changes were applied (don't restore on close)
-                _changesApplied = true;
-
                 // Ensure next G00 shows zero popup if toggle is on
                 _awaitingZeroPrompt = false;
             }
@@ -639,7 +627,6 @@ namespace CncControlApp.Controls
                 }, DispatcherPriority.Send);
 
                 Log("> ✅ All changes applied successfully");
-                _changesApplied = true; // Mark that changes were applied (don't restore on close)
                 _awaitingZeroPrompt = false;
             }
             catch (Exception ex)
@@ -667,11 +654,8 @@ namespace CncControlApp.Controls
 
                 _redrawDebounceTimer?.Stop();
 
-                // ✅ If changes were NOT applied, restore original state
-                if (!_changesApplied)
-                {
-                    RestoreOriginalState();
-                }
+                // ✅ Always reset everything on close (simple approach)
+                ResetAll();
 
                 Close();
             }
@@ -679,22 +663,26 @@ namespace CncControlApp.Controls
         }
 
         /// <summary>
-        /// Restores the original state when popup is closed without applying changes.
-        /// Resets rotation angle in GCodeView and triggers main canvas redraw.
+        /// Resets all changes: rotation, pan, markers.
+        /// Called on close to ensure clean state.
         /// </summary>
-        private void RestoreOriginalState()
+        private void ResetAll()
         {
             try
             {
-                Log($"> RotationPopup: Restoring original state (angle: {_originalRotationAngle:F1}°)");
+                Log("> RotationPopup: Resetting all on close");
 
-                // 1. Restore rotation angle in GCodeView
-                if (_gcodeView != null)
-                {
-                    _gcodeView.SetRotationAngle(_originalRotationAngle);
-                }
+                // 1. Reset rotation
+                _gcodeView?.ResetRotation();
 
-                // 2. Trigger main canvas redraw with original rotation
+                // 2. Reset pan offset
+                ResetPan();
+
+                // 3. Clear markers
+                _lastTouchedMachineX = null;
+                _lastTouchedMachineY = null;
+
+                // 4. Trigger main canvas redraw
                 try
                 {
                     var field = _gcodeView?.GetType().GetField("_fileService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -704,11 +692,11 @@ namespace CncControlApp.Controls
                 }
                 catch { }
 
-                Log($"> ✅ Original state restored");
+                Log("> ✅ All reset on close");
             }
             catch (Exception ex)
             {
-                Log($"> ❌ RestoreOriginalState error: {ex.Message}");
+                Log($"> ❌ ResetAll error: {ex.Message}");
             }
         }
 
