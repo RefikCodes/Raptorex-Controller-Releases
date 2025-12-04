@@ -317,7 +317,7 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Center - Status with border -->
+                <!-- Center - Status indicators with border -->
                 <Border Grid.Column="1" 
                         VerticalAlignment="Center" 
                         HorizontalAlignment="Center"
@@ -326,8 +326,8 @@
                         CornerRadius="8"
                         Padding="20,8">
                     <StackPanel Orientation="Horizontal">
-                        <!-- LED and Label stacked vertically -->
-                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <!-- Machine Status LED and Label -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,25,0">
                             <Ellipse x:Name="StatusLED"
                                      Style="{StaticResource StatusLEDAlarmStyle}"
                                      Width="14" Height="14"
@@ -335,6 +335,56 @@
                                      HorizontalAlignment="Center"/>
                             <TextBlock x:Name="StatusText"
                                        Style="{StaticResource StatusTextAlarmStyle}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Spindle LED and Label -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,25,0">
+                            <Ellipse x:Name="SpindleLED"
+                                     Width="14" Height="14"
+                                     Stroke="#66000000"
+                                     StrokeThickness="1"
+                                     Margin="0,0,0,4"
+                                     HorizontalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="#FF9E9E9E"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSpindleOn}" Value="True">
+                                                <Setter Property="Fill" Value="#FF34C759"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="Spindle"
+                                       FontSize="12"
+                                       Foreground="#FFB0BEC5"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Coolant LED and Label -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <Ellipse x:Name="CoolantLED"
+                                     Width="14" Height="14"
+                                     Stroke="#66000000"
+                                     StrokeThickness="1"
+                                     Margin="0,0,0,4"
+                                     HorizontalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="#FF9E9E9E"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsCoolantOn}" Value="True">
+                                                <Setter Property="Fill" Value="#FF2196F3"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="Coolant"
+                                       FontSize="12"
+                                       Foreground="#FFB0BEC5"
                                        HorizontalAlignment="Center"/>
                         </StackPanel>
 
