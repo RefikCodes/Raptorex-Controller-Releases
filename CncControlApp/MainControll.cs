@@ -375,7 +375,13 @@ namespace CncControlApp
             _dataProcessingManager = new DataProcessingManager(
                 m => AddLogMessage(m),
                 (st, log) => { MachineStatus = st; if (!string.IsNullOrEmpty(log)) AddLogMessage(log); },
-                coords => { MStatus.X = coords.X; MStatus.Y = coords.Y; MStatus.Z = coords.Z; MStatus.A = coords.A; MStatus.WorkX = coords.WorkX; MStatus.WorkY = coords.WorkY; MStatus.WorkZ = coords.WorkZ; MStatus.WorkA = coords.WorkA; });
+                coords => { 
+                    MStatus.X = coords.X; MStatus.Y = coords.Y; MStatus.Z = coords.Z; MStatus.A = coords.A; 
+                    MStatus.WorkX = coords.WorkX; MStatus.WorkY = coords.WorkY; MStatus.WorkZ = coords.WorkZ; MStatus.WorkA = coords.WorkA;
+                    // Copy spindle and coolant state from parsed status
+                    MStatus.IsSpindleOn = coords.IsSpindleOn;
+                    MStatus.IsCoolantOn = coords.IsCoolantOn;
+                });
             ErrorLogger.LogDebug("DataProcessingManager oluşturuldu");
 
             // Subscribe to executing line info from status reports (FluidNC 'line' / 'Ln')

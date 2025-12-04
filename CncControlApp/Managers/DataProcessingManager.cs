@@ -58,6 +58,10 @@ namespace CncControlApp.Managers
         private int _mposFoundCount = 0;
         private int _wposFoundCount = 0;
         private DateTime _lastMposDebugLog = DateTime.MinValue;
+        
+        // Persistent spindle/coolant state (maintained across status reports)
+        private bool _lastSpindleState = false;
+        private bool _lastCoolantState = false;
 
         public event Action<int, string> AlarmDetected; // NEW: alarm notification (code, rawLine)
     // NEW: Report executing line (from status report field 'Ln' or 'line')
@@ -307,6 +311,13 @@ namespace CncControlApp.Managers
                 {
                     System.Diagnostics.Debug.WriteLine($"[MPOS_DEBUG #{_statusReportCount}] Raw status: {statusReport}");
                 }
+                
+                // Log first 5 status reports to UI for debugging accessory state
+                if (_statusReportCount <= 5)
+                {
+                    try { _addLogMessageDelegate?.Invoke($"> 📡 Status #{_statusReportCount}: {statusReport}"); } catch { }
+                    ErrorLogger.LogInfo($"[STATUS_LOG #{_statusReportCount}] {statusReport}");
+                }
 
                 //1) Parse status header
                 var statusMatch = Regex.Match(statusReport, @"<([^|>]+)");
@@ -389,20 +400,43 @@ namespace CncControlApp.Managers
                     }
                 }
 
-                // NEW: Parse accessory state (A: field) for spindle and coolant status
+                // Parse accessory state (A: field) for spindle and coolant status
                 // GRBL format: |A:SFM where S=Spindle CW, C=Spindle CCW, F=Flood coolant, M=Mist coolant
+                // NOTE: GRBL only sends A: field when accessories are active
                 try
                 {
                     var aMatch = Regex.Match(statusReport, @"\|A:([SCFM]+)", RegexOptions.IgnoreCase);
                     if (aMatch.Success)
                     {
                         string accessories = aMatch.Groups[1].Value.ToUpper();
-                        machineStatus.IsSpindleOn = accessories.Contains("S") || accessories.Contains("C");
-                        machineStatus.IsCoolantOn = accessories.Contains("F") || accessories.Contains("M");
+                        bool spindleOn = accessories.Contains("S") || accessories.Contains("C");
+                        bool coolantOn = accessories.Contains("F") || accessories.Contains("M");
+                        
+                        // Update persistent state and log when state changes
+                        if (_lastSpindleState != spindleOn || _lastCoolantState != coolantOn)
+                        {
+                            string msg = $"> 🔧 Accessory state: A:{accessories} → Spindle={spindleOn}, Coolant={coolantOn}";
+                            _addLogMessageDelegate(msg);
+                            ErrorLogger.LogInfo($"[ACCESSORY] {msg}");
+                            _lastSpindleState = spindleOn;
+                            _lastCoolantState = coolantOn;
+                        }
+                        
+                        machineStatus.IsSpindleOn = spindleOn;
+                        machineStatus.IsCoolantOn = coolantOn;
                     }
                     else
                     {
                         // No A: field means spindle and coolant are off
+                        // Update persistent state and log only when turning OFF
+                        if (_lastSpindleState || _lastCoolantState)
+                        {
+                            string msg = $"> 🔧 Accessory state: No A: field → Spindle=OFF, Coolant=OFF";
+                            _addLogMessageDelegate(msg);
+                            ErrorLogger.LogInfo($"[ACCESSORY] {msg}");
+                            _lastSpindleState = false;
+                            _lastCoolantState = false;
+                        }
                         machineStatus.IsSpindleOn = false;
                         machineStatus.IsCoolantOn = false;
                     }
