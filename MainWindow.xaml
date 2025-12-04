@@ -317,16 +317,28 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Center - Status -->
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <!-- Center - Status with border -->
+                <Border Grid.Column="1" 
+                        VerticalAlignment="Center" 
+                        HorizontalAlignment="Center"
+                        BorderBrush="#FF5A5A5C"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="20,8">
                     <StackPanel Orientation="Horizontal">
-                        <Ellipse x:Name="StatusLED"
-                                 Style="{StaticResource StatusLEDAlarmStyle}"
-                                 Margin="0,0,15,0"/>
-                        <TextBlock x:Name="StatusText"
-                                   Style="{StaticResource StatusTextAlarmStyle}"/>
+                        <!-- LED and Label stacked vertically -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <Ellipse x:Name="StatusLED"
+                                     Style="{StaticResource StatusLEDAlarmStyle}"
+                                     Width="14" Height="14"
+                                     Margin="0,0,0,4"
+                                     HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="StatusText"
+                                       Style="{StaticResource StatusTextAlarmStyle}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
 
-                        <!-- NEW: Clear Alarm button (visible only when MachineStatus == Alarm) -->
+                        <!-- Clear Alarm button (visible only when MachineStatus == Alarm) -->
                         <Button x:Name="ClearAlarmTopButton"
                                 Content="Clear Alarm"
                                 Click="ClearAlarmTopButton_Click"
@@ -351,7 +363,7 @@
                             </Button.Style>
                         </Button>
                     </StackPanel>
-                </StackPanel>
+                </Border>
 
                 <!-- Right - Emergency Stop Button -->
                 <Button x:Name="EmergencyStopButton"
