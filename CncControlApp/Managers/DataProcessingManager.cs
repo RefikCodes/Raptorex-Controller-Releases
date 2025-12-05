@@ -66,6 +66,9 @@ namespace CncControlApp.Managers
         public event Action<int, string> AlarmDetected; // NEW: alarm notification (code, rawLine)
     // NEW: Report executing line (from status report field 'Ln' or 'line')
     public event Action<int> ExecutingLineReported;
+    
+        // Event to notify spindle/coolant state changes (for LED updates)
+        public event Action<bool, bool> AccessoryStateChanged;  // (isSpindleOn, isCoolantOn)
 
         #endregion
 
@@ -262,6 +265,13 @@ namespace CncControlApp.Managers
                         // Treat as generic unhomed alarm (code14 commonly Line length exceeded but message says Unhomed on some firmwares)
                         try { AlarmDetected?.Invoke(14, line); } catch { }
                     }
+                    
+                    // Parse $G response for spindle/coolant modal state
+                    // Format: [GC:G0 G54 G17 G21 G90 G94 M3 S10000 M9 F500 T0]
+                    if (line.StartsWith("[GC:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ParseGCModalState(line);
+                    }
 
                     if (IsImportantMessageAdvanced(line))
                     {
@@ -403,6 +413,7 @@ namespace CncControlApp.Managers
                 // Parse accessory state (A: field) for spindle and coolant status
                 // GRBL format: |A:SFM where S=Spindle CW, C=Spindle CCW, F=Flood coolant, M=Mist coolant
                 // NOTE: GRBL only sends A: field when accessories are active
+                // We use persistent state to avoid LED flickering when A: field is intermittent
                 try
                 {
                     var aMatch = Regex.Match(statusReport, @"\|A:([SCFM]+)", RegexOptions.IgnoreCase);
@@ -421,25 +432,14 @@ namespace CncControlApp.Managers
                             _lastSpindleState = spindleOn;
                             _lastCoolantState = coolantOn;
                         }
-                        
-                        machineStatus.IsSpindleOn = spindleOn;
-                        machineStatus.IsCoolantOn = coolantOn;
                     }
-                    else
-                    {
-                        // No A: field means spindle and coolant are off
-                        // Update persistent state and log only when turning OFF
-                        if (_lastSpindleState || _lastCoolantState)
-                        {
-                            string msg = $"> 🔧 Accessory state: No A: field → Spindle=OFF, Coolant=OFF";
-                            _addLogMessageDelegate(msg);
-                            ErrorLogger.LogInfo($"[ACCESSORY] {msg}");
-                            _lastSpindleState = false;
-                            _lastCoolantState = false;
-                        }
-                        machineStatus.IsSpindleOn = false;
-                        machineStatus.IsCoolantOn = false;
-                    }
+                    // NOTE: If A: field is missing, we do NOT reset state!
+                    // GRBL doesn't always include A: field in every status report.
+                    // Only M5/M9 commands should turn off spindle/coolant.
+                    
+                    // Always use persistent state for machineStatus
+                    machineStatus.IsSpindleOn = _lastSpindleState;
+                    machineStatus.IsCoolantOn = _lastCoolantState;
                 }
                 catch { }
 
@@ -731,6 +731,68 @@ namespace CncControlApp.Managers
             }
         }
 
+        #endregion
+        
+        #region Modal State Parsing
+        
+        /// <summary>
+        /// Parse $G response to extract spindle and coolant modal state
+        /// Format: [GC:G0 G54 G17 G21 G90 G94 M3 S10000 M9 F500 T0]
+        /// M3 = Spindle CW, M4 = Spindle CCW, M5 = Spindle OFF
+        /// M7 = Mist coolant, M8 = Flood coolant, M9 = Coolant OFF
+        /// </summary>
+        private void ParseGCModalState(string gcLine)
+        {
+            try
+            {
+                // Extract content between [GC: and ]
+                int startIdx = gcLine.IndexOf("[GC:", StringComparison.OrdinalIgnoreCase);
+                int endIdx = gcLine.LastIndexOf(']');
+                if (startIdx < 0 || endIdx <= startIdx) return;
+                
+                string content = gcLine.Substring(startIdx + 4, endIdx - startIdx - 4).Trim();
+                var tokens = content.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                
+                bool spindleOn = false;
+                bool coolantOn = false;
+                
+                foreach (var token in tokens)
+                {
+                    string upper = token.ToUpperInvariant();
+                    
+                    // Spindle modes
+                    if (upper == "M3" || upper == "M4")
+                    {
+                        spindleOn = true;
+                    }
+                    else if (upper == "M5")
+                    {
+                        spindleOn = false;
+                    }
+                    // Coolant modes
+                    else if (upper == "M7" || upper == "M8")
+                    {
+                        coolantOn = true;
+                    }
+                    else if (upper == "M9")
+                    {
+                        coolantOn = false;
+                    }
+                }
+                
+                // Always update state (not just on change) to ensure LED sync
+                _lastSpindleState = spindleOn;
+                _lastCoolantState = coolantOn;
+                
+                // Always notify listeners for LED updates
+                try { AccessoryStateChanged?.Invoke(spindleOn, coolantOn); } catch { }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ParseGCModalState error: {ex.Message}");
+            }
+        }
+        
         #endregion
     }
 

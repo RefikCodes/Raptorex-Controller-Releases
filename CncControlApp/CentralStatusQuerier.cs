@@ -21,6 +21,10 @@ namespace CncControlApp
  private readonly ConcurrentDictionary<Guid, int> _subscribers = new ConcurrentDictionary<Guid, int>();
  private readonly object _timerLock = new object();
  private const int SAFETY_MIN_INTERVAL_MS = 25; // do not go faster than this
+ 
+ // $G query counter - send $G every N ticks for spindle/coolant modal state
+ private int _queryCount = 0;
+ private const int G_QUERY_EVERY_N = 3; // Every 3 ticks (e.g., 900ms at 300ms interval)
 
  public CentralStatusQuerier(ConnectionManager connectionManager)
  {
@@ -47,7 +51,15 @@ namespace CncControlApp
  {
  if (_connectionManager?.IsConnected == true)
  {
- // best-effort non-blocking send
+ // Every N ticks, also send $G to get modal state (spindle/coolant)
+ _queryCount++;
+ if (_queryCount >= G_QUERY_EVERY_N)
+ {
+ _queryCount = 0;
+ _ = _connectionManager.SendGCodeCommandAsync("$G");
+ }
+ 
+ // Always send ? for status (coordinates, state, etc.)
  _ = _connectionManager.SendGCodeCommandAsync("?");
  }
  }

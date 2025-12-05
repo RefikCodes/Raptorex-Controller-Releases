@@ -378,9 +378,9 @@ namespace CncControlApp
                 coords => { 
                     MStatus.X = coords.X; MStatus.Y = coords.Y; MStatus.Z = coords.Z; MStatus.A = coords.A; 
                     MStatus.WorkX = coords.WorkX; MStatus.WorkY = coords.WorkY; MStatus.WorkZ = coords.WorkZ; MStatus.WorkA = coords.WorkA;
-                    // Copy spindle and coolant state from parsed status
-                    MStatus.IsSpindleOn = coords.IsSpindleOn;
-                    MStatus.IsCoolantOn = coords.IsCoolantOn;
+                    // NOTE: IsSpindleOn/IsCoolantOn are NOT copied here anymore.
+                    // They are updated only via AccessoryStateChanged event from $G modal parsing (reliable source).
+                    // Status report A: field is intermittent and causes LED flickering.
                 });
             ErrorLogger.LogDebug("DataProcessingManager oluşturuldu");
 
@@ -388,6 +388,17 @@ namespace CncControlApp
             _dataProcessingManager.ExecutingLineReported += (oneBasedLine) =>
             {
                 try { _gCodeManager?.UpdateExecutingLineFromController(oneBasedLine); }
+                catch { }
+            };
+            
+            // Subscribe to accessory state changes from $G modal parsing (reliable source for LED updates)
+            _dataProcessingManager.AccessoryStateChanged += (spindleOn, coolantOn) =>
+            {
+                try
+                {
+                    MStatus.IsSpindleOn = spindleOn;
+                    MStatus.IsCoolantOn = coolantOn;
+                }
                 catch { }
             };
 
@@ -650,7 +661,7 @@ namespace CncControlApp
             }
         }
 
-        // Machine control wrappers
+        // Machine control wrappers - state updated via $G parsing AccessoryStateChanged event
         public Task<bool> ToggleSpindleAsync(bool on) => _machineControlService.ToggleSpindleAsync(on);
         public Task<bool> StartSpindleAsync(double s) => _machineControlService.StartSpindleAsync(s);
         public Task<bool> StopSpindleAsync() => _machineControlService.StopSpindleAsync();
