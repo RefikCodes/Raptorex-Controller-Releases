@@ -183,6 +183,14 @@ namespace CncControlApp
         public string SpindleSpeedDisplay => _machineControlService.SpindleSpeedDisplay;
         public double SpindleSpeedPercentage { get => _machineControlService.SpindleSpeedPercentage; set => _machineControlService.SpindleSpeedPercentage = value; }
         public bool IsCoolantOn => MStatus?.IsCoolantOn ?? false;
+        
+        // Limit switches and probe status from MStatus (live from Pn: field in status report)
+        public bool IsIdle => MStatus?.IsIdle ?? true;
+        public bool LimitX => MStatus?.LimitX ?? false;
+        public bool LimitY => MStatus?.LimitY ?? false;
+        public bool LimitZ => MStatus?.LimitZ ?? false;
+        public bool ProbeTriggered => MStatus?.ProbeTriggered ?? false;
+        
         public bool IsMistOn { get => _machineControlService.IsMistOn; set { } }
         public bool IsLightsOn { get => _machineControlService.IsLightsOn; set { } }
         public bool IsToolChangeOn { get => _machineControlService.IsToolChangeOn; set { } }
@@ -487,6 +495,12 @@ namespace CncControlApp
                 // Spindle/Coolant LED updates from status report
                 if (e.PropertyName == nameof(MStatus.IsSpindleOn)) OnPropertyChanged(nameof(IsSpindleOn));
                 if (e.PropertyName == nameof(MStatus.IsCoolantOn)) OnPropertyChanged(nameof(IsCoolantOn));
+                // Limit switches and probe LED updates from Pn: field
+                if (e.PropertyName == nameof(MStatus.IsIdle)) OnPropertyChanged(nameof(IsIdle));
+                if (e.PropertyName == nameof(MStatus.LimitX)) OnPropertyChanged(nameof(LimitX));
+                if (e.PropertyName == nameof(MStatus.LimitY)) OnPropertyChanged(nameof(LimitY));
+                if (e.PropertyName == nameof(MStatus.LimitZ)) OnPropertyChanged(nameof(LimitZ));
+                if (e.PropertyName == nameof(MStatus.ProbeTriggered)) OnPropertyChanged(nameof(ProbeTriggered));
             };
 
             AddLogMessage("> ✅ MainControll başlatıldı - Tüm servisler entegre edildi");

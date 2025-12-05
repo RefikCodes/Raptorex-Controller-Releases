@@ -335,6 +335,9 @@ namespace CncControlApp.Managers
                 {
                     // Sadece kısa state token ("Idle", "Run", "Jog", "Hold", "Alarm", ... )
                     string newState = statusMatch.Groups[1].Value.Trim();
+                    
+                    // Update MachineStatus.State for UI binding
+                    machineStatus.State = newState;
 
                     if (!string.Equals(_lastMachineState, newState, StringComparison.Ordinal))
                     {
@@ -440,6 +443,30 @@ namespace CncControlApp.Managers
                     // Always use persistent state for machineStatus
                     machineStatus.IsSpindleOn = _lastSpindleState;
                     machineStatus.IsCoolantOn = _lastCoolantState;
+                }
+                catch { }
+
+                // Parse Pn: field for limit switches and probe status
+                // Format: |Pn:XYZP where X/Y/Z = limit switches, P = probe
+                try
+                {
+                    var pnMatch = Regex.Match(statusReport, @"\|Pn:([XYZABCP]+)", RegexOptions.IgnoreCase);
+                    if (pnMatch.Success)
+                    {
+                        string pins = pnMatch.Groups[1].Value.ToUpper();
+                        machineStatus.LimitX = pins.Contains("X");
+                        machineStatus.LimitY = pins.Contains("Y");
+                        machineStatus.LimitZ = pins.Contains("Z");
+                        machineStatus.ProbeTriggered = pins.Contains("P");
+                    }
+                    else
+                    {
+                        // No Pn: field means no pins are triggered
+                        machineStatus.LimitX = false;
+                        machineStatus.LimitY = false;
+                        machineStatus.LimitZ = false;
+                        machineStatus.ProbeTriggered = false;
+                    }
                 }
                 catch { }
 
