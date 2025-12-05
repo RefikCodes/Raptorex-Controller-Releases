@@ -68,10 +68,12 @@ namespace CncControlApp.Managers
         private const int MAX_LINE_COUNT = 50000;
         private const int MAX_GCODE_LINE_LENGTH = 256;
         private const int MAX_ERROR_COUNT = 5;
-        private const int TARGET_BUFFER_SIZE = 15;
         
-        // Byte-based buffer limit (800 bytes for larger buffer)
-        private const int MAX_BUFFER_BYTES = 800;
+        // GRBL RX Buffer size (Character Counting Protocol - same as OpenBuilds)
+        // Standard GRBL uses 127 bytes, we use 127 with safety margin
+        private const int GRBL_RX_BUFFER_SIZE = 127;
+        private const int BUFFER_SAFETY_MARGIN = 5;  // Keep some margin to avoid overflow
+        private const int EFFECTIVE_BUFFER_SIZE = GRBL_RX_BUFFER_SIZE - BUFFER_SAFETY_MARGIN;  // 122 bytes usable
 
         public GCodeExecutionManager(
             ConnectionManager connectionManager,
@@ -579,26 +581,25 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
             _wasStopped = true; if (IsGCodeRunning) IsGCodeRunning = false; CurrentGCodeLineIndex = 0; LastCompletedLineIndex = -1; CurrentlyExecutingLineIndex = -1; UpdateExecutionProperties();
         }
 
-        // OpenBuilds-style event driven streaming (central status query handles stall detection)
+        // OpenBuilds-style Character Counting Protocol streaming
+        // Tracks bytes in GRBL RX buffer and fills it optimally
         private async Task<bool> ExecuteOpenBuildsStreamingAsync(CancellationToken ct)
         {
             var inflight = new Queue<(string Cmd, int Line, int Bytes)>();
-            int inflightBytes = 0;
+            int inflightBytes = 0;  // Current bytes in GRBL RX buffer
             int errors = 0;
             bool aborted = false;
             var allAckTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             object sync = new object();
 
-            const int INITIAL_FILL_DELAY_MS = 150; // Delay for first 15 commands
-            const int NORMAL_SEND_DELAY_MS = 25;   // Delay for all subsequent commands
-
-            bool initialFillDone = false;
-            int initialFillCount = 0; // Track how many commands sent during initial fill
+            // Character Counting Protocol: No artificial delays needed!
+            // Buffer is tracked by byte count, not command count
+            const int SEND_DELAY_MS = 1;  // Minimal delay just for thread yielding
             
             // Semaphore to ensure only one FillAsync runs at a time (prevents parallel buffer overflow)
             var fillSemaphore = new SemaphoreSlim(1, 1);
             
-            // Fill buffer while space is available
+            // Fill buffer while space is available (Character Counting Protocol)
             async Task FillAsync()
             {
                 // Ensure only one FillAsync runs at a time to prevent buffer overflow
@@ -607,22 +608,18 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
                 {
                 if (aborted) return;
 
-                // Loop to fill buffer, but yield to UI/Events occasionally
+                // Loop to fill buffer optimally using byte counting
                 while (_internalStreaming && !_wasStopped && !ct.IsCancellationRequested)
                 {
                     string cmd = null;
                     int uiIdx = -1;
-                    int bytes = 0;
+                    int cmdBytes = 0;
 
                     lock (sync)
                     {
                         if (CurrentGCodeLineIndex >= GCodeLines.Count) break; // Done sending
                         
-                        // INITIAL FILL: Fill to TARGET_BUFFER_SIZE, then PING-PONG (1 OK = 1 command)
-                        int maxInflight = initialFillDone ? 1 : TARGET_BUFFER_SIZE;
-                        if (inflight.Count >= maxInflight) break; 
-
-                        // Peek next command to check size
+                        // Peek next command to check if it fits in buffer
                         if (!TryGetNextValidCommand(out cmd, out uiIdx))
                         {
                             break; // Should not happen if index < count
@@ -631,11 +628,19 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
                         // Format command to 3 decimal places to avoid controller precision errors (error:33)
                         cmd = FormatGCodeLine(cmd);
 
-                        bytes = 0; // Not used in Ping-Pong mode
+                        // Character Counting: Calculate byte size (command + newline)
+                        cmdBytes = System.Text.Encoding.ASCII.GetByteCount(cmd) + 1;  // +1 for \n
+                        
+                        // Check if command fits in remaining buffer space
+                        if (inflightBytes + cmdBytes > EFFECTIVE_BUFFER_SIZE)
+                        {
+                            // Buffer would overflow - wait for OK responses
+                            break;
+                        }
 
-                        // Optimistically add to inflight to reserve space immediately
-                        inflight.Enqueue((cmd, uiIdx, bytes));
-                        inflightBytes += bytes;
+                        // Command fits - add to inflight queue
+                        inflight.Enqueue((cmd, uiIdx, cmdBytes));
+                        inflightBytes += cmdBytes;
                         if (inflight.Count == 1) CurrentlyExecutingLineIndex = uiIdx;
                     }
 
@@ -643,17 +648,11 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
                     ParseModalValues(cmd);
                     bool sent = await _connectionManager.SendGCodeCommandAsync(cmd);
 
-                    // Add delay between commands: 100ms for first 15, 50ms for rest
-                    if (!initialFillDone)
+                    // Character Counting: Minimal delay just for thread yielding
+                    // No artificial delays needed - buffer is tracked by bytes!
+                    if (SEND_DELAY_MS > 0)
                     {
-                        initialFillCount++;
-                        await Task.Delay(INITIAL_FILL_DELAY_MS);
-                        System.Diagnostics.Debug.WriteLine($"🔄 Initial fill #{initialFillCount}: {cmd} (waited {INITIAL_FILL_DELAY_MS}ms)");
-                    }
-                    else
-                    {
-                        // Add 50ms delay for all subsequent commands to prevent buffer overrun
-                        await Task.Delay(NORMAL_SEND_DELAY_MS);
+                        await Task.Delay(SEND_DELAY_MS);
                     }
 
                     if (!sent)
@@ -669,15 +668,8 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
                         return;
                     }
 
-                    // Yield to allow UI/Events to process, preventing lock starvation
+                    // Yield to allow UI/Events to process
                     await Task.Yield();
-                }
-                
-                // Mark initial fill as done after first FillAsync completes
-                if (!initialFillDone)
-                {
-                    initialFillDone = true;
-                    _log($"> ⏱️ Initial buffer fill complete ({initialFillCount} commands with {INITIAL_FILL_DELAY_MS}ms delay, subsequent: {NORMAL_SEND_DELAY_MS}ms)");
                 }
 
                 lock (sync)
@@ -775,7 +767,7 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
                     catch (TaskCanceledException) { success = false; }
                     if (!success || aborted) return false;
                 }
-                _log($"> ✅ OpenBuilds streaming COMPLETED (All OKs received)");
+                _log($"> ✅ Character Counting Protocol streaming COMPLETED (Buffer: {GRBL_RX_BUFFER_SIZE} bytes)");
                 return true;
             }
             finally
