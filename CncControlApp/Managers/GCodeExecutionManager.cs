@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using CncControlApp.Services;
+using GrblStreamer.Events;
 
 namespace CncControlApp.Managers
 {
@@ -18,6 +19,7 @@ namespace CncControlApp.Managers
     {
         // Dependencies
         private readonly ConnectionManager _connectionManager;
+        private readonly GrblStreamingService _streamingService;
         private readonly UIPropertiesManager _uiManager;
         private readonly Action<string, Exception, ErrorHandlingService.ErrorSeverity> _logError;
         private readonly Action<string> _log;
@@ -92,6 +94,13 @@ namespace CncControlApp.Managers
             _setMachineStatus = setMachineStatus ?? throw new ArgumentNullException(nameof(setMachineStatus));
             _getCurrentWorkZ = getCurrentWorkZ; // Can be null
             _uiManager.PropertyChanged += OnUIManagerPropertyChanged;
+            
+            // Initialize GrblStreamingService (from GrblStreamer library)
+            _streamingService = new GrblStreamingService(_connectionManager);
+            _streamingService.Initialize();
+            _streamingService.LineCompleted += OnStreamingLineCompleted;
+            _streamingService.JobCompleted += OnStreamingJobCompleted;
+            _streamingService.ProgressUpdated += OnStreamingProgressUpdated;
             
             // Initialize live elapsed timer (ticks every 500 ms for smooth updates)
             _liveElapsedTimer = new System.Windows.Threading.DispatcherTimer
@@ -494,34 +503,22 @@ CurrentlyExecutingLineIndex = -1;
        // Scope field olarak tutulur, IsGCodeRunning=false olduğunda dispose edilir
        try { _gcodeRunScope?.Dispose(); _gcodeRunScope = App.MainController?.BeginScopedCentralStatusOverride(200); } catch { }
        
- _internalStreaming = true; _executionCts?.Dispose(); _executionCts = new CancellationTokenSource();
+       _internalStreaming = true; _executionCts?.Dispose(); _executionCts = new CancellationTokenSource();
       
-
-      // ✅ Execute commands - this queues all commands into buffer and returns when queue is empty
-    bool streamedOk = await ExecuteOpenBuildsStreamingAsync(_executionCts.Token);
- _internalStreaming = false;
-      
-       // NOT: Scope burada dispose edilMEZ! Makine hala çalışıyor olabilir.
-       // Scope, IsGCodeRunning=false olduğunda (setter'da) dispose edilir.
-      
-      if (!streamedOk) 
-      { 
-          // Streaming failed - cancel execution
-          ErrorLogger.LogDebug("Streaming başarısız - abort");
-          if (IsGCodeRunning) IsGCodeRunning = false; 
-          _log("> ❌ Streaming aborted"); 
-          ExecutionCompleted?.Invoke(this, false); 
-          UpdateExecutionProperties(); 
-          return false; 
-      }
-        
-_log("> ✅ All commands streamed successfully - machine executing buffered commands");
-ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
+       // ✅ GrblStreamingService ile streaming başlat
+       // GCode satırlarını servise yükle (GCodeLines zaten string koleksiyonu)
+       _streamingService.LoadGCode(GCodeLines);
+       
+       // Streaming başlat (async fire-and-forget - completion event ile tamamlanacak)
+       await _streamingService.StartAsync();
+       
+       _log("> ✅ GrblStreamer: Streaming started - machine executing buffered commands");
+       ErrorLogger.LogDebug("GrblStreamer ile streaming başladı");
  
-        // ✅ CRITICAL FIX: Just return true - machine will keep executing
-      // IsGCodeRunning stays true until we manually set it false later
-        // The completion popup will be triggered by external completion detection
-      return true;
+       // ✅ CRITICAL FIX: Just return true - machine will keep executing
+       // IsGCodeRunning stays true until we manually set it false later
+       // The completion popup will be triggered by JobCompleted event
+       return true;
       }
      catch (Exception ex)
             {
@@ -541,11 +538,11 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
             if (!CanPauseExecution) return false;
             try
             {
-                await _connectionManager.SendGCodeCommandAsync("!");
+                await _streamingService.PauseAsync();
                 SetMachineStatusSafe("Hold");
                 _executionCts?.Cancel(); _internalStreaming = false; if (IsGCodeRunning) IsGCodeRunning = false; _wasStopped = false;
                 var msg = $"Paused (Hold) at line {LastCompletedLineIndex + 1} (executing: {CurrentlyExecutingLineIndex + 1})";
-                _log($"> ?? {msg}"); Paused?.Invoke(this, msg); UpdateExecutionProperties(); return true;
+                _log($"> ⏸ {msg}"); Paused?.Invoke(this, msg); UpdateExecutionProperties(); return true;
             }
             catch (Exception ex) { _logError("PauseGCode", ex, ErrorHandlingService.ErrorSeverity.Error); return false; }
         }
@@ -556,11 +553,10 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
             if (!(status.StartsWith("Hold", StringComparison.OrdinalIgnoreCase)) || _wasStopped) return false;
             try
             {
-                bool sent = await _connectionManager.SendGCodeCommandAsync("~"); if (!sent) return false;
+                await _streamingService.ResumeAsync();
                 SetMachineStatusSafe("Run"); if (!IsGCodeRunning) IsGCodeRunning = true;
-                _executionCts?.Dispose(); _executionCts = new CancellationTokenSource(); _internalStreaming = true;
-                _ = Task.Run(() => ExecuteOpenBuildsStreamingAsync(_executionCts.Token));
-                _log("> ?? Continued (streaming resumed)"); UpdateExecutionProperties(); return true;
+                _internalStreaming = true;
+                _log("> ▶ Continued (streaming resumed via GrblStreamer)"); UpdateExecutionProperties(); return true;
             }
             catch (Exception ex) { _logError("ContinueGCode", ex, ErrorHandlingService.ErrorSeverity.Error); return false; }
         }
@@ -570,8 +566,9 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
             if (!CanStopExecution) return false;
             try
             {
-                await _connectionManager.SendGCodeCommandAsync("!"); SetMachineStatusSafe("Hold");
-                _executionCts?.Cancel(); _internalStreaming = false; if (IsGCodeRunning) IsGCodeRunning = false; _log("> ?? Feed Hold (!) sent - waiting for user decision..."); UpdateExecutionProperties(); return true;
+                await _streamingService.StopAsync();
+                SetMachineStatusSafe("Idle");
+                _executionCts?.Cancel(); _internalStreaming = false; if (IsGCodeRunning) IsGCodeRunning = false; _log("> ⏹ Job stopped via GrblStreamer"); UpdateExecutionProperties(); return true;
             }
             catch (Exception ex) { _logError("StopGCode", ex, ErrorHandlingService.ErrorSeverity.Error); return false; }
         }
@@ -594,7 +591,8 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
 
             // Character Counting Protocol: No artificial delays needed!
             // Buffer is tracked by byte count, not command count
-            const int SEND_DELAY_MS = 1;  // Minimal delay just for thread yielding
+            // OPTIMIZED: Zero delay like OpenBuilds - synchronous serial write is already fast
+            const int SEND_DELAY_MS = 0;  // OpenBuilds has no delay between commands
             
             // Semaphore to ensure only one FillAsync runs at a time (prevents parallel buffer overflow)
             var fillSemaphore = new SemaphoreSlim(1, 1);
@@ -625,8 +623,9 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
                             break; // Should not happen if index < count
                         }
 
-                        // Format command to 3 decimal places to avoid controller precision errors (error:33)
-                        cmd = FormatGCodeLine(cmd);
+                        // NOTE: FormatGCodeLine KALDIRILDI - 3 decimal yuvarlaması arc hatalarına (error:33) sebep oluyordu
+                        // OpenBuilds gibi orijinal G-Code'u olduğu gibi gönderiyoruz
+                        // cmd = FormatGCodeLine(cmd);
 
                         // Character Counting: Calculate byte size (command + newline)
                         cmdBytes = System.Text.Encoding.ASCII.GetByteCount(cmd) + 1;  // +1 for \n
@@ -716,9 +715,10 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
                             {
                                 var item = inflight.Dequeue(); 
                                 inflightBytes = Math.Max(0, inflightBytes - item.Bytes);
-                                string detail = line;
-                                if (line.Contains("error:3")) detail = $"error:3 (Unsupported) '{item.Cmd}'";
+                                string detail = $"{line} on cmd: '{item.Cmd}'";
                                 MarkLineError(item.Line, detail);
+                                // OPTIMIZED: Debug logging removed for performance
+                                // System.Diagnostics.Debug.WriteLine($"[ERROR MATCH] error:33 at Line {item.Line}: '{item.Cmd}' (inflight remaining: {inflight.Count})");
                                 needRefill = true;
                             }
                             errors++;
@@ -826,6 +826,72 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
             {
                 // Ignore parsing errors
             }
+        }
+
+        // GrblStreamingService event handlers
+        private void OnStreamingLineCompleted(object sender, int lineIndex)
+        {
+            try
+            {
+                var disp = Application.Current?.Dispatcher;
+                if (disp != null && !disp.CheckAccess())
+                {
+                    disp.BeginInvoke(new Action(() => HandleLineCompleted(lineIndex)));
+                }
+                else
+                {
+                    HandleLineCompleted(lineIndex);
+                }
+            }
+            catch { }
+        }
+
+        private void HandleLineCompleted(int lineIndex)
+        {
+            MarkLineCompleted(lineIndex);
+            LastCompletedLineIndex = lineIndex;
+            LineCompleted?.Invoke(this, lineIndex);
+        }
+
+        private void OnStreamingJobCompleted(object sender, JobCompletedEventArgs e)
+        {
+            try
+            {
+                var disp = Application.Current?.Dispatcher;
+                if (disp != null && !disp.CheckAccess())
+                {
+                    disp.BeginInvoke(new Action(() => HandleJobCompleted(e)));
+                }
+                else
+                {
+                    HandleJobCompleted(e);
+                }
+            }
+            catch { }
+        }
+
+        private void HandleJobCompleted(JobCompletedEventArgs e)
+        {
+            _internalStreaming = false;
+            if (IsGCodeRunning) IsGCodeRunning = false;
+            
+            if (e.Success)
+            {
+                _log($"> ✅ GrblStreamer: Job completed successfully");
+            }
+            else
+            {
+                _log($"> ❌ GrblStreamer: Job failed - {e.ErrorMessage}");
+            }
+            
+            ExecutionCompleted?.Invoke(this, e.Success);
+            UpdateExecutionProperties();
+        }
+
+        private void OnStreamingProgressUpdated(object sender, StreamingProgressEventArgs e)
+        {
+            // Progress update (streaming service zaten timer ile tetikliyor)
+            // Burada ek işlem gerekirse eklenebilir
         }
 
         // Helpers
@@ -1307,6 +1373,7 @@ ErrorLogger.LogDebug("Tüm komutlar başarıyla gönderildi");
             try
             {
                 _liveElapsedTimer?.Stop();
+                _streamingService?.Dispose();
                 _uiManager.PropertyChanged -= OnUIManagerPropertyChanged; _executionCts?.Cancel(); _executionCts?.Dispose(); _executionCts = null; _internalStreaming = false;
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GCodeExecutionManager dispose error: {ex.Message}"); }

@@ -202,6 +202,7 @@
     <Compile Include="CncControlApp\Services\CoordinateService.cs" />
     <Compile Include="CncControlApp\Services\DiagnosticTimingService.cs" />
     <Compile Include="CncControlApp\Services\ErrorHandlingService.cs" />
+    <Compile Include="CncControlApp\Services\GrblStreamingService.cs" />
     <Compile Include="CncControlApp\Services\GCodeRunLineLogger.cs" />
     <Compile Include="CncControlApp\Services\MachineControlService.cs" />
     <Compile Include="CncControlApp\Services\ProbeManager.cs" />
@@ -232,6 +233,21 @@
     </Compile>
     <Compile Include="RelayCommand.cs" />
     <Compile Include="SerialPortManager.cs" />
+    <!-- GrblStreamer Library -->
+    <Compile Include="GrblStreamer\GrblController.cs" />
+    <Compile Include="GrblStreamer\Core\GrblConnection.cs" />
+    <Compile Include="GrblStreamer\Core\GrblParser.cs" />
+    <Compile Include="GrblStreamer\Core\GrblRealtime.cs" />
+    <Compile Include="GrblStreamer\Core\GrblStreamerCore.cs" />
+    <Compile Include="GrblStreamer\Core\GrblStrings.cs" />
+    <Compile Include="GrblStreamer\Enums\ConnectionStatus.cs" />
+    <Compile Include="GrblStreamer\Enums\FirmwareType.cs" />
+    <Compile Include="GrblStreamer\Enums\GrblState.cs" />
+    <Compile Include="GrblStreamer\Events\GrblEvents.cs" />
+    <Compile Include="GrblStreamer\Models\FirmwareInfo.cs" />
+    <Compile Include="GrblStreamer\Models\GrblStatus.cs" />
+    <Compile Include="GrblStreamer\Models\MachinePosition.cs" />
+    <Compile Include="GrblStreamer\Models\StreamingStats.cs" />
     <Page Include="CncControlApp\ConsoleView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -54,10 +54,8 @@ namespace CncControlApp
             {
                 if (_isCurrentLine != value)
                 {
-                    System.Diagnostics.Debug.WriteLine($"🔥 IsCurrentLine changing: Line {LineNumber}, from {_isCurrentLine} to {value}");
                     _isCurrentLine = value;
                     OnPropertyChanged();
-                    System.Diagnostics.Debug.WriteLine($"🔥 PropertyChanged fired for IsCurrentLine on Line {LineNumber}");
                 }
             }
         }
@@ -104,10 +102,8 @@ namespace CncControlApp
             {
                 if (_hasError != value)
                 {
-                    System.Diagnostics.Debug.WriteLine($"🔥 HasError changing: Line {LineNumber}, from {_hasError} to {value}");
                     _hasError = value;
                     OnPropertyChanged();
-                    System.Diagnostics.Debug.WriteLine($"🔥 PropertyChanged fired for HasError on Line {LineNumber}");
                 }
             }
         }
@@ -117,7 +113,6 @@ namespace CncControlApp
         /// </summary>
         public void ResetStatus()
         {
-            System.Diagnostics.Debug.WriteLine($"🔥 ResetStatus called for Line {LineNumber}");
             IsCurrentLine = false;
             IsSent = false;
             IsExecuted = false;
@@ -139,7 +134,6 @@ namespace CncControlApp
         /// </summary>
         public void SetAsCurrent()
         {
-            System.Diagnostics.Debug.WriteLine($"🔥 SetAsCurrent called for Line {LineNumber}");
             IsCurrentLine = true;
             // Current'a girerken pending sayılabilir
             IsSent = true;
@@ -152,7 +146,6 @@ namespace CncControlApp
         /// </summary>
         public void SetAsExecuted()
         {
-            System.Diagnostics.Debug.WriteLine($"🔥 SetAsExecuted called for Line {LineNumber}");
             IsCurrentLine = false; // Current olmaktan çık
             IsSent = true;         // Gönderilmiş de olur
             IsExecuted = true;     // Executed ol
@@ -164,7 +157,6 @@ namespace CncControlApp
         /// </summary>
         public void SetAsError()
         {
-            System.Diagnostics.Debug.WriteLine($"🔥 SetAsError called for Line {LineNumber}");
             IsCurrentLine = false;
             IsSent = true;
             IsExecuted = false;

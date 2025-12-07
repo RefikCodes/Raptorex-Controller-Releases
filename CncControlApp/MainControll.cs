@@ -183,14 +183,6 @@ namespace CncControlApp
         public string SpindleSpeedDisplay => _machineControlService.SpindleSpeedDisplay;
         public double SpindleSpeedPercentage { get => _machineControlService.SpindleSpeedPercentage; set => _machineControlService.SpindleSpeedPercentage = value; }
         public bool IsCoolantOn => MStatus?.IsCoolantOn ?? false;
-        
-        // Limit switches and probe status from MStatus (live from Pn: field in status report)
-        public bool IsIdle => MStatus?.IsIdle ?? true;
-        public bool LimitX => MStatus?.LimitX ?? false;
-        public bool LimitY => MStatus?.LimitY ?? false;
-        public bool LimitZ => MStatus?.LimitZ ?? false;
-        public bool ProbeTriggered => MStatus?.ProbeTriggered ?? false;
-        
         public bool IsMistOn { get => _machineControlService.IsMistOn; set { } }
         public bool IsLightsOn { get => _machineControlService.IsLightsOn; set { } }
         public bool IsToolChangeOn { get => _machineControlService.IsToolChangeOn; set { } }
@@ -386,9 +378,8 @@ namespace CncControlApp
                 coords => { 
                     MStatus.X = coords.X; MStatus.Y = coords.Y; MStatus.Z = coords.Z; MStatus.A = coords.A; 
                     MStatus.WorkX = coords.WorkX; MStatus.WorkY = coords.WorkY; MStatus.WorkZ = coords.WorkZ; MStatus.WorkA = coords.WorkA;
-                    // NOTE: IsSpindleOn/IsCoolantOn are NOT copied here anymore.
-                    // They are updated only via AccessoryStateChanged event from $G modal parsing (reliable source).
-                    // Status report A: field is intermittent and causes LED flickering.
+                    // NOTE: Spindle/Coolant state is updated via $G modal query (ModalStateUpdated event)
+                    // Do NOT copy coords.IsSpindleOn here - it defaults to false and would overwrite modal state
                 });
             ErrorLogger.LogDebug("DataProcessingManager oluşturuldu");
 
@@ -396,17 +387,6 @@ namespace CncControlApp
             _dataProcessingManager.ExecutingLineReported += (oneBasedLine) =>
             {
                 try { _gCodeManager?.UpdateExecutingLineFromController(oneBasedLine); }
-                catch { }
-            };
-            
-            // Subscribe to accessory state changes from $G modal parsing (reliable source for LED updates)
-            _dataProcessingManager.AccessoryStateChanged += (spindleOn, coolantOn) =>
-            {
-                try
-                {
-                    MStatus.IsSpindleOn = spindleOn;
-                    MStatus.IsCoolantOn = coolantOn;
-                }
                 catch { }
             };
 
@@ -435,6 +415,24 @@ namespace CncControlApp
                 catch (Exception ex)
                 {
                     AddLogMessage($"> Homing alarm handle error: {ex.Message}");
+                }
+            };
+            
+            // Subscribe to modal state updates from $G response (spindle LED from modal, not status report)
+            _dataProcessingManager.ModalStateUpdated += (isSpindleOn, isCoolantOn) =>
+            {
+                try
+                {
+                    if (MStatus != null)
+                    {
+                        MStatus.IsSpindleOn = isSpindleOn;
+                        MStatus.IsCoolantOn = isCoolantOn;
+                        System.Diagnostics.Debug.WriteLine($"[MODAL->LED] Spindle={isSpindleOn}, Coolant={isCoolantOn}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MODAL->LED] Update error: {ex.Message}");
                 }
             };
 
@@ -495,12 +493,6 @@ namespace CncControlApp
                 // Spindle/Coolant LED updates from status report
                 if (e.PropertyName == nameof(MStatus.IsSpindleOn)) OnPropertyChanged(nameof(IsSpindleOn));
                 if (e.PropertyName == nameof(MStatus.IsCoolantOn)) OnPropertyChanged(nameof(IsCoolantOn));
-                // Limit switches and probe LED updates from Pn: field
-                if (e.PropertyName == nameof(MStatus.IsIdle)) OnPropertyChanged(nameof(IsIdle));
-                if (e.PropertyName == nameof(MStatus.LimitX)) OnPropertyChanged(nameof(LimitX));
-                if (e.PropertyName == nameof(MStatus.LimitY)) OnPropertyChanged(nameof(LimitY));
-                if (e.PropertyName == nameof(MStatus.LimitZ)) OnPropertyChanged(nameof(LimitZ));
-                if (e.PropertyName == nameof(MStatus.ProbeTriggered)) OnPropertyChanged(nameof(ProbeTriggered));
             };
 
             AddLogMessage("> ✅ MainControll başlatıldı - Tüm servisler entegre edildi");
@@ -675,7 +667,7 @@ namespace CncControlApp
             }
         }
 
-        // Machine control wrappers - state updated via $G parsing AccessoryStateChanged event
+        // Machine control wrappers
         public Task<bool> ToggleSpindleAsync(bool on) => _machineControlService.ToggleSpindleAsync(on);
         public Task<bool> StartSpindleAsync(double s) => _machineControlService.StartSpindleAsync(s);
         public Task<bool> StopSpindleAsync() => _machineControlService.StopSpindleAsync();

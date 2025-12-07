@@ -23,8 +23,6 @@ namespace CncControlApp
         #region Runtime Fields
         // Live feed rate (parsed from FS: feed,spindle)
         private double _currentFeed = 0.0;
-        // Machine state (Idle, Run, Hold, Alarm, etc.)
-        private string _state = "Idle";
         #endregion
 
         #region Machine Position Properties
@@ -140,13 +138,6 @@ namespace CncControlApp
         private bool _isCoolantOn = false;
         #endregion
 
-        #region Limit Switch & Probe Fields
-        private bool _limitX = false;
-        private bool _limitY = false;
-        private bool _limitZ = false;
-        private bool _probeTriggered = false;
-        #endregion
-
         #region Runtime Properties
         /// <summary>
         /// Current real-time feed rate (mm/min) reported by controller (FS: feed,spindle)
@@ -164,28 +155,6 @@ namespace CncControlApp
                 }
             }
         }
-
-        /// <summary>
-        /// Machine state (Idle, Run, Hold, Alarm, Jog, Home, Check, Door, Sleep)
-        /// </summary>
-        public string State
-        {
-            get => _state;
-            set
-            {
-                if (_state != value)
-                {
-                    _state = value ?? "Idle";
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(IsIdle));
-                }
-            }
-        }
-
-        /// <summary>
-        /// True if machine is in Idle state
-        /// </summary>
-        public bool IsIdle => string.Equals(_state, "Idle", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Spindle state from status report (A: field contains S for CW, C for CCW)
@@ -218,70 +187,6 @@ namespace CncControlApp
                 }
             }
         }
-
-        /// <summary>
-        /// X axis limit switch triggered (Pn: field contains X)
-        /// </summary>
-        public bool LimitX
-        {
-            get => _limitX;
-            set
-            {
-                if (_limitX != value)
-                {
-                    _limitX = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Y axis limit switch triggered (Pn: field contains Y)
-        /// </summary>
-        public bool LimitY
-        {
-            get => _limitY;
-            set
-            {
-                if (_limitY != value)
-                {
-                    _limitY = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Z axis limit switch triggered (Pn: field contains Z)
-        /// </summary>
-        public bool LimitZ
-        {
-            get => _limitZ;
-            set
-            {
-                if (_limitZ != value)
-                {
-                    _limitZ = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Probe triggered (Pn: field contains P)
-        /// </summary>
-        public bool ProbeTriggered
-        {
-            get => _probeTriggered;
-            set
-            {
-                if (_probeTriggered != value)
-                {
-                    _probeTriggered = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
         #endregion
 
         #region Methods
@@ -296,13 +201,8 @@ namespace CncControlApp
             WorkZ = 0;
             WorkA = 0;
             CurrentFeed = 0;
-            State = "Idle";
             IsSpindleOn = false;
             IsCoolantOn = false;
-            LimitX = false;
-            LimitY = false;
-            LimitZ = false;
-            ProbeTriggered = false;
         }
         #endregion
 

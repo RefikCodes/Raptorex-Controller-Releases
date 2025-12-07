@@ -407,12 +407,28 @@ namespace CncControlApp
             {
                 string trimmedGcode = gcode.Trim();
 
+                // GRBL Realtime Commands: Send without newline, don't add to buffer
+                // OpenBuilds sends '?' as realtime (no \n) - this prevents buffer issues
+                if (trimmedGcode == "?")
+                {
+                    await _gcodeSender.SendControlCharacterAsync('?');
+                    return true;
+                }
+
                 if (!IsFilteredCommand(trimmedGcode))
                 {
                     LogImportantMessage($"> Gönderiliyor: {trimmedGcode}");
                 }
 
                 await _gcodeSender.SendCommandAsync(gcode);
+
+                // NOTE: Removed automatic $G sending after modal commands
+                // This was causing buffer synchronization issues during G-code streaming:
+                // - $G commands were not tracked in the inflight queue
+                // - Buffer byte counting became incorrect
+                // - OpenBuilds only sends $G from UI, not during streaming
+                // If parser state query is needed, it should be done through CentralStatusQuerier
+
                 return true;
             }
             catch (Exception ex)
@@ -461,6 +477,34 @@ namespace CncControlApp
             catch (Exception ex)
             {
                 LogImportantMessage($"> HATA: Kontrol karakteri gönderme hatası - {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Sends a command directly to the serial port, bypassing the GCodeSender buffer tracking.
+        /// Use this for commands like $G that should not interfere with streaming buffer counting.
+        /// The command will be sent with a newline appended.
+        /// WARNING: The 'ok' response from this command will NOT be tracked by streaming service.
+        /// </summary>
+        public async Task<bool> SendDirectCommandAsync(string command)
+        {
+            if (!IsConnected)
+            {
+                return false;
+            }
+
+            try
+            {
+                // Send directly to port manager, bypassing GCodeSender tracking
+                // Append newline like normal G-code commands
+                await _portManager.SendDataAsync(command + "\n");
+                System.Diagnostics.Debug.WriteLine($"[ConnectionManager] Direct command sent: {command}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ConnectionManager] Direct command error: {ex.Message}");
                 return false;
             }
         }
@@ -773,11 +817,11 @@ namespace CncControlApp
                     LogImportantMessage($"> ? $X gönderiliyor (deneme {attempt})");
                     await _gcodeSender.SendCommandAsync("$X");
 
-                    // Status sorguları
+                    // Status sorguları (realtime - no newline, like OpenBuilds)
                     for (int s = 0; s < _config.PostUnlockStatusCheckCount; s++)
                     {
                         await Task.Delay(_config.PostUnlockStatusIntervalMs);
-                        await _gcodeSender.SendCommandAsync("?");
+                        await _gcodeSender.SendControlCharacterAsync('?');
                     }
 
                     // Burada status parse etmiyoruz (MainControll yapıyor); sadece gecikmeli devam edip kabul ediyoruz.
@@ -811,7 +855,7 @@ namespace CncControlApp
                 {
                     await Task.Delay(step);
                     elapsed += step;
-                    await _gcodeSender.SendCommandAsync("?");
+                    await _gcodeSender.SendControlCharacterAsync('?');
                 }
                 LogImportantMessage("> ? Homing bekleme süresi tamamlandı");
                 return true;
@@ -859,8 +903,8 @@ namespace CncControlApp
                 LogImportantMessage("> ⚠️ Unlock başarısız görünüyor — yine de devam edilecek");
             }
 
-            // İlave küçük status ping
-            await _gcodeSender.SendCommandAsync("?");
+            // İlave küçük status ping (realtime - no newline)
+            await _gcodeSender.SendControlCharacterAsync('?');
             await Task.Delay(250);
 
             // 3) OPSIYONEL HOMING
@@ -868,7 +912,7 @@ namespace CncControlApp
             {
                 LoadingStatusChanged?.Invoke("🏠 Homing ($H) uygulanıyor...");
                 await OptionalHomeAsync();
-                await _gcodeSender.SendCommandAsync("?");
+                await _gcodeSender.SendControlCharacterAsync('?');
                 await Task.Delay(400);
             }
 
@@ -1090,10 +1134,10 @@ namespace CncControlApp
             _lastSentSetupCommand = cmd;
             await _gcodeSender.SendCommandAsync(cmd);
 
-            // Kısa bir beklemeden sonra bir status sorgusu gönderip ("?") ilk raporu tetikleyelim
+            // Kısa bir beklemeden sonra bir status sorgusu gönderip ("?") ilk raporu tetikleyelim (realtime)
             await Task.Delay(200);
             _lastSentSetupCommand = "?";
-            await _gcodeSender.SendCommandAsync("?");
+            await _gcodeSender.SendControlCharacterAsync('?');
             LogImportantMessage("> Status report alanları talep edildi; ilk rapor isteniyor ('?')");
             _lastSentSetupCommand = null; // Clear after setup
         }

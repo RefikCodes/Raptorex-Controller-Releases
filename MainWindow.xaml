@@ -317,19 +317,17 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Center - Status indicators with separate borders -->
-                <StackPanel Grid.Column="1" 
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center" 
-                            HorizontalAlignment="Center">
-                    
-                    <!-- Status LED - Separate Border -->
-                    <Border BorderBrush="#FF5A5A5C"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            Padding="12,6"
-                            Margin="0,0,8,0">
-                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <!-- Center - Status indicators with border -->
+                <Border Grid.Column="1" 
+                        VerticalAlignment="Center" 
+                        HorizontalAlignment="Center"
+                        BorderBrush="#FF5A5A5C"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="20,8">
+                    <StackPanel Orientation="Horizontal">
+                        <!-- Machine Status LED and Label -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,25,0">
                             <Ellipse x:Name="StatusLED"
                                      Style="{StaticResource StatusLEDAlarmStyle}"
                                      Width="14" Height="14"
@@ -339,15 +337,9 @@
                                        Style="{StaticResource StatusTextAlarmStyle}"
                                        HorizontalAlignment="Center"/>
                         </StackPanel>
-                    </Border>
 
-                    <!-- Spindle LED - Separate Border -->
-                    <Border BorderBrush="#FF5A5A5C"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            Padding="12,6"
-                            Margin="0,0,8,0">
-                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <!-- Spindle LED and Label -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,25,0">
                             <Ellipse x:Name="SpindleLED"
                                      Width="14" Height="14"
                                      Stroke="#66000000"
@@ -370,14 +362,8 @@
                                        Foreground="#FFB0BEC5"
                                        HorizontalAlignment="Center"/>
                         </StackPanel>
-                    </Border>
 
-                    <!-- Coolant LED - Separate Border -->
-                    <Border BorderBrush="#FF5A5A5C"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            Padding="12,6"
-                            Margin="0,0,8,0">
+                        <!-- Coolant LED and Label -->
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                             <Ellipse x:Name="CoolantLED"
                                      Width="14" Height="14"
@@ -401,137 +387,33 @@
                                        Foreground="#FFB0BEC5"
                                        HorizontalAlignment="Center"/>
                         </StackPanel>
-                    </Border>
 
-                    <!-- Switch Group (LX, LY, LZ, Probe) - Single Border -->
-                    <Border BorderBrush="#FF5A5A5C"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            Padding="12,6"
-                            Margin="0,0,8,0">
-                        <StackPanel Orientation="Horizontal">
-                            <!-- Limit X LED -->
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,12,0">
-                                <Ellipse Width="14" Height="14"
-                                         Stroke="#66000000"
-                                         StrokeThickness="1"
-                                         Margin="0,0,0,4"
-                                         HorizontalAlignment="Center">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="#FF9E9E9E"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding LimitX}" Value="True">
-                                                    <Setter Property="Fill" Value="#FFFF5722"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="LX"
-                                           FontSize="12"
-                                           Foreground="#FFB0BEC5"
-                                           HorizontalAlignment="Center"/>
-                            </StackPanel>
-
-                            <!-- Limit Y LED -->
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,12,0">
-                                <Ellipse Width="14" Height="14"
-                                         Stroke="#66000000"
-                                         StrokeThickness="1"
-                                         Margin="0,0,0,4"
-                                         HorizontalAlignment="Center">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="#FF9E9E9E"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding LimitY}" Value="True">
-                                                    <Setter Property="Fill" Value="#FFFF5722"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="LY"
-                                           FontSize="12"
-                                           Foreground="#FFB0BEC5"
-                                           HorizontalAlignment="Center"/>
-                            </StackPanel>
-
-                            <!-- Limit Z LED -->
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,12,0">
-                                <Ellipse Width="14" Height="14"
-                                         Stroke="#66000000"
-                                         StrokeThickness="1"
-                                         Margin="0,0,0,4"
-                                         HorizontalAlignment="Center">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="#FF9E9E9E"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding LimitZ}" Value="True">
-                                                    <Setter Property="Fill" Value="#FFFF5722"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="LZ"
-                                           FontSize="12"
-                                           Foreground="#FFB0BEC5"
-                                           HorizontalAlignment="Center"/>
-                            </StackPanel>
-
-                            <!-- Probe LED -->
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <Ellipse Width="14" Height="14"
-                                         Stroke="#66000000"
-                                         StrokeThickness="1"
-                                         Margin="0,0,0,4"
-                                         HorizontalAlignment="Center">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="#FF9E9E9E"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding ProbeTriggered}" Value="True">
-                                                    <Setter Property="Fill" Value="#FF9C27B0"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="Probe"
-                                           FontSize="12"
-                                           Foreground="#FFB0BEC5"
-                                           HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Clear Alarm button (visible only when MachineStatus == Alarm) -->
-                    <Button x:Name="ClearAlarmTopButton"
-                            Content="Clear Alarm"
-                            Click="ClearAlarmTopButton_Click"
-                            Padding="12,4"
-                            Foreground="White"
-                            Cursor="Hand">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Setter Property="Background" Value="#FFFF7043"/>
-                                <Setter Property="BorderBrush" Value="#FFBF360C"/>
-                                <Setter Property="BorderThickness" Value="1"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Height" Value="28"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding MachineStatus}" Value="Alarm">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-                </StackPanel>
+                        <!-- Clear Alarm button (visible only when MachineStatus == Alarm) -->
+                        <Button x:Name="ClearAlarmTopButton"
+                                Content="Clear Alarm"
+                                Click="ClearAlarmTopButton_Click"
+                                Margin="15,0,0,0"
+                                Padding="12,4"
+                                Foreground="White"
+                                Cursor="Hand">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Setter Property="Background" Value="#FFFF7043"/>
+                                    <Setter Property="BorderBrush" Value="#FFBF360C"/>
+                                    <Setter Property="BorderThickness" Value="1"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Height" Value="28"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding MachineStatus}" Value="Alarm">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                </Border>
 
                 <!-- Right - Emergency Stop Button -->
                 <Button x:Name="EmergencyStopButton"

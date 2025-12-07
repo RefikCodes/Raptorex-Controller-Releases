@@ -67,10 +67,11 @@ namespace CncControlApp
         public SerialPortManager()
         {
             _serialPort = new SerialPort();
-                // Use UTF-8 to properly handle Turkish characters (e.g., Gönderiliyor)
-                // Fallbacks are safe as GRBL/FluidNC messages are ASCII-compatible
-                try { _serialPort.Encoding = Encoding.UTF8; }
-                catch { try { _serialPort.Encoding = Encoding.GetEncoding(28591); } catch { /* keep default */ } }
+            // CRITICAL: GRBL expects pure ASCII. UTF-8 would cause byte count mismatch
+            // between buffer calculation (ASCII) and actual transmission (UTF-8),
+            // leading to buffer overflow and corrupted G-code commands (error:33).
+            // Using ASCII encoding - same as OpenBuilds CONTROL.
+            _serialPort.Encoding = Encoding.ASCII;
             _serialPort.DataReceived += SerialPort_DataReceived;
             StartDeviceWatcher();
         }
@@ -224,26 +225,34 @@ namespace CncControlApp
         }
 
         // String-based send (G-code lines). Caller is responsible for appending line endings if required.
-        public async Task SendDataAsync(string data)
+        // OPTIMIZED: Synchronous write like OpenBuilds - no Task.Run overhead, no debug logging during streaming
+        public Task SendDataAsync(string data)
         {
             if (IsOpen)
             {
-                await Task.Run(() => _serialPort.Write(data));
+                // Direct synchronous write - fastest path like OpenBuilds: port.write(gcode)
+                _serialPort.Write(data);
             }
+            return Task.CompletedTask;
         }
 
         // RAW byte send for realtime commands (no CR/LF, single byte)
-        public async Task SendRawByteAsync(byte b)
+        // OPTIMIZED: Synchronous write - no Task.Run overhead for realtime commands
+        public Task SendRawByteAsync(byte b)
         {
-            if (!IsOpen) return;
-            await Task.Run(() => _serialPort.Write(new byte[] { b }, 0, 1));
+            if (!IsOpen) return Task.CompletedTask;
+            // Direct synchronous write - fastest path
+            _serialPort.Write(new byte[] { b }, 0, 1);
+            return Task.CompletedTask;
         }
 
         // RAW bytes send for small buffers (no CR/LF)
-        public async Task SendRawBytesAsync(byte[] buffer)
+        // OPTIMIZED: Synchronous write
+        public Task SendRawBytesAsync(byte[] buffer)
         {
-            if (!IsOpen || buffer == null || buffer.Length == 0) return;
-            await Task.Run(() => _serialPort.Write(buffer, 0, buffer.Length));
+            if (!IsOpen || buffer == null || buffer.Length == 0) return Task.CompletedTask;
+            _serialPort.Write(buffer, 0, buffer.Length);
+            return Task.CompletedTask;
         }
 
         private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)

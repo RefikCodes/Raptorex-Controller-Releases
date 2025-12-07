@@ -8,149 +8,184 @@ using System.Collections.Generic;
 
 namespace CncControlApp
 {
- /// <summary>
- /// Lightweight periodic status querier used by MainControll to poll machine status.
- /// Minimal implementation to satisfy references; expand as needed.
- /// Added subscription API so callers can request minimum update interval (demand-driven/adaptive).
- /// </summary>
- public class CentralStatusQuerier : IDisposable
- {
- private readonly ConnectionManager _connectionManager;
- private Timer _timer;
- public int DefaultIntervalMs { get; set; } = 300; // Idle interval
- private readonly ConcurrentDictionary<Guid, int> _subscribers = new ConcurrentDictionary<Guid, int>();
- private readonly object _timerLock = new object();
- private const int SAFETY_MIN_INTERVAL_MS = 25; // do not go faster than this
- 
- // $G query counter - send $G every N ticks for spindle/coolant modal state
- private int _queryCount = 0;
- private const int G_QUERY_EVERY_N = 3; // Every 3 ticks (e.g., 900ms at 300ms interval)
+    /// <summary>
+    /// Central status querier that periodically sends status (?) queries to GRBL.
+    /// </summary>
+    public class CentralStatusQuerier : IDisposable
+    {
+        private readonly ConnectionManager _connectionManager;
+        private CancellationTokenSource _cts;
+        private Task _queryTask;
+        private bool _isRunning;
+        private readonly object _lock = new object();
+        
+        public int DefaultIntervalMs { get; set; } = 300; // Idle interval
+        private readonly ConcurrentDictionary<Guid, int> _subscribers = new ConcurrentDictionary<Guid, int>();
+        private const int SAFETY_MIN_INTERVAL_MS = 25; // do not go faster than this
 
- public CentralStatusQuerier(ConnectionManager connectionManager)
- {
- _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
- }
+        public CentralStatusQuerier(ConnectionManager connectionManager)
+        {
+            _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
+        }
 
- public void Start()
- {
- Stop();
- int interval = CalculateEffectiveInterval();
- // dueTime0 to start immediately
- _timer = new Timer(_ => TimerTick(), null,0, interval);
- }
+        public void Start()
+        {
+            lock (_lock)
+            {
+                if (_isRunning) return;
+                
+                Stop(); // Clean up any previous state
+                
+                _cts = new CancellationTokenSource();
+                _isRunning = true;
+                _queryTask = Task.Run(() => QueryLoopAsync(_cts.Token));
+                
+                System.Diagnostics.Debug.WriteLine($"[CentralStatusQuerier] Started with interval {CalculateEffectiveInterval()}ms");
+            }
+        }
 
- public void Stop()
- {
- try { _timer?.Dispose(); } catch { }
- _timer = null;
- }
+        public void Stop()
+        {
+            lock (_lock)
+            {
+                _isRunning = false;
+                
+                try { _cts?.Cancel(); } catch { }
+                
+                try
+                {
+                    _queryTask?.Wait(500);
+                }
+                catch (AggregateException) { }
+                catch (TaskCanceledException) { }
+                
+                try { _cts?.Dispose(); } catch { }
+                _cts = null;
+                
+                System.Diagnostics.Debug.WriteLine("[CentralStatusQuerier] Stopped");
+            }
+        }
 
- private void TimerTick()
- {
- try
- {
- if (_connectionManager?.IsConnected == true)
- {
- // Every N ticks, also send $G to get modal state (spindle/coolant)
- _queryCount++;
- if (_queryCount >= G_QUERY_EVERY_N)
- {
- _queryCount = 0;
- _ = _connectionManager.SendGCodeCommandAsync("$G");
- }
- 
- // Always send ? for status (coordinates, state, etc.)
- _ = _connectionManager.SendGCodeCommandAsync("?");
- }
- }
- catch { }
- }
+        /// <summary>
+        /// Main query loop - sends status query (?) periodically
+        /// </summary>
+        private async Task QueryLoopAsync(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested && _isRunning)
+            {
+                try
+                {
+                    if (_connectionManager?.IsConnected != true)
+                    {
+                        await Task.Delay(500, token);
+                        continue;
+                    }
 
- public void Dispose()
- {
- Stop();
- }
+                    int intervalMs = CalculateEffectiveInterval();
 
- /// <summary>
- /// Subscribe to status updates demand. Caller provides the minimum interval (in ms) it needs.
- /// The querier will adapt its timer to satisfy the fastest requested interval among subscribers,
- /// subject to the safety cap.
- /// Returns IDisposable which will unsubscribe on Dispose.
- /// </summary>
- public IDisposable SubscribeMinimumInterval(int minIntervalMs)
- {
- if (minIntervalMs <=0) minIntervalMs = DefaultIntervalMs;
- var id = Guid.NewGuid();
- _subscribers[id] = minIntervalMs;
- UpdateTimerInterval();
- return new Unsubscriber(_subscribers, id, UpdateTimerInterval);
- }
+                    // Send status query (?) - REALTIME command
+                    await SendStatusQueryAsync();
 
- /// <summary>
- /// Return a snapshot of current subscribers and their requested minimum intervals (ms).
- /// </summary>
- public Dictionary<Guid,int> GetSubscriberRequests()
- {
- try
- {
- // return a shallow copy snapshot to avoid exposing internal collection
- return new Dictionary<Guid,int>(_subscribers);
- }
- catch
- {
- return new Dictionary<Guid,int>();
- }
- }
+                    // Normal delay
+                    await Task.Delay(intervalMs, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CentralStatusQuerier] Error: {ex.Message}");
+                    try { await Task.Delay(500, token); } catch { break; }
+                }
+            }
+        }
 
- private int CalculateEffectiveInterval()
- {
- try
- {
- if (_subscribers.IsEmpty) return DefaultIntervalMs;
- int fastest = _subscribers.Values.Min();
- // ensure we don't go faster than safety cap (i.e., interval cannot be below SAFETY_MIN_INTERVAL_MS)
- int effective = Math.Max(SAFETY_MIN_INTERVAL_MS, fastest);
- return effective;
- }
- catch
- {
- return DefaultIntervalMs;
- }
- }
+        /// <summary>
+        /// Sends the status query (?) as REALTIME command
+        /// </summary>
+        private async Task SendStatusQueryAsync()
+        {
+            try
+            {
+                // CRITICAL: Send ? as REALTIME command (single byte 0x3F, no newline, no buffer tracking)
+                await _connectionManager.SendControlCharacterAsync('?');
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CentralStatusQuerier] Status query error: {ex.Message}");
+            }
+        }
 
- private void UpdateTimerInterval()
- {
- try
- {
- lock (_timerLock)
- {
- if (_timer == null) return;
- int interval = CalculateEffectiveInterval();
- // Change timer period; keep dueTime same (0 = immediate)
- try { _timer.Change(0, interval); } catch { }
- }
- }
- catch { }
- }
+        public void Dispose()
+        {
+            Stop();
+        }
 
- private class Unsubscriber : IDisposable
- {
- private readonly ConcurrentDictionary<Guid,int> _dict;
- private readonly Guid _id;
- private readonly Action _onRemoved;
- private bool _disposed;
- public Unsubscriber(ConcurrentDictionary<Guid,int> dict, Guid id, Action onRemoved)
- {
- _dict = dict; _id = id; _onRemoved = onRemoved;
- }
- public void Dispose()
- {
- if (_disposed) return;
- _disposed = true;
- int ignored;
- try { _dict.TryRemove(_id, out ignored); } catch { }
- try { _onRemoved?.Invoke(); } catch { }
- }
- }
- }
+        /// <summary>
+        /// Subscribe to status updates demand. Caller provides the minimum interval (in ms) it needs.
+        /// The querier will adapt its loop to satisfy the fastest requested interval among subscribers,
+        /// subject to the safety cap.
+        /// Returns IDisposable which will unsubscribe on Dispose.
+        /// </summary>
+        public IDisposable SubscribeMinimumInterval(int minIntervalMs)
+        {
+            if (minIntervalMs <= 0) minIntervalMs = DefaultIntervalMs;
+            var id = Guid.NewGuid();
+            _subscribers[id] = minIntervalMs;
+            return new Unsubscriber(_subscribers, id);
+        }
+
+        /// <summary>
+        /// Return a snapshot of current subscribers and their requested minimum intervals (ms).
+        /// </summary>
+        public Dictionary<Guid, int> GetSubscriberRequests()
+        {
+            try
+            {
+                return new Dictionary<Guid, int>(_subscribers);
+            }
+            catch
+            {
+                return new Dictionary<Guid, int>();
+            }
+        }
+
+        private int CalculateEffectiveInterval()
+        {
+            try
+            {
+                if (_subscribers.IsEmpty) return DefaultIntervalMs;
+                int fastest = _subscribers.Values.Min();
+                // ensure we don't go faster than safety cap
+                int effective = Math.Max(SAFETY_MIN_INTERVAL_MS, fastest);
+                return effective;
+            }
+            catch
+            {
+                return DefaultIntervalMs;
+            }
+        }
+
+        private class Unsubscriber : IDisposable
+        {
+            private readonly ConcurrentDictionary<Guid, int> _dict;
+            private readonly Guid _id;
+            private bool _disposed;
+
+            public Unsubscriber(ConcurrentDictionary<Guid, int> dict, Guid id)
+            {
+                _dict = dict;
+                _id = id;
+            }
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+                _disposed = true;
+                int ignored;
+                try { _dict.TryRemove(_id, out ignored); } catch { }
+            }
+        }
+    }
 }
