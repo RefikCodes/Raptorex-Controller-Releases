@@ -53,11 +53,15 @@ namespace CncControlApp
             if (_currentModalSpindle > 0)
             {
                 double effS = _currentModalSpindle * spindlePercent / 100.0;
-                CurrentSpindleDisplay = $"S: {pad5(_currentModalSpindle)} → {pad5(effS)} RPM ({spindlePercent}%)";
+                int spindleDiff = spindlePercent - 100;
+                string diffStr = spindleDiff >= 0 ? $"+{spindleDiff}" : $"{spindleDiff}";
+                CurrentSpindleDisplay = $"S: {pad5(_currentModalSpindle)} → {pad5(effS)} RPM ({diffStr}%)";
             }
             else
             {
-                CurrentSpindleDisplay = $"S: — ({spindlePercent}%)";
+                int spindleDiff = spindlePercent - 100;
+                string diffStr = spindleDiff >= 0 ? $"+{spindleDiff}" : $"{spindleDiff}";
+                CurrentSpindleDisplay = $"S: — ({diffStr}%)";
             }
             
             // Also update the live speed panel
@@ -97,7 +101,9 @@ namespace CncControlApp
         {
             try
             {
-                _pendingSpindleOverridePercent = Math.Max(10, Math.Min(200, (int)Math.Round(e.NewValue)));
+                // Slider is -50 to +50, convert to actual percent (50 to 150)
+                int sliderValue = (int)Math.Round(e.NewValue);
+                _pendingSpindleOverridePercent = Math.Max(50, Math.Min(150, 100 + sliderValue));
                 int delta = _pendingSpindleOverridePercent - _lastSpindleOverridePercent;
                 
                 // Use more aggressive updates during execution, like feed override
@@ -188,7 +194,7 @@ namespace CncControlApp
             if (App.MainController?.IsConnected != true)
                 return;
 
-            targetPercent = Math.Max(10, Math.Min(200, targetPercent));
+            targetPercent = Math.Max(50, Math.Min(150, targetPercent));
             if (targetPercent == _lastSpindleOverridePercent)
                 return;
 
@@ -198,21 +204,22 @@ namespace CncControlApp
                 int current = _lastSpindleOverridePercent;
                 int diff = targetPercent - current;
 
-                if (targetPercent ==100)
+                if (targetPercent == 100)
                 {
-                    await App.MainController.SendControlCharacterAsync('\x9A'); // spindle reset (0x9A)
-                    _lastSpindleOverridePercent =100;
+                    await App.MainController.SendControlCharacterAsync('\x99'); // spindle reset (0x99)
+                    _lastSpindleOverridePercent = 100;
                     RefreshOverrideDisplays();
-                    App.MainController.AddLogMessage("> Spindle override reset to100% (baseline)");
+                    App.MainController.AddLogMessage("> Spindle override reset to 100% (baseline)");
                     return;
                 }
 
-                bool increase = diff >0;
+                bool increase = diff > 0;
                 int distance = Math.Abs(diff);
-                if (distance ==0) return;
+                if (distance == 0) return;
 
-                char step10 = increase ? '\x9B' : '\x9C';
-                char step1 = increase ? '\x9D' : '\x9E';
+                // GRBL Spindle Override: 0x9A=+10%, 0x9B=-10%, 0x9C=+1%, 0x9D=-1%
+                char step10 = increase ? '\x9A' : '\x9B';
+                char step1 = increase ? '\x9C' : '\x9D';
 
                 int steps10 = distance /10;
                 int steps1 = distance %10;
@@ -419,7 +426,7 @@ namespace CncControlApp
             try
             {
                 if (SpindleOverrideSlider != null)
-                    SpindleOverrideSlider.Value = 100;
+                    SpindleOverrideSlider.Value = 0; // 0 = 100% (no change)
             }
             catch { }
         }
@@ -442,7 +449,7 @@ namespace CncControlApp
                         if (FeedOverrideSlider != null)
                             FeedOverrideSlider.Value = 100;
                         if (SpindleOverrideSlider != null)
-                            SpindleOverrideSlider.Value = 100;
+                            SpindleOverrideSlider.Value = 0; // 0 = 100% (no change)
                         RefreshOverrideDisplays();
                     }
                     catch { }

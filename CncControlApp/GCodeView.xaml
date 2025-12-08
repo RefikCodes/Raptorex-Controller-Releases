@@ -694,11 +694,11 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Text="SPINDLE" FontSize="9" Foreground="Orange" FontWeight="SemiBold" HorizontalAlignment="Stretch" TextAlignment="Center"/>
-                            <TextBlock Grid.Row="1" Width="80" Text="{Binding ElementName=SpindleOverrideSlider, Path=Value, StringFormat='{}{0:F0}%'}" FontSize="12" Foreground="#FFDDDDDD" FontWeight="Medium" TextAlignment="Center" Margin="0,2,0,6"/>
+                            <TextBlock Grid.Row="1" Width="80" Text="{Binding ElementName=SpindleOverrideSlider, Path=Value, StringFormat='{}{0:+#;-#;0}%'}" FontSize="12" Foreground="#FFDDDDDD" FontWeight="Medium" TextAlignment="Center" Margin="0,2,0,6"/>
 
-                            <!-- Slider fills remaining row height -->
+                            <!-- Slider fills remaining row height - Range: -50% to +50% -->
                             <Slider x:Name="SpindleOverrideSlider" Grid.Row="2"
-                                    Minimum="10" Maximum="200" Value="100"
+                                    Minimum="-50" Maximum="50" Value="0"
                                     Orientation="Vertical"
                                     Width="40" HorizontalAlignment="Center"
                                     Style="{StaticResource TouchFriendlySliderStyle}"
