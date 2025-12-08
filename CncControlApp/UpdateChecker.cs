@@ -78,8 +78,9 @@ namespace CncControlApp
                                 {
                                     bool hasUpdate = latestVersion > CurrentVersion;
                                     
-                                    // Download URL'i oluştur
-                                    string downloadUrl = $"https://github.com/{GITHUB_REPO}/releases/download/v{latestVersionStr}/RaptorexController_Setup_{latestVersionStr}.exe";
+                                    // Download URL'i oluştur - Inno Setup kısa versiyon kullanıyor (4.0.0 -> 4.0)
+                                    string shortVersion = GetShortVersion(latestVersionStr);
+                                    string downloadUrl = $"https://github.com/{GITHUB_REPO}/releases/download/v{latestVersionStr}/RaptorexController_Setup_{shortVersion}.exe";
                                     
                                     return new UpdateInfo
                                     {
@@ -121,6 +122,19 @@ namespace CncControlApp
                 parts = version.Split('.');
             }
             return string.Join(".", parts);
+        }
+
+        /// <summary>
+        /// Versiyon string'ini kısalt (4.0.0 -> 4.0) - Inno Setup dosya adı için
+        /// </summary>
+        private static string GetShortVersion(string version)
+        {
+            var parts = version.Split('.');
+            if (parts.Length >= 2)
+            {
+                return $"{parts[0]}.{parts[1]}";
+            }
+            return version;
         }
 
         /// <summary>
