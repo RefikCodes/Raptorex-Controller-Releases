@@ -142,7 +142,7 @@ private double _scrollFromOffset = 0;
   async () => await ApplySpindleOverrideAsync(_pendingSpindleOverridePercent));
   
             // Timer to periodically update modal values during execution
- _executionModalValuesTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
+ _executionModalValuesTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
  _executionModalValuesTimer.Tick += (s, e) =>
        {
    try
@@ -201,28 +201,29 @@ private double _scrollFromOffset = 0;
                 var mc = App.MainController;
                 if (mc == null) return;
 
-                // Get modal values
-                double modalFeed = mc.GCodeManager?.CurrentModalFeed ?? 0;
-                double modalSpindle = mc.GCodeManager?.CurrentModalSpindle ?? mc.SpindleSpeed;
-                
-                // Get override percentages
-                int feedPercent = _lastFeedOverridePercent;
-                int spindlePercent = _lastSpindleOverridePercent;
-                
-                // Calculate effective values with override
-                double effectiveFeed = modalFeed * feedPercent / 100.0;
-                double effectiveSpindle = modalSpindle * spindlePercent / 100.0;
-                
-                // Prefer real-time feed from GRBL if available
+                // Get real-time feed from GRBL status report (FS: or F: field)
                 double liveFeed = mc.MStatus?.CurrentFeed ?? 0;
-                if (liveFeed > 0)
+                
+                // DEBUG: Log feed values to diagnose update issues
+                System.Diagnostics.Debug.WriteLine($"[FEED_DEBUG] MStatus.CurrentFeed={liveFeed:F1}, IsRunning={mc.IsGCodeRunning}");
+                
+                // If no live feed from GRBL, fall back to modal feed with override
+                if (liveFeed <= 0)
                 {
-                    effectiveFeed = liveFeed; // Use actual GRBL feed rate
+                    double modalFeed = mc.GCodeManager?.CurrentModalFeed ?? 0;
+                    int feedPercent = _lastFeedOverridePercent;
+                    liveFeed = modalFeed * feedPercent / 100.0;
+                    System.Diagnostics.Debug.WriteLine($"[FEED_DEBUG] Fallback to modal: modalFeed={modalFeed:F1}, override={feedPercent}%, result={liveFeed:F1}");
                 }
+                
+                // Get spindle speed (modal value with override)
+                double modalSpindle = mc.GCodeManager?.CurrentModalSpindle ?? mc.SpindleSpeed;
+                int spindlePercent = _lastSpindleOverridePercent;
+                double effectiveSpindle = modalSpindle * spindlePercent / 100.0;
 
                 // Update UI with effective values (compact format for button caption)
                 if (LiveFeedRateText != null)
-                    LiveFeedRateText.Text = effectiveFeed > 0 ? $"{effectiveFeed:F0}" : "—";
+                    LiveFeedRateText.Text = liveFeed > 0 ? $"{liveFeed:F0}" : "—";
                 
                 if (LiveSpindleSpeedText != null)
                     LiveSpindleSpeedText.Text = effectiveSpindle > 0 ? $"{effectiveSpindle:F0}" : "—";
@@ -257,6 +258,8 @@ StatusTextBlock.Text = $"Paused (Hold) – skipped: {e.Command}";
   if (!_executionModalValuesTimer.IsEnabled && App.MainController?.IsGCodeRunning == true)
     {
          _executionModalValuesTimer.Start();
+         // Immediately update display when execution starts
+         UpdateLiveSpeedDisplay();
       }
   }
             catch { }

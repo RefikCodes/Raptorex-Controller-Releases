@@ -122,6 +122,8 @@ namespace CncControlApp
    if (running)
    {
      if (!_executionModalValuesTimer.IsEnabled) _executionModalValuesTimer.Start();
+     // ✅ Immediately update live speed display when execution starts
+     UpdateLiveSpeedDisplay();
      // ✅ Reset idle tracking when execution starts
      _idleTrackingActive = false;
      _idleDetectedAtLine = -1;

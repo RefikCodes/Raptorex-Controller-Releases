@@ -307,7 +307,12 @@ namespace CncControlApp
             _dataProcessingManager = new DataProcessingManager(
                 m => AddLogMessage(m),
                 (st, log) => { MachineStatus = st; if (!string.IsNullOrEmpty(log)) AddLogMessage(log); },
-                coords => { MStatus.X = coords.X; MStatus.Y = coords.Y; MStatus.Z = coords.Z; MStatus.A = coords.A; MStatus.WorkX = coords.WorkX; MStatus.WorkY = coords.WorkY; MStatus.WorkZ = coords.WorkZ; MStatus.WorkA = coords.WorkA; });
+                coords => { 
+                    MStatus.X = coords.X; MStatus.Y = coords.Y; MStatus.Z = coords.Z; MStatus.A = coords.A; 
+                    MStatus.WorkX = coords.WorkX; MStatus.WorkY = coords.WorkY; MStatus.WorkZ = coords.WorkZ; MStatus.WorkA = coords.WorkA;
+                    // Copy real-time feed rate from status report (FS: or F: field)
+                    MStatus.CurrentFeed = coords.CurrentFeed;
+                });
 
             _dataProcessingManager.AlarmDetected += (code, raw) =>
             {
