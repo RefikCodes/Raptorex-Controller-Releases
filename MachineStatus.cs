@@ -137,6 +137,24 @@ namespace CncControlApp
         private bool _isSpindleOn = false;
         private bool _isCoolantOn = false;
         #endregion
+        
+        #region Pin State Fields (from |Pn: field)
+        private bool _isXLimitTriggered = false;
+        private bool _isYLimitTriggered = false;
+        private bool _isZLimitTriggered = false;
+        private bool _isProbeTriggered = false;
+        #endregion
+        
+        /// <summary>
+        /// True if this status report contains authoritative accessory info (|Ov: field present).
+        /// When false, spindle/coolant state should not be updated from this report.
+        /// </summary>
+        public bool HasAccessoryInfo { get; set; } = false;
+        
+        /// <summary>
+        /// True if this status report contains pin state info (|Pn: field present).
+        /// </summary>
+        public bool HasPinInfo { get; set; } = false;
 
         #region Runtime Properties
         /// <summary>
@@ -187,6 +205,70 @@ namespace CncControlApp
                 }
             }
         }
+        
+        /// <summary>
+        /// X limit switch triggered (from |Pn: field contains X)
+        /// </summary>
+        public bool IsXLimitTriggered
+        {
+            get => _isXLimitTriggered;
+            set
+            {
+                if (_isXLimitTriggered != value)
+                {
+                    _isXLimitTriggered = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Y limit switch triggered (from |Pn: field contains Y)
+        /// </summary>
+        public bool IsYLimitTriggered
+        {
+            get => _isYLimitTriggered;
+            set
+            {
+                if (_isYLimitTriggered != value)
+                {
+                    _isYLimitTriggered = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Z limit switch triggered (from |Pn: field contains Z)
+        /// </summary>
+        public bool IsZLimitTriggered
+        {
+            get => _isZLimitTriggered;
+            set
+            {
+                if (_isZLimitTriggered != value)
+                {
+                    _isZLimitTriggered = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Probe triggered (from |Pn: field contains P)
+        /// </summary>
+        public bool IsProbeTriggered
+        {
+            get => _isProbeTriggered;
+            set
+            {
+                if (_isProbeTriggered != value)
+                {
+                    _isProbeTriggered = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
         #endregion
 
         #region Methods
@@ -203,6 +285,10 @@ namespace CncControlApp
             CurrentFeed = 0;
             IsSpindleOn = false;
             IsCoolantOn = false;
+            IsXLimitTriggered = false;
+            IsYLimitTriggered = false;
+            IsZLimitTriggered = false;
+            IsProbeTriggered = false;
         }
         #endregion
 

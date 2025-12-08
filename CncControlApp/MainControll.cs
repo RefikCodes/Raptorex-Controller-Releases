@@ -378,8 +378,20 @@ namespace CncControlApp
                 coords => { 
                     MStatus.X = coords.X; MStatus.Y = coords.Y; MStatus.Z = coords.Z; MStatus.A = coords.A; 
                     MStatus.WorkX = coords.WorkX; MStatus.WorkY = coords.WorkY; MStatus.WorkZ = coords.WorkZ; MStatus.WorkA = coords.WorkA;
-                    // NOTE: Spindle/Coolant state is updated via $G modal query (ModalStateUpdated event)
-                    // Do NOT copy coords.IsSpindleOn here - it defaults to false and would overwrite modal state
+                    // Only copy spindle/coolant state when report has authoritative accessory info (|Ov: present)
+                    if (coords.HasAccessoryInfo)
+                    {
+                        MStatus.IsSpindleOn = coords.IsSpindleOn;
+                        MStatus.IsCoolantOn = coords.IsCoolantOn;
+                    }
+                    // Copy pin states (limit switches, probe) - always available in status reports
+                    if (coords.HasPinInfo)
+                    {
+                        MStatus.IsXLimitTriggered = coords.IsXLimitTriggered;
+                        MStatus.IsYLimitTriggered = coords.IsYLimitTriggered;
+                        MStatus.IsZLimitTriggered = coords.IsZLimitTriggered;
+                        MStatus.IsProbeTriggered = coords.IsProbeTriggered;
+                    }
                 });
             ErrorLogger.LogDebug("DataProcessingManager oluşturuldu");
 
@@ -415,24 +427,6 @@ namespace CncControlApp
                 catch (Exception ex)
                 {
                     AddLogMessage($"> Homing alarm handle error: {ex.Message}");
-                }
-            };
-            
-            // Subscribe to modal state updates from $G response (spindle LED from modal, not status report)
-            _dataProcessingManager.ModalStateUpdated += (isSpindleOn, isCoolantOn) =>
-            {
-                try
-                {
-                    if (MStatus != null)
-                    {
-                        MStatus.IsSpindleOn = isSpindleOn;
-                        MStatus.IsCoolantOn = isCoolantOn;
-                        System.Diagnostics.Debug.WriteLine($"[MODAL->LED] Spindle={isSpindleOn}, Coolant={isCoolantOn}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[MODAL->LED] Update error: {ex.Message}");
                 }
             };
 

@@ -412,18 +412,64 @@ namespace CncControlApp.Managers
                     }
                 }
 
-                // NOTE: Spindle/Coolant state is now determined by $G modal query (M3/M4/M5, M7/M8/M9)
-                // parsed in ParseModalState() method. The |A: field from status report is no longer used
-                // because it causes LED blinking - status reports come more frequently than $G queries.
-                // The A: field is still logged for debugging but doesn't update LED state.
+                // Parse |A: field for spindle/coolant status
+                // S = Spindle CW (M3), C = Spindle CCW (M4), F = Flood (M8), M = Mist (M7)
+                // NOTE: FluidNC only sends |A: field when |Ov: (overrides) is present (~every 10 reports)
+                // Logic: If |Ov: present = authoritative report, check |A: field
+                //        If neither |Ov: nor |A: present = ignore, don't update anything
                 try
                 {
-                    var aMatch = Regex.Match(statusReport, @"\|A:([SCFM]+)", RegexOptions.IgnoreCase);
-                    if (aMatch.Success)
+                    bool hasOverrideField = statusReport.Contains("|Ov:");
+                    machineStatus.HasAccessoryInfo = hasOverrideField; // Mark if this report has authoritative accessory info
+                    
+                    if (hasOverrideField)
                     {
-                        string accessories = aMatch.Groups[1].Value.ToUpper();
-                        // Just log for debugging, don't update machineStatus
-                        System.Diagnostics.Debug.WriteLine($"[A: FIELD] Accessories: {accessories}");
+                        // This is an authoritative report - |Ov: present means accessory info is valid
+                        var aMatch = Regex.Match(statusReport, @"\|A:([SCFM]+)", RegexOptions.IgnoreCase);
+                        if (aMatch.Success)
+                        {
+                            // |A: field present - accessories are ON
+                            string accessories = aMatch.Groups[1].Value.ToUpper();
+                            machineStatus.IsSpindleOn = accessories.Contains("S") || accessories.Contains("C");
+                            machineStatus.IsCoolantOn = accessories.Contains("F") || accessories.Contains("M");
+                            System.Diagnostics.Debug.WriteLine($"[A: FIELD] Accessories: {accessories} -> Spindle={machineStatus.IsSpindleOn}, Coolant={machineStatus.IsCoolantOn}");
+                        }
+                        else
+                        {
+                            // |Ov: present but no |A: = all accessories are OFF
+                            machineStatus.IsSpindleOn = false;
+                            machineStatus.IsCoolantOn = false;
+                            System.Diagnostics.Debug.WriteLine($"[A: FIELD] |Ov: present, no |A: -> Spindle=OFF, Coolant=OFF");
+                        }
+                    }
+                    // If no |Ov: field, HasAccessoryInfo=false, MainControll won't copy spindle/coolant state
+                }
+                catch { }
+
+                // Parse |Pn: field for limit switches and probe status
+                // GRBL format: |Pn:XYZPDHRS where X,Y,Z=limit, P=probe, D=door, H=hold, R=reset, S=cycle stop
+                // FluidNC may use different format but typically includes X,Y,Z,P
+                try
+                {
+                    var pnMatch = Regex.Match(statusReport, @"\|Pn:([A-Za-z]+)");
+                    if (pnMatch.Success)
+                    {
+                        string pins = pnMatch.Groups[1].Value.ToUpper();
+                        machineStatus.HasPinInfo = true;
+                        machineStatus.IsXLimitTriggered = pins.Contains("X");
+                        machineStatus.IsYLimitTriggered = pins.Contains("Y");
+                        machineStatus.IsZLimitTriggered = pins.Contains("Z");
+                        machineStatus.IsProbeTriggered = pins.Contains("P");
+                        System.Diagnostics.Debug.WriteLine($"[Pn: FIELD] Pins: {pins} -> X={machineStatus.IsXLimitTriggered}, Y={machineStatus.IsYLimitTriggered}, Z={machineStatus.IsZLimitTriggered}, Probe={machineStatus.IsProbeTriggered}");
+                    }
+                    else
+                    {
+                        // No |Pn: field means no pins are triggered
+                        machineStatus.HasPinInfo = true;
+                        machineStatus.IsXLimitTriggered = false;
+                        machineStatus.IsYLimitTriggered = false;
+                        machineStatus.IsZLimitTriggered = false;
+                        machineStatus.IsProbeTriggered = false;
                     }
                 }
                 catch { }
