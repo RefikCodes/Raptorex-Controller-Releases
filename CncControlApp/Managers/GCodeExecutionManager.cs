@@ -493,6 +493,8 @@ namespace CncControlApp.Managers
         public async Task<bool> RunGCodeAsync()
         {
             ErrorLogger.LogDebug($"RunGCodeAsync başladı - CanStartExecution={CanStartExecution}, IsConnected={IsConnected}, IsGCodeLoaded={IsGCodeLoaded}, IsGCodeRunning={IsGCodeRunning}");
+            ErrorLogger.LogDebug($"  _wasStopped={_wasStopped}, CanContinueExecution={CanContinueExecution}");
+            ErrorLogger.LogDebug($"  StreamingService.IsStreaming={_streamingService?.IsStreaming}, StreamingService.IsPaused={_streamingService?.IsPaused}");
        try
             {
  if (!CanStartExecution)
@@ -556,10 +558,14 @@ CurrentlyExecutingLineIndex = -1;
       
        // ✅ GrblStreamingService ile streaming başlat
        // GCode satırlarını servise yükle (GCodeLines zaten string koleksiyonu)
+       ErrorLogger.LogDebug($"LoadGCode çağrılıyor - GCodeLines.Count={GCodeLines?.Count ?? 0}");
        _streamingService.LoadGCode(GCodeLines);
+       ErrorLogger.LogDebug($"LoadGCode tamamlandı - StreamingService.TotalLines={_streamingService?.TotalLines ?? 0}");
        
        // Streaming başlat (async fire-and-forget - completion event ile tamamlanacak)
+       ErrorLogger.LogDebug("StartAsync çağrılıyor...");
        await _streamingService.StartAsync();
+       ErrorLogger.LogDebug($"StartAsync tamamlandı - IsStreaming={_streamingService?.IsStreaming}");
        
        _log("> ✅ GrblStreamer: Streaming started - machine executing buffered commands");
        ErrorLogger.LogDebug("GrblStreamer ile streaming başladı");
@@ -955,6 +961,21 @@ CurrentlyExecutingLineIndex = -1;
         {
             MarkLineCompleted(lineIndex);
             LastCompletedLineIndex = lineIndex;
+            
+            // ✅ CRITICAL FIX: Update CurrentlyExecutingLineIndex to trigger auto-scroll
+            // Set it to the next line after the completed one (for scroll tracking)
+            // This ensures UI scroll follows the execution progress
+            int nextLine = lineIndex + 1;
+            if (nextLine < (GCodeLines?.Count ?? 0))
+            {
+                CurrentlyExecutingLineIndex = nextLine;
+            }
+            else
+            {
+                // At the end, keep pointing to last line
+                CurrentlyExecutingLineIndex = lineIndex;
+            }
+            
             LineCompleted?.Invoke(this, lineIndex);
         }
 

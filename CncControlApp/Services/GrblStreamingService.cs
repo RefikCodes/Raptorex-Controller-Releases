@@ -85,6 +85,13 @@ namespace CncControlApp.Services
         {
             lock (_lockObject)
             {
+                // ✅ CRITICAL FIX: Reset all streaming state when loading new GCode
+                // This ensures a clean slate for the next run
+                _isStreaming = false;
+                _isPaused = false;
+                _isBlocked = false;
+                _isStopping = false;
+                
                 ClearQueue();
                 
                 foreach (var rawLine in lines)
@@ -104,7 +111,7 @@ namespace CncControlApp.Services
                     TotalLines = _gcodeQueue.Count
                 };
                 
-                System.Diagnostics.Debug.WriteLine($"GrblStreamingService: {_gcodeQueue.Count} satır yüklendi");
+                System.Diagnostics.Debug.WriteLine($"GrblStreamingService: {_gcodeQueue.Count} satır yüklendi (state reset)");
             }
         }
 
@@ -122,9 +129,28 @@ namespace CncControlApp.Services
         /// </summary>
         public async Task StartAsync()
         {
-            if (_isStreaming) return;
-            if (_gcodeQueue.Count == 0) return;
-            if (!_connectionManager.IsConnected) return;
+            System.Diagnostics.Debug.WriteLine($"GrblStreamingService.StartAsync called - IsStreaming={_isStreaming}, QueueCount={_gcodeQueue.Count}, IsConnected={_connectionManager.IsConnected}");
+            
+            // ✅ CRITICAL FIX: Force reset streaming state if we're starting fresh
+            // This handles the case where previous Stop didn't complete cleanly
+            if (_isStreaming) 
+            {
+                System.Diagnostics.Debug.WriteLine("GrblStreamingService.StartAsync: Was streaming, forcing reset for fresh start");
+                _isStreaming = false;
+                _isPaused = false;
+                _isBlocked = false;
+                _isStopping = false;
+            }
+            if (_gcodeQueue.Count == 0) 
+            {
+                System.Diagnostics.Debug.WriteLine("GrblStreamingService.StartAsync: Queue is empty, returning");
+                return;
+            }
+            if (!_connectionManager.IsConnected) 
+            {
+                System.Diagnostics.Debug.WriteLine("GrblStreamingService.StartAsync: Not connected, returning");
+                return;
+            }
 
             _isStreaming = true;
             _isPaused = false;
@@ -144,7 +170,7 @@ namespace CncControlApp.Services
             // NOTE: Status polling is handled by CentralStatusQuerier (200ms via BeginScopedCentralStatusOverride)
             // No separate _statusTimer needed - avoids double status queries
 
-            System.Diagnostics.Debug.WriteLine("GrblStreamingService: Streaming başladı");
+            System.Diagnostics.Debug.WriteLine($"GrblStreamingService: Streaming başladı - {_gcodeQueue.Count} satır");
 
             // İlk komutları gönder
             await SendNextCommandsAsync();
