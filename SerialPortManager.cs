@@ -308,5 +308,26 @@ namespace CncControlApp
                 return new ConnectionDetails { IsOpen = false };
             }
         }
+
+        /// <summary>
+        /// Clears both input and output serial buffers.
+        /// Used during stop sequence to discard any pending data.
+        /// </summary>
+        public void ClearSerialBuffers()
+        {
+            try
+            {
+                if (IsOpen)
+                {
+                    _serialPort.DiscardInBuffer();
+                    _serialPort.DiscardOutBuffer();
+                    System.Diagnostics.Debug.WriteLine("SerialPortManager: Serial buffers cleared");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SerialPortManager.ClearSerialBuffers error: {ex.Message}");
+            }
+        }
     }
 }

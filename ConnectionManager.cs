@@ -2265,6 +2265,27 @@ namespace CncControlApp
 
         #endregion
 
+        #region Buffer Management
+
+        /// <summary>
+        /// Clears both input and output serial port buffers.
+        /// Used during stop sequence to discard any pending data from GRBL/FluidNC.
+        /// </summary>
+        public void ClearSerialBuffers()
+        {
+            try
+            {
+                _portManager?.ClearSerialBuffers();
+                System.Diagnostics.Debug.WriteLine("ConnectionManager: Serial buffers cleared");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ConnectionManager.ClearSerialBuffers error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
         #region IDisposable Implementation
 
         public void Dispose()

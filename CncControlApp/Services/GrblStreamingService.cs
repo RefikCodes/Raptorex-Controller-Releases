@@ -292,26 +292,49 @@ namespace CncControlApp.Services
             _progressTimer?.Dispose();
             _progressTimer = null;
 
-            // ✅ Step 1: Send Jog Cancel first to stop any motion immediately
-            try
-            {
-                await _connectionManager.SendControlCharacterAsync((char)0x85); // Jog Cancel
-                await Task.Delay(50);
-            }
-            catch { }
+            // ✅ Step 0: Clear our internal buffers FIRST to prevent any new commands from being sent
+            ClearQueue();
+            System.Diagnostics.Debug.WriteLine("GrblStreamingService.StopAsync: Internal queues cleared");
 
-            // ✅ Step 2: Send Feed Hold to pause any remaining motion
+            // ✅ Step 1: Send Feed Hold IMMEDIATELY to stop motion planner
             try
             {
                 await _connectionManager.SendControlCharacterAsync('!'); // Feed Hold
-                await Task.Delay(100);
+                System.Diagnostics.Debug.WriteLine("GrblStreamingService.StopAsync: Feed Hold (!) sent");
+            }
+            catch (Exception ex) 
+            { 
+                System.Diagnostics.Debug.WriteLine($"GrblStreamingService.StopAsync: Feed Hold failed: {ex.Message}");
+            }
+            
+            // ✅ Step 2: Small delay for Feed Hold to take effect
+            await Task.Delay(100);
+
+            // ✅ Step 3: Send Queue Flush (0x15) for FluidNC - clears motion queue
+            try
+            {
+                await _connectionManager.SendControlCharacterAsync((char)0x15); // Queue Flush (FluidNC)
+                System.Diagnostics.Debug.WriteLine("GrblStreamingService.StopAsync: Queue Flush (0x15) sent");
             }
             catch { }
+            
+            await Task.Delay(50);
 
-            // ✅ Step 3: Send Soft Reset to clear GRBL's internal buffer completely
+            // ✅ Step 4: Send Jog Cancel to stop any jog motion
+            try
+            {
+                await _connectionManager.SendControlCharacterAsync((char)0x85); // Jog Cancel
+                System.Diagnostics.Debug.WriteLine("GrblStreamingService.StopAsync: Jog Cancel (0x85) sent");
+            }
+            catch { }
+            
+            await Task.Delay(50);
+
+            // ✅ Step 5: Send Soft Reset to clear GRBL's internal buffer completely
             try
             {
                 await _connectionManager.SendControlCharacterAsync((char)0x18); // Soft Reset (Ctrl+X)
+                System.Diagnostics.Debug.WriteLine("GrblStreamingService.StopAsync: Soft Reset (0x18) sent");
             }
             catch { }
             
@@ -319,10 +342,15 @@ namespace CncControlApp.Services
             // After soft reset, GRBL sends welcome message and takes ~500-1500ms to be ready
             await Task.Delay(1500);
             
-            // ✅ Step 4: Clear our internal buffers AFTER GRBL has reset
-            ClearQueue();
+            // ✅ Step 6: Clear ConnectionManager's serial buffers to prevent stale data
+            try
+            {
+                _connectionManager.ClearSerialBuffers();
+                System.Diagnostics.Debug.WriteLine("GrblStreamingService.StopAsync: Serial buffers cleared");
+            }
+            catch { }
             
-            // ✅ Step 5: Wait for GRBL to report Idle status (poll a few times)
+            // ✅ Step 7: Wait for GRBL to report Idle status (poll a few times)
             int maxWaitAttempts = 10;
             for (int i = 0; i < maxWaitAttempts; i++)
             {
