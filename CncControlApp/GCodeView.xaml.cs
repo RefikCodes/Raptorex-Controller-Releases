@@ -183,8 +183,9 @@ private double _scrollFromOffset = 0;
 
         private void OnMachineStatusPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            // Update live speed display when CurrentFeed changes
-            if (e.PropertyName == nameof(MachineStatus.CurrentFeed))
+            // Update live speed display when CurrentFeed or CurrentSpindle changes
+            if (e.PropertyName == nameof(MachineStatus.CurrentFeed) || 
+                e.PropertyName == nameof(MachineStatus.CurrentSpindle))
             {
                 Dispatcher.BeginInvoke(new Action(() => UpdateLiveSpeedDisplay()));
             }
@@ -204,8 +205,11 @@ private double _scrollFromOffset = 0;
                 // Get real-time feed from GRBL status report (FS: or F: field)
                 double liveFeed = mc.MStatus?.CurrentFeed ?? 0;
                 
+                // Get real-time spindle from GRBL status report (FS: field)
+                double liveSpindle = mc.MStatus?.CurrentSpindle ?? 0;
+                
                 // DEBUG: Log feed values to diagnose update issues
-                System.Diagnostics.Debug.WriteLine($"[FEED_DEBUG] MStatus.CurrentFeed={liveFeed:F1}, IsRunning={mc.IsGCodeRunning}");
+                System.Diagnostics.Debug.WriteLine($"[FEED_DEBUG] MStatus.CurrentFeed={liveFeed:F1}, CurrentSpindle={liveSpindle:F1}, IsRunning={mc.IsGCodeRunning}");
                 
                 // If no live feed from GRBL, fall back to modal feed with override
                 if (liveFeed <= 0)
@@ -216,17 +220,20 @@ private double _scrollFromOffset = 0;
                     System.Diagnostics.Debug.WriteLine($"[FEED_DEBUG] Fallback to modal: modalFeed={modalFeed:F1}, override={feedPercent}%, result={liveFeed:F1}");
                 }
                 
-                // Get spindle speed (modal value with override)
-                double modalSpindle = mc.GCodeManager?.CurrentModalSpindle ?? mc.SpindleSpeed;
-                int spindlePercent = _lastSpindleOverridePercent;
-                double effectiveSpindle = modalSpindle * spindlePercent / 100.0;
+                // If no live spindle from GRBL, fall back to modal spindle with override
+                if (liveSpindle <= 0)
+                {
+                    double modalSpindle = mc.GCodeManager?.CurrentModalSpindle ?? mc.SpindleSpeed;
+                    int spindlePercent = _lastSpindleOverridePercent;
+                    liveSpindle = modalSpindle * spindlePercent / 100.0;
+                }
 
                 // Update UI with effective values (compact format for button caption)
                 if (LiveFeedRateText != null)
                     LiveFeedRateText.Text = liveFeed > 0 ? $"{liveFeed:F0}" : "—";
                 
                 if (LiveSpindleSpeedText != null)
-                    LiveSpindleSpeedText.Text = effectiveSpindle > 0 ? $"{effectiveSpindle:F0}" : "—";
+                    LiveSpindleSpeedText.Text = liveSpindle > 0 ? $"{liveSpindle:F0}" : "—";
             }
             catch { }
         }

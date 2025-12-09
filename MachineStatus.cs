@@ -23,6 +23,8 @@ namespace CncControlApp
         #region Runtime Fields
         // Live feed rate (parsed from FS: feed,spindle)
         private double _currentFeed = 0.0;
+        // Live spindle speed (parsed from FS: feed,spindle)
+        private double _currentSpindle = 0.0;
         #endregion
 
         #region Machine Position Properties
@@ -175,6 +177,23 @@ namespace CncControlApp
         }
 
         /// <summary>
+        /// Current real-time spindle speed (RPM) reported by controller (FS: feed,spindle)
+        /// </summary>
+        public double CurrentSpindle
+        {
+            get => _currentSpindle;
+            set
+            {
+                // Tolerans düşük tutulsun ki hızlı güncellensin
+                if (Math.Abs(_currentSpindle - value) > 0.1)
+                {
+                    _currentSpindle = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>
         /// Spindle state from status report (A: field contains S for CW, C for CCW)
         /// </summary>
         public bool IsSpindleOn
@@ -283,6 +302,7 @@ namespace CncControlApp
             WorkZ = 0;
             WorkA = 0;
             CurrentFeed = 0;
+            CurrentSpindle = 0;
             IsSpindleOn = false;
             IsCoolantOn = false;
             IsXLimitTriggered = false;

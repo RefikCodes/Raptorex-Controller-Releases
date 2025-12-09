@@ -378,8 +378,9 @@ namespace CncControlApp
                 coords => { 
                     MStatus.X = coords.X; MStatus.Y = coords.Y; MStatus.Z = coords.Z; MStatus.A = coords.A; 
                     MStatus.WorkX = coords.WorkX; MStatus.WorkY = coords.WorkY; MStatus.WorkZ = coords.WorkZ; MStatus.WorkA = coords.WorkA;
-                    // Copy real-time feed rate from status report (FS: or F: field)
+                    // Copy real-time feed rate and spindle speed from status report (FS: field)
                     MStatus.CurrentFeed = coords.CurrentFeed;
+                    MStatus.CurrentSpindle = coords.CurrentSpindle;
                     // Only copy spindle/coolant state when report has authoritative accessory info (|Ov: present)
                     if (coords.HasAccessoryInfo)
                     {
