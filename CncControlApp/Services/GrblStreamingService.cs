@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -33,6 +33,7 @@ namespace CncControlApp.Services
         private bool _isStreaming = false;
         private bool _isPaused = false;
         private bool _isBlocked = false;
+        private bool _isStopping = false; // ✅ NEW: Flag to ignore errors during stop sequence
         private CancellationTokenSource _streamCts;
         private Timer _progressTimer;
         // NOTE: Status polling is handled by CentralStatusQuerier (via BeginScopedCentralStatusOverride)
@@ -150,16 +151,25 @@ namespace CncControlApp.Services
         }
 
         /// <summary>
-        /// Streaming'i duraklatır
+        /// Streaming'i duraklatır - GRBL'e Feed Hold gönderir ama streaming state'ini korur
         /// </summary>
         public async Task PauseAsync()
         {
-            if (!_isStreaming) return;
+            System.Diagnostics.Debug.WriteLine($"GrblStreamingService.PauseAsync called - IsStreaming={_isStreaming}, IsPaused={_isPaused}");
+            System.Diagnostics.Debug.WriteLine($"  QueuePointer={_queuePointer}, QueueCount={_gcodeQueue.Count}, SentBufferCount={_sentBuffer.Count}");
+            
+            // ✅ CRITICAL: Keep _isStreaming = true so we can resume later
+            // Only set _isPaused = true to prevent new commands from being sent
+            // Do NOT clear the queue or buffer - we need them for resume
             
             _isPaused = true;
-            await _connectionManager.SendControlCharacterAsync('!'); // Feed Hold
+            // ✅ Do NOT set _isStreaming = false here - it breaks resume functionality
             
-            System.Diagnostics.Debug.WriteLine("GrblStreamingService: Paused");
+            // Send Feed Hold to GRBL to pause motion
+            bool feedHoldSent = await _connectionManager.SendControlCharacterAsync('!');
+            System.Diagnostics.Debug.WriteLine($"GrblStreamingService.PauseAsync: Feed Hold sent = {feedHoldSent}");
+            
+            System.Diagnostics.Debug.WriteLine("GrblStreamingService: Paused (streaming state preserved for resume)");
         }
 
         /// <summary>
@@ -167,17 +177,76 @@ namespace CncControlApp.Services
         /// </summary>
         public async Task ResumeAsync()
         {
-            if (!_isStreaming || !_isPaused) return;
+            System.Diagnostics.Debug.WriteLine($"GrblStreamingService.ResumeAsync called - IsStreaming={_isStreaming}, IsPaused={_isPaused}, IsBlocked={_isBlocked}");
+            System.Diagnostics.Debug.WriteLine($"  QueuePointer={_queuePointer}, QueueCount={_gcodeQueue.Count}, SentBufferCount={_sentBuffer.Count}");
+            
+            // ✅ CRITICAL FIX: Allow resume even if _isStreaming was set to false during pause
+            // The pause might have set _isStreaming to false, but we should still be able to resume
+            // Check if we have remaining work in the queue
+            bool hasRemainingWork;
+            lock (_lockObject)
+            {
+                hasRemainingWork = _queuePointer < _gcodeQueue.Count || _sentBuffer.Count > 0;
+            }
+            
+            if (!hasRemainingWork)
+            {
+                System.Diagnostics.Debug.WriteLine("GrblStreamingService.ResumeAsync: No remaining work - cannot resume");
+                return;
+            }
+            
+            // ✅ FIX: Re-enable streaming if it was disabled during pause
+            if (!_isStreaming)
+            {
+                System.Diagnostics.Debug.WriteLine("GrblStreamingService.ResumeAsync: Re-enabling streaming flag");
+                _isStreaming = true;
+                
+                // Restart progress timer if needed
+                if (_progressTimer == null)
+                {
+                    _progressTimer = new Timer(_ => 
+                    {
+                        ProgressUpdated?.Invoke(this, new StreamingProgressEventArgs(Stats));
+                    }, null, 0, 500);
+                }
+            }
             
             _isPaused = false;
             _isBlocked = false;
-            await _connectionManager.SendControlCharacterAsync('~'); // Cycle Start
             
-            // Kuyruğu devam ettir
-            await Task.Delay(200);
-            await SendNextCommandsAsync();
+            // ✅ Send Cycle Start to GRBL to resume motion
+            bool cycleStartSent = await _connectionManager.SendControlCharacterAsync('~');
+            System.Diagnostics.Debug.WriteLine($"GrblStreamingService.ResumeAsync: Cycle Start sent = {cycleStartSent}");
             
-            System.Diagnostics.Debug.WriteLine("GrblStreamingService: Resumed");
+            // ✅ Wait for GRBL to process the cycle start and resume motion
+            // GRBL needs time to restart the motion planner
+            await Task.Delay(300);
+            
+            // ✅ Check if there are pending commands in _sentBuffer that haven't received OK yet
+            // If so, we don't need to send new commands immediately - GRBL will send OK when it processes them
+            int pendingCount;
+            lock (_lockObject)
+            {
+                pendingCount = _sentBuffer.Count;
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"GrblStreamingService.ResumeAsync: Pending commands in buffer = {pendingCount}");
+            
+            // ✅ Only send new commands if buffer has space
+            // The ProcessOk handler will continue sending when GRBL responds
+            if (pendingCount == 0)
+            {
+                // No pending commands - need to send next batch
+                await SendNextCommandsAsync();
+            }
+            else
+            {
+                // Commands are pending - GRBL will send OK responses as it executes them
+                // ProcessOk will trigger SendNextCommandsAsync when space becomes available
+                System.Diagnostics.Debug.WriteLine("GrblStreamingService.ResumeAsync: Waiting for GRBL to process pending commands...");
+            }
+            
+            System.Diagnostics.Debug.WriteLine("GrblStreamingService: Resumed successfully");
         }
 
         /// <summary>
@@ -185,28 +254,85 @@ namespace CncControlApp.Services
         /// </summary>
         public async Task StopAsync()
         {
-            if (!_isStreaming) return;
+            System.Diagnostics.Debug.WriteLine($"GrblStreamingService.StopAsync called - IsStreaming={_isStreaming}");
+            
+            // ✅ CRITICAL: Immediately mark as stopping to ignore errors during stop sequence
+            _isStopping = true;
+            _isStreaming = false;
+            _isPaused = false;
+            _isBlocked = false;
 
             _streamCts?.Cancel();
             _progressTimer?.Dispose();
             _progressTimer = null;
 
-            // GRBL'e durdurma komutları gönder
-            await _connectionManager.SendControlCharacterAsync('!'); // Feed Hold
-            await Task.Delay(200);
-            await _connectionManager.SendControlCharacterAsync((char)0x18); // Soft Reset
+            // ✅ Step 1: Send Jog Cancel first to stop any motion immediately
+            try
+            {
+                await _connectionManager.SendControlCharacterAsync((char)0x85); // Jog Cancel
+                await Task.Delay(50);
+            }
+            catch { }
 
+            // ✅ Step 2: Send Feed Hold to pause any remaining motion
+            try
+            {
+                await _connectionManager.SendControlCharacterAsync('!'); // Feed Hold
+                await Task.Delay(100);
+            }
+            catch { }
+
+            // ✅ Step 3: Send Soft Reset to clear GRBL's internal buffer completely
+            try
+            {
+                await _connectionManager.SendControlCharacterAsync((char)0x18); // Soft Reset (Ctrl+X)
+            }
+            catch { }
+            
+            // ✅ CRITICAL: Wait for GRBL to complete the reset sequence
+            // After soft reset, GRBL sends welcome message and takes ~500-1500ms to be ready
+            await Task.Delay(1500);
+            
+            // ✅ Step 4: Clear our internal buffers AFTER GRBL has reset
             ClearQueue();
-            _isStreaming = false;
-            _isPaused = false;
-            _isBlocked = false;
+            
+            // ✅ Step 5: Wait for GRBL to report Idle status (poll a few times)
+            int maxWaitAttempts = 10;
+            for (int i = 0; i < maxWaitAttempts; i++)
+            {
+                try
+                {
+                    // Request status update
+                    await _connectionManager.SendGCodeCommandAsync("?");
+                    await Task.Delay(200);
+                    
+                    // Check if machine is idle (via status text from MainController)
+                    var status = App.MainController?.MachineStatus ?? "";
+                    if (status.StartsWith("Idle", StringComparison.OrdinalIgnoreCase))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"GrblStreamingService: Machine confirmed Idle after {i + 1} attempts");
+                        break;
+                    }
+                    
+                    // If still in Hold, send Cycle Resume to exit Hold state
+                    if (status.StartsWith("Hold", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await _connectionManager.SendControlCharacterAsync('~'); // Cycle Resume
+                        await Task.Delay(100);
+                    }
+                }
+                catch { }
+            }
 
             Stats.EndTime = DateTime.Now;
+            
+            // ✅ Reset stopping flag
+            _isStopping = false;
             
             StreamingStopped?.Invoke(this, EventArgs.Empty);
             JobCompleted?.Invoke(this, new JobCompletedEventArgs(false, Stats, "Job cancelled by user"));
             
-            System.Diagnostics.Debug.WriteLine("GrblStreamingService: Stopped");
+            System.Diagnostics.Debug.WriteLine("GrblStreamingService: Stop sequence completed");
         }
 
         /// <summary>
@@ -330,6 +456,13 @@ namespace CncControlApp.Services
 
         private void ProcessError(string errorLine)
         {
+            // ✅ CRITICAL: Ignore errors during stop sequence - they are expected
+            if (_isStopping)
+            {
+                System.Diagnostics.Debug.WriteLine($"GrblStreamingService: Ignoring error during stop sequence: {errorLine}");
+                return;
+            }
+            
             string failedCommand;
 
             lock (_lockObject)
@@ -357,6 +490,13 @@ namespace CncControlApp.Services
 
         private void ProcessAlarm(string alarmLine)
         {
+            // ✅ CRITICAL: Ignore alarms during stop sequence - they are expected after soft reset
+            if (_isStopping)
+            {
+                System.Diagnostics.Debug.WriteLine($"GrblStreamingService: Ignoring alarm during stop sequence: {alarmLine}");
+                return;
+            }
+            
             if (_isStreaming)
             {
                 CompleteJob(false, alarmLine);

@@ -162,7 +162,25 @@ namespace CncControlApp.Managers
                 return s.StartsWith("Run", StringComparison.OrdinalIgnoreCase) || s.StartsWith("Hold", StringComparison.OrdinalIgnoreCase);
             }
         }
-        public bool CanContinueExecution => IsConnected && !_wasStopped && !IsGCodeRunning && StatusIsHold(GetMachineStatusSafe());
+        public bool CanContinueExecution 
+        { 
+            get 
+            {
+                // ✅ FIX: Check streaming service pause state, not just machine Hold state
+                // This allows resume even if GRBL reports Idle but streaming is paused
+                if (!IsConnected) return false;
+                if (_wasStopped) return false;
+                if (IsGCodeRunning) return false;
+                
+                // Check if streaming service has paused work
+                bool streamingServicePaused = _streamingService?.IsPaused ?? false;
+                
+                // Also check traditional Hold state
+                bool machineInHold = StatusIsHold(GetMachineStatusSafe());
+                
+                return streamingServicePaused || machineInHold;
+            }
+        }
         public bool CanStopExecution
         {
             get
@@ -207,8 +225,19 @@ namespace CncControlApp.Managers
         {
             get
             {
-                if (!IsGCodeRunning) return "--:--:--";
-                if (_totalEstimatedMinutes <= 0) return "--:--:--";
+                // ✅ DEBUG: Log the values to understand what's happening
+                System.Diagnostics.Debug.WriteLine($"⏱️ RemainingTimeText called: IsGCodeRunning={IsGCodeRunning}, TotalEstimatedMinutes={_totalEstimatedMinutes:F2}");
+                
+                if (!IsGCodeRunning) 
+                {
+                    System.Diagnostics.Debug.WriteLine($"⏱️ RemainingTimeText returning --:--:-- (not running)");
+                    return "--:--:--";
+                }
+                if (_totalEstimatedMinutes <= 0) 
+                {
+                    System.Diagnostics.Debug.WriteLine($"⏱️ RemainingTimeText returning --:--:-- (no estimate)");
+                    return "--:--:--";
+                }
                 
                 double totalMinutes = _totalEstimatedMinutes;
                 if (_currentFeedOverridePercent != 100 && _currentFeedOverridePercent > 0)
@@ -221,7 +250,9 @@ namespace CncControlApp.Managers
                 double remaining = totalMinutes - elapsedMinutes;
                 if (remaining < 0) remaining = 0;
                 
-                return TimeSpan.FromMinutes(remaining).ToString(@"hh\:mm\:ss");
+                var result = TimeSpan.FromMinutes(remaining).ToString(@"hh\:mm\:ss");
+                System.Diagnostics.Debug.WriteLine($"⏱️ RemainingTimeText returning {result} (total={totalMinutes:F2}, elapsed={elapsedMinutes:F2})");
+                return result;
             }
         }
         
@@ -494,10 +525,28 @@ CurrentlyExecutingLineIndex = -1;
     _currentModalFeed = 0;
         _currentModalSpindle = 0;
       _currentFeedOverridePercent = 100;
+      
+    // ✅ CRITICAL FIX: Reset completed segments tracking for fresh remaining time calculation
+    _completedSegments.Clear();
+    _completedMinutes = 0;
+    _hasOverrideAdjustment = false;
+    _overrideRemainingMinutes = 0;
+    
+    // ✅ DEBUG: Log the total estimated minutes before starting
+    System.Diagnostics.Debug.WriteLine($"⏱️ RunGCodeAsync: _totalEstimatedMinutes={_totalEstimatedMinutes:F2} before starting");
+    _log($"> ⏱️ Estimated time: {_totalEstimatedMinutes:F2} minutes");
            
-// Set IsGCodeRunning which will start the timer via the setter
-       if (!IsGCodeRunning) { IsGCodeRunning = true; if ((GetMachineStatusSafe() ?? string.Empty).StartsWith("Idle", StringComparison.OrdinalIgnoreCase)) { SetMachineStatusSafe("Run"); } }
-       ErrorLogger.LogDebug($"GCode çalışma başladı - satır sayısı: {GCodeLines?.Count ?? 0}");
+    // Set IsGCodeRunning FIRST which will start the timer via the setter
+    if (!IsGCodeRunning) { IsGCodeRunning = true; if ((GetMachineStatusSafe() ?? string.Empty).StartsWith("Idle", StringComparison.OrdinalIgnoreCase)) { SetMachineStatusSafe("Run"); } }
+    
+    // ✅ Force UI refresh for timing properties AFTER IsGCodeRunning is set
+    // This ensures RemainingTimeText doesn't return "--:--:--" due to !IsGCodeRunning check
+    RaisePropertyChanged(nameof(ElapsedTimeText));
+    RaisePropertyChanged(nameof(RemainingTimeText));
+    RaisePropertyChanged(nameof(AdjustedTotalPredictedTimeText));
+    RaisePropertyChanged(nameof(ExecutionProgressTime));
+    
+    ErrorLogger.LogDebug($"GCode çalışma başladı - satır sayısı: {GCodeLines?.Count ?? 0}, TotalEstimatedMinutes: {_totalEstimatedMinutes:F2}");
       
        // ✅ GCode çalışırken status query interval'ını 200ms'ye ayarla
        // Scope field olarak tutulur, IsGCodeRunning=false olduğunda dispose edilir
@@ -550,15 +599,65 @@ CurrentlyExecutingLineIndex = -1;
         public async Task<bool> ContinueGCodeAsync()
         {
             var status = GetMachineStatusSafe();
-            if (!(status.StartsWith("Hold", StringComparison.OrdinalIgnoreCase)) || _wasStopped) return false;
+            ErrorLogger.LogDebug($"ContinueGCodeAsync called - Status={status}, WasStopped={_wasStopped}, IsGCodeRunning={IsGCodeRunning}");
+            ErrorLogger.LogDebug($"  StreamingService.IsStreaming={_streamingService.IsStreaming}, StreamingService.IsPaused={_streamingService.IsPaused}");
+            
+            // ✅ CRITICAL FIX: Check if we were stopped (not just paused)
+            if (_wasStopped)
+            {
+                _log("> ❌ Cannot continue - execution was stopped (not paused)");
+                ErrorLogger.LogDebug("Continue rejected - _wasStopped is true");
+                return false;
+            }
+            
+            // ✅ FIX: Allow continue even if not in Hold state - the streaming service tracks its own pause state
+            // This handles cases where GRBL reports Idle but streaming service is still paused
+            bool isHoldOrPaused = status.StartsWith("Hold", StringComparison.OrdinalIgnoreCase) || _streamingService.IsPaused;
+            
+            if (!isHoldOrPaused)
+            {
+                _log($"> ⚠️ Cannot continue - not in Hold state (current: {status}) and streaming not paused");
+                ErrorLogger.LogDebug($"Continue rejected - status={status}, IsPaused={_streamingService.IsPaused}");
+                return false;
+            }
+            
             try
             {
+                _log($"> ▶ Attempting to resume streaming...");
+                ErrorLogger.LogDebug("Calling _streamingService.ResumeAsync()");
+                
+                // ✅ Resume the streaming service - this will send ~ (Cycle Start) and continue buffering
                 await _streamingService.ResumeAsync();
-                SetMachineStatusSafe("Run"); if (!IsGCodeRunning) IsGCodeRunning = true;
+                
+                // ✅ Update internal state
+                SetMachineStatusSafe("Run");
+                if (!IsGCodeRunning) 
+                { 
+                    IsGCodeRunning = true;
+                    // Restart elapsed timer if it was stopped
+                    _liveElapsedTimer?.Start();
+                }
                 _internalStreaming = true;
-                _log("> ▶ Continued (streaming resumed via GrblStreamer)"); UpdateExecutionProperties(); return true;
+                
+                // ✅ Re-enable status query scope for fast updates during execution
+                try 
+                { 
+                    _gcodeRunScope?.Dispose(); 
+                    _gcodeRunScope = App.MainController?.BeginScopedCentralStatusOverride(200); 
+                } 
+                catch { }
+                
+                _log("> ▶ Continued (streaming resumed via GrblStreamer)"); 
+                ErrorLogger.LogDebug("ContinueGCodeAsync completed successfully");
+                UpdateExecutionProperties(); 
+                return true;
             }
-            catch (Exception ex) { _logError("ContinueGCode", ex, ErrorHandlingService.ErrorSeverity.Error); return false; }
+            catch (Exception ex) 
+            { 
+                ErrorLogger.LogError("ContinueGCode exception", ex);
+                _logError("ContinueGCode", ex, ErrorHandlingService.ErrorSeverity.Error); 
+                return false; 
+            }
         }
 
         public async Task<bool> StopGCodeAsync()
@@ -568,7 +667,13 @@ CurrentlyExecutingLineIndex = -1;
             {
                 await _streamingService.StopAsync();
                 SetMachineStatusSafe("Idle");
-                _executionCts?.Cancel(); _internalStreaming = false; if (IsGCodeRunning) IsGCodeRunning = false; _log("> ⏹ Job stopped via GrblStreamer"); UpdateExecutionProperties(); return true;
+                _executionCts?.Cancel(); 
+                _internalStreaming = false; 
+                _wasStopped = true; // ✅ CRITICAL: Mark as stopped so next run starts fresh
+                if (IsGCodeRunning) IsGCodeRunning = false; 
+                _log("> ⏹ Job stopped via GrblStreamer"); 
+                UpdateExecutionProperties(); 
+                return true;
             }
             catch (Exception ex) { _logError("StopGCode", ex, ErrorHandlingService.ErrorSeverity.Error); return false; }
         }
@@ -1386,11 +1491,17 @@ CurrentlyExecutingLineIndex = -1;
             CurrentGCodeLineIndex = 0;
             LastCompletedLineIndex = -1;
             CurrentlyExecutingLineIndex = -1;
-            _segmentEstimatedTimes.Clear();
+            
+            // ✅ CRITICAL FIX: Do NOT clear _segmentEstimatedTimes and _totalEstimatedMinutes here!
+            // These are calculated when the file is loaded, not per-run.
+            // Clearing them causes remaining time to show "--:--:--" on second run.
+            // _segmentEstimatedTimes.Clear();  // ❌ REMOVED - breaks time estimation on re-run
+            // _totalEstimatedMinutes = 0;      // ❌ REMOVED - breaks time estimation on re-run
+            // TotalEstimatedTime = TimeSpan.Zero; // ❌ REMOVED - breaks time estimation on re-run
+            
+            // Only reset per-run tracking values
             _completedSegments.Clear();
             _completedMinutes = 0;
-            _totalEstimatedMinutes = 0;
-            TotalEstimatedTime = TimeSpan.Zero;
             _overrideRemainingMinutes = 0;
             _hasOverrideAdjustment = false;
             _currentModalFeed = 0;
@@ -1398,8 +1509,8 @@ CurrentlyExecutingLineIndex = -1;
             _currentFeedOverridePercent = 100;
             _liveElapsedSeconds = 0; // Reset live elapsed time
             
-   // ✅ Ensure timer is stopped when resetting execution state
-  _liveElapsedTimer?.Stop();
+            // ✅ Ensure timer is stopped when resetting execution state
+            _liveElapsedTimer?.Stop();
     
             RaisePropertyChanged(nameof(ElapsedTimeText));
             RaisePropertyChanged(nameof(RemainingTimeText));
@@ -1407,7 +1518,7 @@ CurrentlyExecutingLineIndex = -1;
             RaisePropertyChanged(nameof(ExecutionProgressTime));
             RaisePropertyChanged(nameof(CurrentModalFeed));
             RaisePropertyChanged(nameof(CurrentModalSpindle));
-         UpdateExecutionProperties();
+            UpdateExecutionProperties();
             RaiseExecutionStatusChanged();
         }
         
