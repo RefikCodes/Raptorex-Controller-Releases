@@ -167,8 +167,8 @@ namespace CncControlApp.Helpers
                 // Touch handlers
                 CreateTouchHandlers(
                     button,
-                    async (e) => await action(),
-                    async (e) => { /* Stop action handled elsewhere */ },
+                    e => action(),
+                    e => Task.CompletedTask,
                     buttonName,
                     logger
                 );

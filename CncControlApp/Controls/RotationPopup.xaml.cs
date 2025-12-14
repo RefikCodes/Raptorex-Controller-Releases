@@ -25,14 +25,10 @@ namespace CncControlApp.Controls
         private Ellipse _touchPointMarker;
         private Ellipse _machineMarker;
         private DispatcherTimer _machinePositionUpdateTimer;
-        private bool _isAnimatingMovement = false;
 
         // Touch/Click handling for G00 movement
         private double? _lastTouchedMachineX = null;
         private double? _lastTouchedMachineY = null;
-
-        // ✅ FIX: Store toggle state to persist between movements
-        private bool _autoZeroEnabled = true; // Default: ON
 
         // Add missing _touchPointLabel field and remove ClearSelectedCoordinateBoxes usage
         private TextBlock _touchPointLabel; // label showing machine coords near touch marker
@@ -1212,7 +1208,7 @@ namespace CncControlApp.Controls
             }
         }
 
-        private async System.Threading.Tasks.Task<bool> ShowZeroConfirmationDialog()
+        private System.Threading.Tasks.Task<bool> ShowZeroConfirmationDialog()
         {
             try
             {
@@ -1226,13 +1222,13 @@ namespace CncControlApp.Controls
                     machineX, machineY);
                 var disp = Application.Current?.Dispatcher;
                 if (disp == null || disp.CheckAccess())
-                    return MessageDialog.ShowConfirm("Sıfırlama Onayı", message);
-                return disp.Invoke(new Func<bool>(() => MessageDialog.ShowConfirm("Sıfırlama Onayı", message)), DispatcherPriority.Send);
+                    return System.Threading.Tasks.Task.FromResult(MessageDialog.ShowConfirm("Sıfırlama Onayı", message));
+                return System.Threading.Tasks.Task.FromResult(disp.Invoke(new Func<bool>(() => MessageDialog.ShowConfirm("Sıfırlama Onayı", message)), DispatcherPriority.Send));
             }
             catch (Exception ex)
             {
                 Log($"> ❌ ERROR in ShowZeroConfirmationDialog: {ex.Message}");
-                return false;
+                return System.Threading.Tasks.Task.FromResult(false);
             }
         }
 
@@ -1342,7 +1338,7 @@ namespace CncControlApp.Controls
                     _machinePositionUpdateTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
                     _machinePositionUpdateTimer.Tick += MachinePositionUpdateTimer_Tick;
                 }
-                if (!_machinePositionUpdateTimer.IsEnabled) { _isAnimatingMovement = true; _machinePositionUpdateTimer.Start(); }
+                if (!_machinePositionUpdateTimer.IsEnabled) { _machinePositionUpdateTimer.Start(); }
             }
             catch { }
         }
@@ -1350,7 +1346,7 @@ namespace CncControlApp.Controls
         {
             try
             {
-                if (_machinePositionUpdateTimer != null && _machinePositionUpdateTimer.IsEnabled) { _machinePositionUpdateTimer.Stop(); _isAnimatingMovement = false; }
+                if (_machinePositionUpdateTimer != null && _machinePositionUpdateTimer.IsEnabled) { _machinePositionUpdateTimer.Stop(); }
             }
             catch { }
         }

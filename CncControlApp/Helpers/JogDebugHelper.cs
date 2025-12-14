@@ -99,7 +99,7 @@ namespace CncControlApp.Helpers
             }
         }
 
-        public static async Task TestResponseProcessing(MainControll controller) // ✅ MainControll olarak değiştirildi
+        public static Task TestResponseProcessing(MainControll controller) // ✅ MainControll olarak değiştirildi
         {
             try
             {
@@ -108,7 +108,7 @@ namespace CncControlApp.Helpers
                 if (!controller.IsConnected)
                 {
                     controller?.AddLogMessage($"> ❌ CNC bağlı değil!");
-                    return;
+                    return Task.CompletedTask;
                 }
                 
                 // Test implementation...
@@ -118,6 +118,8 @@ namespace CncControlApp.Helpers
             {
                 controller?.AddLogMessage($"> ❌ Response test hatası: {ex.Message}");
             }
+
+            return Task.CompletedTask;
         }
     }
 }

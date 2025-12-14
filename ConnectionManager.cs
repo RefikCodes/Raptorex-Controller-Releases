@@ -69,7 +69,6 @@ namespace CncControlApp
 
         private readonly HashSet<string> _loggedCommands = new HashSet<string>();
         private DateTime _lastStatusQueryTime = DateTime.MinValue;
-        private string _lastLoggedResponse = "";
 
         private readonly HashSet<string> _filteredMessages = new HashSet<string>();
         private DateTime _lastLogCleanup = DateTime.MinValue;
@@ -717,7 +716,7 @@ namespace CncControlApp
             }
         }
 
-        private async Task PerformDisconnectAsync()
+        private Task PerformDisconnectAsync()
         {
             try
             {
@@ -738,6 +737,8 @@ namespace CncControlApp
             {
                 LogImportantMessage($"> HATA: Disconnect işlemi sırasında hata - {ex.Message}");
             }
+
+            return Task.CompletedTask;
         }
 
         private async Task PerformManualConnectAsync()
@@ -805,30 +806,16 @@ namespace CncControlApp
             try
             {
                 LogImportantMessage("> 🔓 Dayanıklı unlock başlıyor ($X)...");
-                for (int attempt = 1; attempt <= _config.UnlockRetryCount; attempt++)
+                LogImportantMessage("> ? $X gönderiliyor");
+                await _gcodeSender.SendCommandAsync("$X");
+
+                // Status sorguları (realtime - no newline, like OpenBuilds)
+                for (int s = 0; s < _config.PostUnlockStatusCheckCount; s++)
                 {
-                    if (attempt > 1)
-                    {
-                        int wait = _config.UnlockBaseDelayMs * attempt;
-                        LogImportantMessage($"> ?? Unlock bekleme {wait}ms (deneme {attempt})");
-                        await Task.Delay(wait);
-                    }
-
-                    LogImportantMessage($"> ? $X gönderiliyor (deneme {attempt})");
-                    await _gcodeSender.SendCommandAsync("$X");
-
-                    // Status sorguları (realtime - no newline, like OpenBuilds)
-                    for (int s = 0; s < _config.PostUnlockStatusCheckCount; s++)
-                    {
-                        await Task.Delay(_config.PostUnlockStatusIntervalMs);
-                        await _gcodeSender.SendControlCharacterAsync('?');
-                    }
-
-                    // Burada status parse etmiyoruz (MainControll yapıyor); sadece gecikmeli devam edip kabul ediyoruz.
-                    LogImportantMessage($"> ? $X denemesi tamamlandı ({attempt})");
-                    // İlk denemede bile success kabul (GRBL alarm değilse atlanır). Eğer başarısızlığı tespit edecek mekanizma yoksa döngüyü kır.
-                    break; // İsteğe göre alarm kontrolü eklenecekse burası değiştirilebilir.
+                    await Task.Delay(_config.PostUnlockStatusIntervalMs);
+                    await _gcodeSender.SendControlCharacterAsync('?');
                 }
+
                 LogImportantMessage("> ✅ Unlock sekansı tamamlandı");
                 return true;
             }
@@ -1473,7 +1460,10 @@ namespace CncControlApp
 
         private void OnResponseReceived(string response)
         {
-            if (string.IsNullOrWhiteSpace(response)) return;
+            // IMPORTANT: Do not drop whitespace-only chunks.
+            // SerialPort.ReadExisting() may deliver CR/LF delimiters as separate events.
+            // If we drop those, downstream consumers (e.g., streaming OK parser) can miss line boundaries.
+            if (string.IsNullOrEmpty(response)) return;
 
             try
             {

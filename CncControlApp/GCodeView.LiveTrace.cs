@@ -16,7 +16,7 @@ namespace CncControlApp
     {
         #region Fields
 
-     private Canvas _liveTraceCanvas;
+    private Canvas _liveTraceCanvas = null;
         private readonly List<Point> _liveTracePoints = new List<Point>();
       private Polyline _liveTracePath;
         private Ellipse _livePositionMarker;

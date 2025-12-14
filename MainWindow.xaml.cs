@@ -41,7 +41,6 @@ namespace CncControlApp
         private const int MaxProbeFeed =300; // ← cap probe feed (mm/min) to250 (increased from180)
 
         private bool _probePanelVisible = false;
-        private bool _probeCanvasInitialized = false;
 
         private bool _isKioskMode = false;
         private WindowState _previousWindowState;
@@ -50,29 +49,11 @@ namespace CncControlApp
         private bool _previousTopmost;
         private bool _mainWindowTopmostDisabledForNumpad = false;
 
-        // Probe panel tracking
-        private double _lastProbeX;
-        private double _lastProbeY;
-        private double _lastProbeZ;
-
-        private double _probeWorkspaceMaxX =300;
-        private double _probeWorkspaceMaxY =200;
-        private double _probeWorkspaceMaxZ =100;
-        private double _probeCanvasScaleFactorX =1.0;
-        private double _probeCanvasScaleFactorY =1.0;
-
-        private Ellipse _currentPositionIndicator;
-        private TextBlock _currentPositionLabel;
-
         private DateTime _lastWorkspaceWarning = DateTime.MinValue;
-
-        // Since the Fine Probe checkbox is removed from UI, use a default mode here
-        private bool _fineProbeMode = false; // default: fast probe
 
         // Z Mapping grid verileri
         private int _zMappingRows = 0;
         private int _zMappingColumns = 0;
-        private bool _zMappingGridVisible = false;
 
         public MainWindow()
         {
@@ -191,7 +172,6 @@ namespace CncControlApp
         {
             _zMappingRows = rows;
             _zMappingColumns = columns;
-            _zMappingGridVisible = true;
 
             // GCode bounds'u al
             var bounds = _gcodeView?.GetCurrentGCodeBounds();

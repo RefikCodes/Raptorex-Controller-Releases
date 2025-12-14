@@ -144,7 +144,9 @@ namespace CncControlApp
   // ✅ IDLE DETECTION LOGGING: Track unexpected idle states during GCode run
   if (e.PropertyName == nameof(MainControll.MachineStatus) && running)
   {
-      bool allLinesSent = mgr != null && mgr.CurrentGCodeLineIndex >= mgr.GCodeLines.Count;
+      // NOTE: Completion is not driven by MachineStatus.
+      // Use last OK'ed line (best-effort) only for diagnostics.
+      bool allLinesSent = mgr != null && mgr.LastCompletedLineIndex >= (mgr.GCodeLines.Count - 1);
       bool isIdle = state.StartsWith("Idle", StringComparison.OrdinalIgnoreCase);
       bool isRun = state.StartsWith("Run", StringComparison.OrdinalIgnoreCase);
       
@@ -156,9 +158,11 @@ namespace CncControlApp
           _idleDetectedAtLine = mgr?.LastCompletedLineIndex ?? -1;
           int currentExec = mgr?.CurrentlyExecutingLineIndex ?? -1;
           int totalLines = mgr?.GCodeLines?.Count ?? 0;
+            string snapshot = null;
+            try { snapshot = mgr?.GetStreamingDebugSnapshot(); } catch { snapshot = null; }
           
           // Log detailed info to file
-          ErrorLogger.LogWarning($"⚠️ UNEXPECTED IDLE DURING GCODE RUN - Line: {_idleDetectedAtLine + 1}/{totalLines} (exec: {currentExec + 1}), IdleStartTime: {_idleStartTime:HH:mm:ss.fff}, PrevStatus: {_lastKnownMachineStatus}");
+            ErrorLogger.LogWarning($"⚠️ UNEXPECTED IDLE DURING GCODE RUN - Line: {_idleDetectedAtLine + 1}/{totalLines} (exec: {currentExec + 1}), IdleStartTime: {_idleStartTime:HH:mm:ss.fff}, PrevStatus: {_lastKnownMachineStatus}, Streamer: {snapshot ?? "<null>"}");
           App.MainController?.AddLogMessage($"> ⚠️ Unexpected Idle at line {_idleDetectedAtLine + 1}/{totalLines} - {_idleStartTime:HH:mm:ss.fff}");
       }
       // If we were tracking idle and now we're running again - log the idle duration
@@ -170,35 +174,6 @@ namespace CncControlApp
       
       _lastKnownMachineStatus = state;
   }
-     
-     // CRITICAL: Detect execution completion when machine goes Idle after running
-   if (e.PropertyName == nameof(MainControll.MachineStatus) && 
-   running && 
-     state.StartsWith("Idle", StringComparison.OrdinalIgnoreCase))
-     {
-         // Check if we've sent all lines (CurrentGCodeLineIndex reached end)
-         bool allLinesSent = mgr != null && mgr.CurrentGCodeLineIndex >= mgr.GCodeLines.Count;
-   
-      if (allLinesSent)
-     {
-       // ✅ Log idle end if we were tracking
-       if (_idleTrackingActive)
-       {
-           LogIdleEnd("All lines completed");
-           _idleTrackingActive = false;
-       }
-       
-       App.MainController?.AddLogMessage("> ✅ Detected Idle with all lines completed – marking execution finished.");
-          
- // Set controller run flag false
-       try { typeof(MainControll).GetField("isGCodeRunning", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(App.MainController, false); } catch { }
- // Reset manager internal running flag if present
-       try { typeof(Managers.GCodeExecutionManager).GetField("_isGCodeRunning", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(mgr, false); } catch { }
- // Invoke completion handler without reflection hack if event helper exists
-       try { OnExecutionCompleted(mgr, true); } catch { }
-             UpdateExecutionControlButtons();
-   }
- }
      
   if (state.StartsWith("Hold", StringComparison.OrdinalIgnoreCase))
   {

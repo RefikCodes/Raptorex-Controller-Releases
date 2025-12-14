@@ -16,7 +16,6 @@ namespace CncControlApp.Controls
   /// </summary>
     public partial class PanelJogCanvasView : UserControl
     {
-        private bool _initialized;
     private double _maxX = 300, _maxY = 200, _maxZ = 100;
     private double _scale = 1.0;
     private const double MarginPx = 30.0;
@@ -40,7 +39,6 @@ Unloaded += PanelJogCanvasView_Unloaded;
             SubscribeMposUpdates();
   SubscribeToSettingsChanges();
 UpdateCurrentPositionIndicator();
-     _initialized = true;
 
  // Try immediate load if settings already exist
             if (App.MainController?.Settings != null && App.MainController.Settings.Count > 0)

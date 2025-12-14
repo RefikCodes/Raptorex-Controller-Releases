@@ -56,6 +56,7 @@ namespace CncControlApp
         }
 
         private readonly SerialPort _serialPort;
+        private readonly object _ioLock = new object();
         public bool IsOpen => _serialPort.IsOpen;
 
         public event Action<List<string>> PortListRefreshed;
@@ -231,7 +232,10 @@ namespace CncControlApp
             if (IsOpen)
             {
                 // Direct synchronous write - fastest path like OpenBuilds: port.write(gcode)
-                _serialPort.Write(data);
+                lock (_ioLock)
+                {
+                    _serialPort.Write(data);
+                }
             }
             return Task.CompletedTask;
         }
@@ -242,7 +246,10 @@ namespace CncControlApp
         {
             if (!IsOpen) return Task.CompletedTask;
             // Direct synchronous write - fastest path
-            _serialPort.Write(new byte[] { b }, 0, 1);
+            lock (_ioLock)
+            {
+                _serialPort.Write(new byte[] { b }, 0, 1);
+            }
             return Task.CompletedTask;
         }
 
@@ -251,7 +258,10 @@ namespace CncControlApp
         public Task SendRawBytesAsync(byte[] buffer)
         {
             if (!IsOpen || buffer == null || buffer.Length == 0) return Task.CompletedTask;
-            _serialPort.Write(buffer, 0, buffer.Length);
+            lock (_ioLock)
+            {
+                _serialPort.Write(buffer, 0, buffer.Length);
+            }
             return Task.CompletedTask;
         }
 

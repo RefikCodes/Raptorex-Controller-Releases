@@ -54,9 +54,6 @@ namespace CncControlApp
    private double _currentRotationAngle = 0;
 private bool _enableFitOnRotation = true;
   
-   // G-code origin canvas position (captured when G-code is drawn)
-        private Point? _gcodeOriginCanvasPosition = null;
-      
      // Rotation normalization shift (applied when fit-to-table is enabled)
         private double _rotationAppliedShiftX = 0;
         private double _rotationAppliedShiftY = 0;

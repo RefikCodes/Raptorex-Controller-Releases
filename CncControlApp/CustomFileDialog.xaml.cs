@@ -14,7 +14,7 @@ namespace CncControlApp
     public partial class CustomFileDialog : Window
     {
         public string SelectedFile { get; private set; }
-        public bool DialogResult { get; private set; }
+        public new bool DialogResult { get; private set; }
 
         private ObservableCollection<LocationItem> locations;
         private bool isLoading = false;
@@ -193,7 +193,7 @@ namespace CncControlApp
                         });
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     Dispatcher.Invoke(() =>
                     {

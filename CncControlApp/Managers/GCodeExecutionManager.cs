@@ -42,10 +42,8 @@ namespace CncControlApp.Managers
         private readonly Dictionary<int, double> _segmentEstimatedTimes = new Dictionary<int, double>();
         private readonly HashSet<int> _completedSegments = new HashSet<int>();
         private double _totalEstimatedMinutes;
-        private double _completedMinutes;
         private TimeSpan _totalEstimatedTime = TimeSpan.Zero;
         private DateTime _executionStartTime;
-        private double _overrideRemainingMinutes;
         private bool _hasOverrideAdjustment;
         private int _currentFeedOverridePercent = 100;
         
@@ -179,6 +177,17 @@ namespace CncControlApp.Managers
                 bool machineInHold = StatusIsHold(GetMachineStatusSafe());
                 
                 return streamingServicePaused || machineInHold;
+            }
+        }
+        public string GetStreamingDebugSnapshot()
+        {
+            try
+            {
+                return _streamingService?.GetDebugSnapshot() ?? "<no_streaming_service>";
+            }
+            catch
+            {
+                return "<snapshot_failed>";
             }
         }
         public bool CanStopExecution
@@ -530,9 +539,7 @@ CurrentlyExecutingLineIndex = -1;
       
     // ✅ CRITICAL FIX: Reset completed segments tracking for fresh remaining time calculation
     _completedSegments.Clear();
-    _completedMinutes = 0;
     _hasOverrideAdjustment = false;
-    _overrideRemainingMinutes = 0;
     
     // ✅ DEBUG: Log the total estimated minutes before starting
     System.Diagnostics.Debug.WriteLine($"⏱️ RunGCodeAsync: _totalEstimatedMinutes={_totalEstimatedMinutes:F2} before starting");
@@ -703,7 +710,6 @@ CurrentlyExecutingLineIndex = -1;
             // Character Counting Protocol: No artificial delays needed!
             // Buffer is tracked by byte count, not command count
             // OPTIMIZED: Zero delay like OpenBuilds - synchronous serial write is already fast
-            const int SEND_DELAY_MS = 0;  // OpenBuilds has no delay between commands
             
             // Semaphore to ensure only one FillAsync runs at a time (prevents parallel buffer overflow)
             var fillSemaphore = new SemaphoreSlim(1, 1);
@@ -757,13 +763,6 @@ CurrentlyExecutingLineIndex = -1;
                     // Send outside lock (I/O operation)
                     ParseModalValues(cmd);
                     bool sent = await _connectionManager.SendGCodeCommandAsync(cmd);
-
-                    // Character Counting: Minimal delay just for thread yielding
-                    // No artificial delays needed - buffer is tracked by bytes!
-                    if (SEND_DELAY_MS > 0)
-                    {
-                        await Task.Delay(SEND_DELAY_MS);
-                    }
 
                     if (!sent)
                     {
@@ -1008,6 +1007,17 @@ CurrentlyExecutingLineIndex = -1;
             else
             {
                 _log($"> ❌ GrblStreamer: Job failed - {e.ErrorMessage}");
+                try
+                {
+                    var status = GetMachineStatusSafe();
+                    var snap = GetStreamingDebugSnapshot();
+                    int total = GCodeLines?.Count ?? 0;
+                    ErrorLogger.LogWarning(
+                        $"❌ STREAMING JOB FAILED - Error={e.ErrorMessage ?? "<null>"}, " +
+                        $"LastCompletedLineIndex={LastCompletedLineIndex + 1}/{total}, CurrentlyExecutingLineIndex={CurrentlyExecutingLineIndex + 1}/{total}, " +
+                        $"MachineStatus={status}, Streamer={snap}");
+                }
+                catch { }
             }
             
             ExecutionCompleted?.Invoke(this, e.Success);
@@ -1323,7 +1333,6 @@ CurrentlyExecutingLineIndex = -1;
         {
             _segmentEstimatedTimes.Clear(); 
             _completedSegments.Clear(); 
-            _completedMinutes = 0; 
             _totalEstimatedMinutes = 0; 
             
             if (segments == null || segments.Count == 0) 
@@ -1522,8 +1531,6 @@ CurrentlyExecutingLineIndex = -1;
             
             // Only reset per-run tracking values
             _completedSegments.Clear();
-            _completedMinutes = 0;
-            _overrideRemainingMinutes = 0;
             _hasOverrideAdjustment = false;
             _currentModalFeed = 0;
             _currentModalSpindle = 0;

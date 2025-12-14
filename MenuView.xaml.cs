@@ -13,7 +13,7 @@ namespace CncControlApp
         public event Action<MenuPage> MenuSelectionChanged;
         private bool _isProbeActive = false;
 
-        private const bool ProbeLogVerbose = false;
+        private static readonly bool ProbeLogVerbose = false;
 
         [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
         public static extern void keybd_event(uint bVk, uint bScan, uint dwFlags, uint dwExtraInfo);

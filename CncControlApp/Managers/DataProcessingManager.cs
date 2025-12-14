@@ -59,10 +59,6 @@ namespace CncControlApp.Managers
         private int _wposFoundCount = 0;
         private DateTime _lastMposDebugLog = DateTime.MinValue;
         
-        // Persistent spindle/coolant state (maintained across status reports)
-        private bool _lastSpindleState = false;
-        private bool _lastCoolantState = false;
-        
         // Modal state from $G response (M3/M4=spindle on, M5=spindle off, M7/M8=coolant on, M9=coolant off)
         private bool _modalSpindleOn = false;
         private bool _modalCoolantOn = false;

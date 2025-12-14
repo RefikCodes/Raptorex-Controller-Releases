@@ -59,9 +59,6 @@ namespace CncControlApp
      App.MainController.GCodeManager?.ResetExecutionState();
     }
       
-    // Clear stored G-code origin position (for rotation)
-      _gcodeOriginCanvasPosition = null;
-        
     // Reset rotation shift values
             _rotationAppliedShiftX = 0;
           _rotationAppliedShiftY = 0;

@@ -2,12 +2,13 @@ using System;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Diagnostics;
 
 namespace CncControlApp
 {
     /// <summary>
     /// Merkezi hata loglama sistemi.
-    /// Tüm hatalar masaüstüne anlaşılır şekilde loglanır.
+    /// Tüm hatalar Documents\Raptorex-Controller-Logs klasörüne anlaşılır şekilde loglanır.
     /// </summary>
     public static class ErrorLogger
     {
@@ -20,18 +21,49 @@ namespace CncControlApp
         /// </summary>
         public static bool DebugMode { get; set; } = true;
 
+        private static string GetDefaultLogDirectory()
+        {
+            try
+            {
+                return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Raptorex-Controller-Logs");
+            }
+            catch
+            {
+                // Fallback
+                return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Raptorex-Controller-Logs");
+            }
+        }
+
+        private static void EnsureLogFilePath()
+        {
+            if (_logFilePath != null) return;
+
+            lock (_lockObj)
+            {
+                if (_logFilePath != null) return;
+
+                var baseDir = GetDefaultLogDirectory();
+                try { Directory.CreateDirectory(baseDir); } catch { }
+
+                var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
+                int pid = 0;
+                try { pid = Process.GetCurrentProcess().Id; } catch { }
+                var fileName = pid > 0
+                    ? $"RaptorexController_ErrorLog_{stamp}_pid{pid}.txt"
+                    : $"RaptorexController_ErrorLog_{stamp}.txt";
+
+                _logFilePath = Path.Combine(baseDir, fileName);
+            }
+        }
+
         /// <summary>
-        /// Log dosyasının tam yolu (Masaüstü/RaptorexController_ErrorLog.txt)
+        /// Log dosyasının tam yolu (Documents\Raptorex-Controller-Logs\RaptorexController_ErrorLog_yyyyMMdd_HHmmss_fff*.txt)
         /// </summary>
         public static string LogFilePath
         {
             get
             {
-                if (_logFilePath == null)
-                {
-                    var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-                    _logFilePath = Path.Combine(desktop, "RaptorexController_ErrorLog.txt");
-                }
+                EnsureLogFilePath();
                 return _logFilePath;
             }
         }
@@ -60,7 +92,8 @@ namespace CncControlApp
 
                 lock (_lockObj)
                 {
-                    File.AppendAllText(LogFilePath, sb.ToString(), Encoding.UTF8);
+                    // New file per run, write header as the first content.
+                    File.WriteAllText(LogFilePath, sb.ToString(), Encoding.UTF8);
                 }
             }
             catch
