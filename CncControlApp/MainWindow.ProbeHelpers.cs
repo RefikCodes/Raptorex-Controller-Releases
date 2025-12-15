@@ -391,36 +391,34 @@ namespace CncControlApp
                     return false;
                 }
 
-                // Retract Z to WorkZ = +5mm (move, not set) - enough clearance for lateral move - WITH LIMIT CHECK
+                // Retract Z by fixed 5mm (relative) - simple and reliable clearance for lateral move
                 try
                 {
-                    double wzNow = mc.MStatus?.WorkZ ?? 0.0;
-                    double dz = 5.0 - wzNow;
+                    // ✅ FIX: Use fixed relative retract instead of WorkZ calculation
+                    // WorkZ coordinate can be misleading after edge detection + X probe
+                    double fixedRetract = 5.0;
                     
-                    if (dz > 0.5)
+                    // Check machine limits before retracting
+                    double safeZ = MachineLimitsHelper.GetSafeRetractDistance('Z', 1, fixedRetract, mc);
+                    
+                    if (safeZ < fixedRetract - 0.1)
                     {
-                        // Check machine limits before retracting
-                        double safeZ = MachineLimitsHelper.GetSafeRetractDistance('Z', 1, dz, mc);
-                        
-                        if (safeZ < dz - 0.1)
-                        {
-                            streamPopup.Append($"> ⚠️ Z retract sınırlandı: {dz:F1}mm → {safeZ:F1}mm (limit yakın)");
-                            dz = safeZ;
-                        }
-                        
-                        if (dz > 0.5)
-                        {
-                            string dzText = dz.ToString("F3", CultureInfo.InvariantCulture);
-                            streamPopup.Append($"> 🔼 Retracting to Work Z=+10 (ΔZ={dzText})...");
-                            await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                            await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText}");
-                            await WaitForIdleAsync(EstimateTimeoutMsForRapid(Math.Abs(dz), 1000), "Retract_To_WZ10");
-                            await mc.SendGCodeCommandWithConfirmationAsync("G90");
-                        }
-                        else
-                        {
-                            streamPopup.Append($"> ⚠️ Z retract atlandı - limit çok yakın");
-                        }
+                        streamPopup.Append($"> ⚠️ Z retract sınırlandı: {fixedRetract:F1}mm → {safeZ:F1}mm (limit yakın)");
+                        fixedRetract = safeZ;
+                    }
+                    
+                    if (fixedRetract > 0.5)
+                    {
+                        string dzText = fixedRetract.ToString("F3", CultureInfo.InvariantCulture);
+                        streamPopup.Append($"> 🔼 Retracting Z +{dzText}mm (relative)...");
+                        await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                        await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText}");
+                        await WaitForIdleAsync(EstimateTimeoutMsForRapid(fixedRetract, 1000), "Retract_Z_5mm");
+                        await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                    }
+                    else
+                    {
+                        streamPopup.Append($"> ⚠️ Z retract atlandı - limit çok yakın");
                     }
                 }
                 catch { }
@@ -611,35 +609,32 @@ namespace CncControlApp
                     streamPopup.Append($"> ❌ X- probe error: {xmEx.Message}");
                 }
 
-                // Retract Z to WorkZ = +5mm before moving to center - WITH LIMIT CHECK
+                // Retract Z by fixed 5mm (relative) before moving to center - WITH LIMIT CHECK
                 try
                 {
-                    double wzNow2 = mc.MStatus?.WorkZ ?? 0.0;
-                    double dz2 = 5.0 - wzNow2;
+                    // ✅ FIX: Use fixed relative retract instead of WorkZ calculation
+                    double fixedRetract2 = 5.0;
                     
-                    if (dz2 > 0.5)
+                    double safeZ2 = MachineLimitsHelper.GetSafeRetractDistance('Z', 1, fixedRetract2, mc);
+                    
+                    if (safeZ2 < fixedRetract2 - 0.1)
                     {
-                        double safeZ2 = MachineLimitsHelper.GetSafeRetractDistance('Z', 1, dz2, mc);
-                        
-                        if (safeZ2 < dz2 - 0.1)
-                        {
-                            streamPopup.Append($"> ⚠️ Z retract sınırlandı: {dz2:F1}mm → {safeZ2:F1}mm");
-                            dz2 = safeZ2;
-                        }
-                        
-                        if (dz2 > 0.5)
-                        {
-                            string dzText2 = dz2.ToString("F3", CultureInfo.InvariantCulture);
-                            streamPopup.Append($"> 🔼 Retracting to Work Z=+5 (ΔZ={dzText2}) before center move...");
-                            await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                            await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText2}");
-                            await WaitForIdleAsync(EstimateTimeoutMsForRapid(Math.Abs(dz2), 1000), "Retract_To_WZ5_Final");
-                            await mc.SendGCodeCommandWithConfirmationAsync("G90");
-                        }
-                        else
-                        {
-                            streamPopup.Append($"> ⚠️ Z retract atlandı - limit çok yakın");
-                        }
+                        streamPopup.Append($"> ⚠️ Z retract sınırlandı: {fixedRetract2:F1}mm → {safeZ2:F1}mm");
+                        fixedRetract2 = safeZ2;
+                    }
+                    
+                    if (fixedRetract2 > 0.5)
+                    {
+                        string dzText2 = fixedRetract2.ToString("F3", CultureInfo.InvariantCulture);
+                        streamPopup.Append($"> 🔼 Retracting Z +{dzText2}mm (relative) before center move...");
+                        await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                        await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText2}");
+                        await WaitForIdleAsync(EstimateTimeoutMsForRapid(fixedRetract2, 1000), "Retract_Z_5mm_Final");
+                        await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                    }
+                    else
+                    {
+                        streamPopup.Append($"> ⚠️ Z retract atlandı - limit çok yakın");
                     }
                 }
                 catch { }
@@ -957,35 +952,32 @@ namespace CncControlApp
                     return false;
                 }
 
-                // Retract Z to WorkZ = +5 (move, not set) - enough clearance for lateral move - WITH LIMIT CHECK
+                // Retract Z by fixed 5mm (relative) - simple and reliable clearance for lateral move
                 try
                 {
-                    double wzNow = mc.MStatus?.WorkZ ?? 0.0;
-                    double dz = 5.0 - wzNow;
+                    // ✅ FIX: Use fixed relative retract instead of WorkZ calculation
+                    double fixedRetract = 5.0;
                     
-                    if (dz > 0.5)
+                    double safeZ = MachineLimitsHelper.GetSafeRetractDistance('Z', 1, fixedRetract, mc);
+                    
+                    if (safeZ < fixedRetract - 0.1)
                     {
-                        double safeZ = MachineLimitsHelper.GetSafeRetractDistance('Z', 1, dz, mc);
-                        
-                        if (safeZ < dz - 0.1)
-                        {
-                            streamPopup.Append($"> ⚠️ Z retract sınırlandı: {dz:F1}mm → {safeZ:F1}mm");
-                            dz = safeZ;
-                        }
-                        
-                        if (dz > 0.5)
-                        {
-                            string dzText = dz.ToString("F3", CultureInfo.InvariantCulture);
-                            streamPopup.Append($"> 🔼 Retracting to Work Z=+5 (ΔZ={dzText})...");
-                            await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                            await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText}");
-                            await WaitForIdleAsync(EstimateTimeoutMsForRapid(Math.Abs(dz), 1000), "Retract_To_WZ5");
-                            await mc.SendGCodeCommandWithConfirmationAsync("G90");
-                        }
-                        else
-                        {
-                            streamPopup.Append($"> ⚠️ Z retract atlandı - limit çok yakın");
-                        }
+                        streamPopup.Append($"> ⚠️ Z retract sınırlandı: {fixedRetract:F1}mm → {safeZ:F1}mm");
+                        fixedRetract = safeZ;
+                    }
+                    
+                    if (fixedRetract > 0.5)
+                    {
+                        string dzText = fixedRetract.ToString("F3", CultureInfo.InvariantCulture);
+                        streamPopup.Append($"> 🔼 Retracting Z +{dzText}mm (relative)...");
+                        await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                        await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText}");
+                        await WaitForIdleAsync(EstimateTimeoutMsForRapid(fixedRetract, 1000), "Retract_Z_5mm");
+                        await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                    }
+                    else
+                    {
+                        streamPopup.Append($"> ⚠️ Z retract atlandı - limit çok yakın");
                     }
                 }
                 catch { }
@@ -1183,35 +1175,32 @@ namespace CncControlApp
                     streamPopup.Append($"> ❌ Y- probe error: {ymEx.Message}");
                 }
 
-                // Retract Z to WorkZ = +5mm before moving to center - WITH LIMIT CHECK
+                // Retract Z by fixed 5mm (relative) before moving to center - WITH LIMIT CHECK
                 try
                 {
-                    double wzNow2 = mc.MStatus?.WorkZ ?? 0.0;
-                    double dz2 = 5.0 - wzNow2;
+                    // ✅ FIX: Use fixed relative retract instead of WorkZ calculation
+                    double fixedRetract2 = 5.0;
                     
-                    if (dz2 > 0.5)
+                    double safeZ2 = MachineLimitsHelper.GetSafeRetractDistance('Z', 1, fixedRetract2, mc);
+                    
+                    if (safeZ2 < fixedRetract2 - 0.1)
                     {
-                        double safeZ2 = MachineLimitsHelper.GetSafeRetractDistance('Z', 1, dz2, mc);
-                        
-                        if (safeZ2 < dz2 - 0.1)
-                        {
-                            streamPopup.Append($"> ⚠️ Z retract sınırlandı: {dz2:F1}mm → {safeZ2:F1}mm");
-                            dz2 = safeZ2;
-                        }
-                        
-                        if (dz2 > 0.5)
-                        {
-                            string dzText2 = dz2.ToString("F3", CultureInfo.InvariantCulture);
-                            streamPopup.Append($"> 🔼 Retracting to Work Z=+5 (ΔZ={dzText2}) before center move...");
-                            await mc.SendGCodeCommandWithConfirmationAsync("G91");
-                            await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText2}");
-                            await WaitForIdleAsync(EstimateTimeoutMsForRapid(Math.Abs(dz2), 1000), "Retract_To_WZ5_Final");
-                            await mc.SendGCodeCommandWithConfirmationAsync("G90");
-                        }
-                        else
-                        {
-                            streamPopup.Append($"> ⚠️ Z retract atlandı - limit çok yakın");
-                        }
+                        streamPopup.Append($"> ⚠️ Z retract sınırlandı: {fixedRetract2:F1}mm → {safeZ2:F1}mm");
+                        fixedRetract2 = safeZ2;
+                    }
+                    
+                    if (fixedRetract2 > 0.5)
+                    {
+                        string dzText2 = fixedRetract2.ToString("F3", CultureInfo.InvariantCulture);
+                        streamPopup.Append($"> 🔼 Retracting Z +{dzText2}mm (relative) before center move...");
+                        await mc.SendGCodeCommandWithConfirmationAsync("G91");
+                        await mc.SendGCodeCommandWithConfirmationAsync($"G00 Z{dzText2}");
+                        await WaitForIdleAsync(EstimateTimeoutMsForRapid(fixedRetract2, 1000), "Retract_Z_5mm_Final");
+                        await mc.SendGCodeCommandWithConfirmationAsync("G90");
+                    }
+                    else
+                    {
+                        streamPopup.Append($"> ⚠️ Z retract atlandı - limit çok yakın");
                     }
                 }
                 catch { }

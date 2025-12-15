@@ -1,16 +1,67 @@
 ﻿<Window x:Class="CncControlApp.HomingRequiredPopup"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Homing Required" Height="230" Width="360" WindowStyle="None" ResizeMode="NoResize" Background="White"
-        ShowInTaskbar="False" Topmost="True" AllowsTransparency="False" WindowStartupLocation="CenterOwner"
+        Title="Homing Required" 
+        SizeToContent="WidthAndHeight"
+        WindowStyle="None" ResizeMode="NoResize" 
+        Background="#FF1E1E20"
+        ShowInTaskbar="False" Topmost="True" 
+        AllowsTransparency="True" 
+        WindowStartupLocation="CenterOwner"
         FontFamily="Segoe UI" FontSize="16">
-    <Grid Margin="20">
-        <Border Background="White" BorderBrush="#DDDDDD" BorderThickness="2" CornerRadius="12" Padding="20"  >
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <TextBlock Text="!" Foreground="Black" FontSize="56" FontWeight="Bold" TextAlignment="Center" Margin="0,0,0,10"/>
-                <TextBlock Text="Press HOME to continue" Foreground="Black" FontSize="20" FontWeight="SemiBold" TextAlignment="Center" Margin="0,0,0,14"/>
-                <Button x:Name="HomeButton" Content="HOME" Width="140" Height="42" FontSize="18" FontWeight="Bold" Background="#FFEAA500" Foreground="Black" Cursor="Hand" Click="HomeButton_Click"/>
-            </StackPanel>
-        </Border>
-    </Grid>
+    
+    <Border CornerRadius="14" Background="#FF2C2C2F" BorderBrush="#FF5A5A5C" BorderThickness="1.2" Padding="0" SnapsToDevicePixels="True">
+        <Border.Effect>
+            <DropShadowEffect Color="#000000" BlurRadius="16" ShadowDepth="0" Opacity="0.6"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            
+            <!-- Header -->
+            <Border Grid.Row="0" Background="#FF3D3D40" Padding="18,14" CornerRadius="14,14,0,0">
+                <DockPanel>
+                    <Ellipse Width="10" Height="10" Fill="#FFFFC107" VerticalAlignment="Center"/>
+                    <TextBlock Text="⚠️ Homing Gerekli" 
+                               Margin="10,0,0,0"
+                               Foreground="White" FontSize="20" FontWeight="SemiBold"/>
+                </DockPanel>
+            </Border>
+            
+            <!-- Content -->
+            <Border Grid.Row="1" Background="#FF2C2C2F" Padding="30,20">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="🏠" FontSize="48" TextAlignment="Center" Margin="0,0,0,15"/>
+                    <TextBlock Text="Makine henüz home edilmedi!" 
+                               Foreground="#FFFFC107" FontSize="16" FontWeight="SemiBold" 
+                               TextAlignment="Center" Margin="0,0,0,8"/>
+                    <TextBlock Text="Çalışmaya başlamadan önce HOME işlemi yapılmalıdır." 
+                               Foreground="#FFAAAAAA" FontSize="13" 
+                               TextAlignment="Center" TextWrapping="Wrap" Width="320"/>
+                </StackPanel>
+            </Border>
+            
+            <!-- Button -->
+            <Border Grid.Row="2" Background="#FF3D3D40" Padding="20,15" CornerRadius="0,0,14,14">
+                <Button x:Name="HomeButton" Content="🏠 HOME YAP" 
+                        Width="160" Height="42" 
+                        FontSize="16" FontWeight="Bold" 
+                        Background="#FFFFC107" Foreground="#FF1E1E20" 
+                        BorderThickness="0"
+                        Cursor="Hand" Click="HomeButton_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" 
+                                    CornerRadius="8" Padding="10,5">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Border>
+        </Grid>
+    </Border>
 </Window>

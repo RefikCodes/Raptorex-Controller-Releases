@@ -100,6 +100,12 @@ namespace CncControlApp
         {
             try
  {
+   // ✅ Resume butonu güncellemesi için CanResumeFromLine değişikliğini dinle
+   if (e.PropertyName == nameof(MainControll.CanResumeFromLine))
+   {
+       UpdateExecutionControlButtons();
+   }
+   
    if (e.PropertyName == nameof(MainControll.IsGCodeRunning) ||
    e.PropertyName == nameof(MainControll.MachineStatus))
    {

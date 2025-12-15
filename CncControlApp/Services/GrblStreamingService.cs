@@ -38,6 +38,7 @@ namespace CncControlApp.Services
         private bool _isPaused = false;
         private bool _isBlocked = false;
         private bool _isStopping = false; // ✅ NEW: Flag to ignore errors during stop sequence
+        private int _lineOffset = 0; // ✅ Resume için: orijinal dosyadaki başlangıç satır indeksi
         private CancellationTokenSource _streamCts;
         private Timer _progressTimer;
         // NOTE: Status polling is handled by CentralStatusQuerier (via BeginScopedCentralStatusOverride)
@@ -138,6 +139,16 @@ namespace CncControlApp.Services
         /// </summary>
         public void LoadGCode(IEnumerable<string> lines)
         {
+            LoadGCode(lines, 0);
+        }
+        
+        /// <summary>
+        /// GCode satırlarını yükler - Resume için lineOffset destekli
+        /// </summary>
+        /// <param name="lines">GCode satırları</param>
+        /// <param name="lineOffset">Orijinal dosyadaki başlangıç satır indeksi (LineCompleted event'inde kullanılır)</param>
+        public void LoadGCode(IEnumerable<string> lines, int lineOffset)
+        {
             lock (_lockObject)
             {
                 // ✅ CRITICAL FIX: Reset all streaming state when loading new GCode
@@ -146,6 +157,7 @@ namespace CncControlApp.Services
                 _isPaused = false;
                 _isBlocked = false;
                 _isStopping = false;
+                _lineOffset = lineOffset; // Resume için offset'i sakla
 
                 // Reset diagnostics for this run
                 _lastOkUtc = DateTime.MinValue;
@@ -181,7 +193,7 @@ namespace CncControlApp.Services
                     TotalLines = _gcodeQueue.Count
                 };
                 
-                System.Diagnostics.Debug.WriteLine($"GrblStreamingService: {_gcodeQueue.Count} satır yüklendi (state reset)");
+                System.Diagnostics.Debug.WriteLine($"GrblStreamingService: {_gcodeQueue.Count} satır yüklendi (lineOffset={lineOffset}, state reset)");
             }
         }
 
@@ -222,9 +234,12 @@ namespace CncControlApp.Services
                 return;
             }
 
+            // ✅ CRITICAL FIX: Always reset all state flags before starting
+            // This ensures clean state even if previous stop sequence was interrupted
             _isStreaming = true;
             _isPaused = false;
             _isBlocked = false;
+            _isStopping = false;  // Reset stopping flag to allow normal operation
             _streamCts = new CancellationTokenSource();
 
             Stats.StartTime = DateTime.Now;
@@ -350,9 +365,7 @@ namespace CncControlApp.Services
         /// </summary>
         public async Task StopAsync()
         {
-            System.Diagnostics.Debug.WriteLine($"GrblStreamingService.StopAsync called - IsStreaming={_isStreaming}");
-            
-            // ✅ CRITICAL: Immediately mark as stopping to ignore errors during stop sequence
+            // Immediately mark as stopping to ignore errors during stop sequence
             _isStopping = true;
             _isStreaming = false;
             _isPaused = false;
@@ -362,86 +375,44 @@ namespace CncControlApp.Services
             _progressTimer?.Dispose();
             _progressTimer = null;
 
-            // ✅ Step 0: Clear our internal buffers FIRST to prevent any new commands from being sent
+            // Clear internal buffers FIRST
             ClearQueue();
-            System.Diagnostics.Debug.WriteLine("GrblStreamingService.StopAsync: Internal queues cleared");
 
-            // ✅ Step 1: Send Feed Hold IMMEDIATELY to stop motion planner
-            try
-            {
-                await _connectionManager.SendControlCharacterAsync('!'); // Feed Hold
-                System.Diagnostics.Debug.WriteLine("GrblStreamingService.StopAsync: Feed Hold (!) sent");
-            }
-            catch (Exception ex) 
-            { 
-                System.Diagnostics.Debug.WriteLine($"GrblStreamingService.StopAsync: Feed Hold failed: {ex.Message}");
-            }
-            
-            // ✅ Step 2: Small delay for Feed Hold to take effect
+            // Feed Hold - stops motion planner
+            try { await _connectionManager.SendControlCharacterAsync('!'); } catch { }
             await Task.Delay(100);
 
-            // ✅ Step 3: Send Queue Flush (0x15) for FluidNC - clears motion queue
-            try
-            {
-                await _connectionManager.SendControlCharacterAsync((char)0x15); // Queue Flush (FluidNC)
-                System.Diagnostics.Debug.WriteLine("GrblStreamingService.StopAsync: Queue Flush (0x15) sent");
-            }
-            catch { }
-            
+            // Queue Flush (FluidNC)
+            try { await _connectionManager.SendControlCharacterAsync((char)0x15); } catch { }
             await Task.Delay(50);
 
-            // ✅ Step 4: Send Jog Cancel to stop any jog motion
-            try
-            {
-                await _connectionManager.SendControlCharacterAsync((char)0x85); // Jog Cancel
-                System.Diagnostics.Debug.WriteLine("GrblStreamingService.StopAsync: Jog Cancel (0x85) sent");
-            }
-            catch { }
-            
+            // Jog Cancel
+            try { await _connectionManager.SendControlCharacterAsync((char)0x85); } catch { }
             await Task.Delay(50);
 
-            // ✅ Step 5: Send Soft Reset to clear GRBL's internal buffer completely
-            try
-            {
-                await _connectionManager.SendControlCharacterAsync((char)0x18); // Soft Reset (Ctrl+X)
-                System.Diagnostics.Debug.WriteLine("GrblStreamingService.StopAsync: Soft Reset (0x18) sent");
-            }
-            catch { }
-            
-            // ✅ CRITICAL: Wait for GRBL to complete the reset sequence
-            // After soft reset, GRBL sends welcome message and takes ~500-1500ms to be ready
+            // Soft Reset
+            try { await _connectionManager.SendControlCharacterAsync((char)0x18); } catch { }
             await Task.Delay(1500);
             
-            // ✅ Step 6: Clear ConnectionManager's serial buffers to prevent stale data
-            try
-            {
-                _connectionManager.ClearSerialBuffers();
-                System.Diagnostics.Debug.WriteLine("GrblStreamingService.StopAsync: Serial buffers cleared");
-            }
-            catch { }
+            // Clear serial buffers
+            try { _connectionManager.ClearSerialBuffers(); } catch { }
             
-            // ✅ Step 7: Wait for GRBL to report Idle status (poll a few times)
+            // Wait for Idle status
             int maxWaitAttempts = 10;
             for (int i = 0; i < maxWaitAttempts; i++)
             {
                 try
                 {
-                    // Request status update
                     await _connectionManager.SendGCodeCommandAsync("?");
                     await Task.Delay(200);
                     
-                    // Check if machine is idle (via status text from MainController)
                     var status = App.MainController?.MachineStatus ?? "";
                     if (status.StartsWith("Idle", StringComparison.OrdinalIgnoreCase))
-                    {
-                        System.Diagnostics.Debug.WriteLine($"GrblStreamingService: Machine confirmed Idle after {i + 1} attempts");
                         break;
-                    }
                     
-                    // If still in Hold, send Cycle Resume to exit Hold state
                     if (status.StartsWith("Hold", StringComparison.OrdinalIgnoreCase))
                     {
-                        await _connectionManager.SendControlCharacterAsync('~'); // Cycle Resume
+                        await _connectionManager.SendControlCharacterAsync('~');
                         await Task.Delay(100);
                     }
                 }
@@ -449,14 +420,10 @@ namespace CncControlApp.Services
             }
 
             Stats.EndTime = DateTime.Now;
-            
-            // ✅ Reset stopping flag
             _isStopping = false;
             
             StreamingStopped?.Invoke(this, EventArgs.Empty);
             JobCompleted?.Invoke(this, new JobCompletedEventArgs(false, Stats, "Job cancelled by user"));
-            
-            System.Diagnostics.Debug.WriteLine("GrblStreamingService: Stop sequence completed");
         }
 
         /// <summary>
@@ -785,7 +752,7 @@ namespace CncControlApp.Services
             }
 
             CommandCompleted?.Invoke(this, new OkReceivedEventArgs(completedCommand));
-            LineCompleted?.Invoke(this, completedLine - 1); // 0-based index
+            LineCompleted?.Invoke(this, completedLine - 1 + _lineOffset); // 0-based index + resume offset
 
             // Sonraki komutları gönder
             if (_isStreaming && !_isPaused)

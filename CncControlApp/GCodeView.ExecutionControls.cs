@@ -211,6 +211,7 @@ namespace CncControlApp
                     bool hold = App.MainController.MachineStatus.StartsWith("Hold", StringComparison.OrdinalIgnoreCase);
                     bool connected = App.MainController.IsConnected;
                     bool loaded = App.MainController.IsGCodeLoaded;
+                    bool canResume = App.MainController.CanResumeFromLine;
 
                     if (RunButton != null)
                     {
@@ -233,6 +234,19 @@ namespace CncControlApp
                             RunButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF474A50"));
                             RunButton.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF2A2A2C"));
                             RunButton.IsEnabled = connected && loaded && !hold;
+                        }
+                    }
+                    
+                    // Resume butonu görünürlüğü
+                    if (ResumeFromLineButton != null)
+                    {
+                        bool showResume = canResume && !running && !hold && connected && loaded;
+                        ResumeFromLineButton.Visibility = showResume ? Visibility.Visible : Visibility.Collapsed;
+                        
+                        if (showResume && ResumeButtonText != null)
+                        {
+                            int lastLine = App.MainController.LastStoppedLineIndex;
+                            ResumeButtonText.Text = $"RESUME ({lastLine + 1})";
                         }
                     }
 
@@ -273,6 +287,69 @@ namespace CncControlApp
                     try { MessageDialog.ShowError(title, message); }
                     finally { MessageDialog.SuppressErrorPopups = prev; }
                 }), System.Windows.Threading.DispatcherPriority.Send);
+            }
+            catch { }
+        }
+        
+        /// <summary>
+        /// Resume from line butonu click handler
+        /// </summary>
+        private async void ResumeFromLineButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (App.MainController == null)
+                {
+                    ShowErrorMessage("MainController is not available", "System Error");
+                    return;
+                }
+                
+                if (!App.MainController.IsConnected)
+                {
+                    ShowErrorMessage("CNC bağlı değil. Önce bağlanın.", "Bağlantı Gerekli");
+                    return;
+                }
+                
+                if (!App.MainController.CanResumeFromLine)
+                {
+                    ShowErrorMessage("Devam edilecek satır bilgisi bulunamadı.\nÖnce bir iş çalıştırıp STOP yapmalısınız.", "Resume Mümkün Değil");
+                    return;
+                }
+                
+                bool result = await App.MainController.ShowResumeFromLineDialogAsync();
+                
+                if (result)
+                {
+                    UpdateExecutionControlButtons();
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage($"Resume hatası:\n{ex.Message}", "Resume Error");
+            }
+        }
+        
+        /// <summary>
+        /// Resume butonunun görünürlüğünü günceller
+        /// </summary>
+        private void UpdateResumeButtonVisibility()
+        {
+            try
+            {
+                if (ResumeFromLineButton == null) return;
+                
+                bool canResume = App.MainController?.CanResumeFromLine ?? false;
+                int lastLine = App.MainController?.LastStoppedLineIndex ?? -1;
+                
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    ResumeFromLineButton.Visibility = canResume ? Visibility.Visible : Visibility.Collapsed;
+                    
+                    if (canResume && ResumeButtonText != null && lastLine >= 0)
+                    {
+                        ResumeButtonText.Text = $"RESUME ({lastLine + 1})";
+                    }
+                }));
             }
             catch { }
         }

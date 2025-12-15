@@ -54,6 +54,12 @@ namespace CncControlApp
         private MessageDialog _stopProgressDialog; // legacy holder (kept to avoid large refactor)
         private Controls.StreamingPopup _stopStreamingPopup; // new reusable popup
         private Action<string> _stopProgressAppend; // delegate appender used by sequences
+        
+        // Resume from line support
+        private int _lastStoppedLineIndex = -1;
+        private readonly Services.GCodeResumeService _resumeService = new Services.GCodeResumeService();
+        public int LastStoppedLineIndex => _lastStoppedLineIndex;
+        public bool CanResumeFromLine => _lastStoppedLineIndex >= 0 && _gCodeManager?.GCodeLines?.Count > 0;
 
         // State
         private bool _suppressNonEssentialLogs = true;
@@ -550,7 +556,12 @@ namespace CncControlApp
         }
 
         // GCode control wrappers
-        public bool LoadGCodeFile(string f) => _gCodeManager.LoadGCodeFile(f);
+        public bool LoadGCodeFile(string f)
+        {
+            // Yeni dosya yüklendiğinde resume state'i temizle
+            ClearResumeState();
+            return _gCodeManager.LoadGCodeFile(f);
+        }
         public Task<bool> RunGCodeAsync() => _gCodeManager.RunGCodeAsync();
         public Task<bool> PauseGCodeAsync() => _gCodeManager.PauseGCodeAsync();
         public Task<bool> ContinueGCodeAsync() => _gCodeManager.ContinueGCodeAsync();
@@ -1003,8 +1014,8 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
         private async Task<bool> QueryStatusOnce(int? requestedIntervalMs = null) => await StatusQueryService.QueryStatusOnce(requestedIntervalMs);
 
         // Buffer helpers
-        private void ClearBuffer() { try { _dataProcessingManager?.ClearBuffer(); AddLogMessage("> 🧹 Buffer cleared"); } catch (Exception ex) { AddLogMessage($"> ❌ Buffer clear error: {ex.Message}"); } }
-        private void ClearCommandQueue() { try { _dataProcessingManager?.ClearDataQueue(); AddLogMessage("> 🧹 Command queue cleared"); } catch (Exception ex) { AddLogMessage($"> ❌ Command queue clear error: {ex.Message}"); } }
+        private void ClearBuffer() { try { _dataProcessingManager?.ClearBuffer(); } catch { } }
+        private void ClearCommandQueue() { try { _dataProcessingManager?.ClearDataQueue(); } catch { } }
 
         // Stop popup controls
         private void ShowStopDecisionPopup()
@@ -1012,9 +1023,9 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
             try
             {
                 // Guard: If stop sequence is already running or streaming popup is visible, do NOT show decision popup
-                if (_stopSequenceRunning) { AddLogMessage("> 🛑 Stop sequence already running – suppressing decision popup"); return; }
-                try { if (_stopStreamingPopup != null && _stopStreamingPopup.IsVisible) { AddLogMessage("> 🛑 Streaming popup visible – suppressing decision popup"); return; } } catch { }
-                if (DisableAutoStopPopup) { AddLogMessage("> 🛑 Auto stop popup disabled – suppression active"); return; }
+                if (_stopSequenceRunning) return;
+                try { if (_stopStreamingPopup != null && _stopStreamingPopup.IsVisible) return; } catch { }
+                if (DisableAutoStopPopup) return;
                 if (_stopHoldPopupShown) return;
                 _stopHoldPopupShown = true;
                 Application.Current.Dispatcher.BeginInvoke(new Action(() =>
@@ -1032,15 +1043,14 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
                         else { _isWaitingForStopDecision = false; _pendingStopSequence = false; }
                         _stopHoldPopupShown = false;
                     }
-                    catch (Exception ex) { AddLogMessage($"> ❌ Stop popup error: {ex.Message}"); _stopHoldPopupShown = false; }
+                    catch { _stopHoldPopupShown = false; }
                 }), DispatcherPriority.Background);
             }
-            catch (Exception ex) { AddLogMessage($"> ❌ ShowStopDecisionPopup error: {ex.Message}"); _stopHoldPopupShown = false; }
+            catch { _stopHoldPopupShown = false; }
         }
         private void CloseStopDecisionPopupIfOpen()
         {
-            try { _stopHoldPopupShown = false; AddLogMessage("> ✅ Stop decision no longer needed - state resolved"); }
-            catch (Exception ex) { AddLogMessage($"> ❌ CloseStopDecisionPopup error: {ex.Message}"); }
+            _stopHoldPopupShown = false;
         }
 
         public bool IsAAxisAvailable => _connectionManager?.IsAAxisAvailable ?? false;
@@ -1054,108 +1064,99 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
                 bool wasHold = prev != null && prev.StartsWith("Hold", StringComparison.OrdinalIgnoreCase);
                 if (nowHold && !wasHold)
                 {
-                    AddLogMessage($"> 🔄 Hold durumuna geçiş - önceki: '{prev}', şimdi: '{current}'");
-                    if (_isWaitingForStopDecision && _pendingStopSequence)
-                    {
-                        if (!DisableAutoStopPopup) ShowStopDecisionPopup();
-                        else AddLogMessage("> ⏸️ Hold: Auto popup disabled – UI will handle decision");
-                    }
-                    else AddLogMessage("> (Auto Hold recovery devre dışı) Kullanıcı kararı beklenmiyor – hiçbir otomatik reset yapılmayacak");
+                    if (_isWaitingForStopDecision && _pendingStopSequence && !DisableAutoStopPopup)
+                        ShowStopDecisionPopup();
                 }
                 else if (!nowHold && wasHold)
                 {
-                    AddLogMessage($"> ✅ Hold durumundan çıkış - önceki: '{prev}', şimdi: '{current}'");
                     if (current != null && current.StartsWith("Idle", StringComparison.OrdinalIgnoreCase)) CloseStopDecisionPopupIfOpen();
                 }
             }
-            catch (Exception ex) { AddLogMessage($"> Hold transition handler error: {ex.Message}"); }
+            catch { }
         }
 
         public async Task<bool> RecoverFromAlarmAsync()
         {
-            if (_alarmRecoveryInProgress) { AddLogMessage("> 🔁 Alarm recovery already running – skipping"); return false; }
-            if (!IsAlarmState()) { AddLogMessage("> ℹ️ No active ALARM state – recovery skipped"); return true; }
+            if (_alarmRecoveryInProgress) return false;
+            if (!IsAlarmState()) return true;
             _alarmRecoveryInProgress = true;
             try
             {
-                AddLogMessage("> 🆘 ALARM RECOVERY START (simplified)");
-                AddLogMessage($"> Current status: {MachineStatus}");
-                AddLogMessage("> 🔓 Trying $X unlock (fast path)...");
+                // Fast path: try direct unlock
                 bool unlocked = await UnlockMachineAsync();
-                if (unlocked && !IsAlarmState()) { AddLogMessage("> ✅ Alarm cleared with direct unlock"); await QueryStatusOnce(250); return true; }
-                AddLogMessage("> ⚠️ Direct unlock failed or still in alarm – performing emergency reset");
+                if (unlocked && !IsAlarmState()) { await QueryStatusOnce(250); return true; }
+                
+                // Emergency reset if unlock fails
                 bool resetOk = await EmergencyResetAsync();
-                if (!resetOk) { AddLogMessage("> ❌ Emergency reset failed – manual intervention required"); return false; }
+                if (!resetOk) return false;
                 await Task.Delay(1500);
                 await QueryStatusOnce(250);
                 await Task.Delay(400);
-                if (!IsAlarmState()) { AddLogMessage("> ✅ Alarm state cleared after reset"); return true; }
-                AddLogMessage("> 🔓 Final unlock attempt after reset...");
-                bool finalUnlock = await UnlockMachineAsync();
+                if (!IsAlarmState()) return true;
+                
+                // Final unlock attempt
+                await UnlockMachineAsync();
                 await Task.Delay(300);
                 await QueryStatusOnce(250);
-                if (!IsAlarmState()) { AddLogMessage("> ✅ ALARM RECOVERY SUCCESS (reset + unlock)"); return true; }
-                AddLogMessage("> ❌ Alarm persists after recovery attempts – manual action needed");
-                return false;
+                return !IsAlarmState();
             }
-            catch (Exception ex) { AddLogMessage($"> ❌ Alarm recovery exception: {ex.Message}"); _errorHandlingService.LogError("RecoverFromAlarmAsync", ex, ErrorHandlingService.ErrorSeverity.Error); return false; }
+            catch { return false; }
             finally { _alarmRecoveryInProgress = false; }
         }
 
         // Execute Complete Stop Sequence (simplified but safe)
         private async Task ExecuteCompleteStopSequence()
         {
-            if (_stopSequenceRunning) { AddLogMessage("> ⏹️ Stop sequence already running – ignored duplicate"); return; }
+            if (_stopSequenceRunning) return; // Sessizce çık - duplicate
             _stopSequenceRunning = true;
             _postStopGraceUntil = DateTime.UtcNow.AddSeconds(6);
+            
+            // ✅ Stop öncesi satır bilgisini yakala ve KAYDET
+            int stoppedAtLine = _gCodeManager?.LastCompletedLineIndex ?? -1;
+            int totalLines = _gCodeManager?.GCodeLines?.Count ?? 0;
+            _lastStoppedLineIndex = stoppedAtLine; // Resume için sakla
+            
             try
             {
-                _stopProgressAppend?.Invoke("> === STOP SEQUENCE START ===");
+                string lineInfo = stoppedAtLine >= 0 && totalLines > 0 
+                    ? $" (Satır: {stoppedAtLine + 1}/{totalLines})" 
+                    : "";
+                _stopProgressAppend?.Invoke($"> ⏹️ Durdurma başlatıldı...{lineInfo}");
                 
-                // ✅ CRITICAL FIX: Call StopGCodeAsync to actually stop the streaming service
-                // This sends Feed Hold, Queue Flush, Jog Cancel, Soft Reset to GRBL
-                try
-                {
-                    bool stopResult = await _gCodeManager.StopGCodeAsync();
-                    _stopProgressAppend?.Invoke(stopResult ? "> ✅ GrblStreamingService stopped" : "> ⚠️ GrblStreamingService stop returned false");
-                }
-                catch (Exception stopEx)
-                {
-                    _stopProgressAppend?.Invoke($"> ⚠️ GrblStreamingService stop error: {stopEx.Message}");
-                    AddLogMessage($"> ⚠️ StopGCodeAsync error: {stopEx.Message}");
-                }
+                // GCode streaming'i durdur
+                try { await _gCodeManager.StopGCodeAsync(); } catch { }
                 
+                // State'leri temizle
                 _gCodeManager?.CompleteStopSequence();
-                _stopProgressAppend?.Invoke("> Planner/completion flags set (CompleteStopSequence)");
                 _gCodeManager?.CancelExecution();
-                _stopProgressAppend?.Invoke("> Execution cancelled");
                 ClearBuffer();
                 ClearCommandQueue();
-                _stopProgressAppend?.Invoke("> Buffers and queues cleared");
-                bool es = await EmergencyStopAsync();
-                _stopProgressAppend?.Invoke(es ? "> ✅ Emergency stop sent" : "> ⚠️ Emergency stop could not be sent");
-                await Task.Delay(800);
+                
+                // GRBL'i durdur
+                await EmergencyStopAsync();
+                await Task.Delay(500);
+                
+                // Status kontrol et
                 await QueryStatusOnce(200);
-                await Task.Delay(300);
-                _stopProgressAppend?.Invoke($"> Status: {MachineStatus}");
+                
+                // Gerekirse Hold'dan çık
                 if (MachineStatus.StartsWith("Hold", StringComparison.OrdinalIgnoreCase))
                 {
-                    _stopProgressAppend?.Invoke("> ⚠️ Hold persists – attempting automatic release");
                     await ForceExitHoldAsync("StopSequence");
                 }
+                
+                // Gerekirse Alarm'dan kurtar
                 if (IsAlarmState())
                 {
-                    _stopProgressAppend?.Invoke("> ⚠️ Alarm detected – attempting recovery");
                     await RecoverFromAlarmAsync();
                 }
+                
                 _postStopGraceUntil = DateTime.UtcNow.AddSeconds(6);
-                _stopProgressAppend?.Invoke("> ⏹️ Complete Stop Sequence finished");
-                AddLogMessage("> ⏹️ Complete Stop Sequence finished");
+                _stopProgressAppend?.Invoke($"> ✅ Durduruldu - Durum: {MachineStatus}");
             }
             catch (Exception ex)
             {
-                _stopProgressAppend?.Invoke($"> ❌ Complete Stop Sequence error: {ex.Message}");
-                AddLogMessage($"> ❌ Complete Stop Sequence error: {ex.Message}");
+                _stopProgressAppend?.Invoke($"> ❌ Durdurma hatası: {ex.Message}");
             }
             finally
             {
@@ -1163,8 +1164,7 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
                 _pendingStopSequence = false;
                 _stopHoldPopupShown = false;
                 _stopSequenceRunning = false;
-                AddLogMessage("> 🔔 StopSequenceCompleted event trigger ediliyor...");
-                try { Application.Current?.Dispatcher?.BeginInvoke(new Action(() => { try { AddLogMessage("> 🔔 StopSequenceCompleted.Invoke() çağrılıyor"); StopSequenceCompleted?.Invoke(); AddLogMessage("> 🔔 StopSequenceCompleted.Invoke() tamamlandı"); } catch (Exception ex) { AddLogMessage($"> ❌ StopSequenceCompleted invoke hatası: {ex.Message}"); } }), DispatcherPriority.Background); } catch { }
+                try { Application.Current?.Dispatcher?.BeginInvoke(new Action(() => { try { StopSequenceCompleted?.Invoke(); } catch { } }), DispatcherPriority.Background); } catch { }
             }
         }
 
@@ -1196,16 +1196,13 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
             try
             {
                 bool wasHold = MachineStatus.StartsWith("Hold", StringComparison.OrdinalIgnoreCase);
-                if (!wasHold) { AddLogMessage($"> ℹ️ Hold release skip ({context}) – status: {MachineStatus}"); return true; }
-                AddLogMessage($"> ⏳ Hold release started ({context}) – SAFE RESET STRATEGY – status: {MachineStatus}");
+                if (!wasHold) return true;
+                
                 using (StartFastStatusScope("ForceExitHold",150))
                 {
                     for (int i =1; i <= attempts; i++)
                     {
-                        AddLogMessage($"> ▶ Hold release attempt {i}/{attempts} (cancel + soft reset + unlock + buffers)");
-                        _stopProgressAppend?.Invoke($"> ▶ Hold release attempt {i}/{attempts}");
-
-                        // Stop any streaming and clear pending items to avoid immediate re-entry into Hold
+                        // Stop streaming and clear buffers
                         try { _gCodeManager?.CancelExecution(); } catch { }
                         try { ClearBuffer(); } catch { }
                         try { ClearCommandQueue(); } catch { }
@@ -1214,15 +1211,13 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
                         try { await SendControlCharacterAsync('\x85'); } catch { }
                         await Task.Delay(100);
                         await SendControlCharacterAsync('\x18');
-
-                        // Give firmware time to settle and reconnect if needed
                         await Task.Delay(1200);
 
-                        // Attempt unlock (will be ignored if not required)
+                        // Attempt unlock
                         await SendGCodeCommandAsync("$X");
                         await Task.Delay(600);
 
-                        // Probe status multiple times and allow it to stabilize
+                        // Probe status
                         for (int q =0; q <5; q++)
                         {
                             await QueryStatusOnce(250);
@@ -1231,17 +1226,14 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
                         }
                         if (!MachineStatus.StartsWith("Hold", StringComparison.OrdinalIgnoreCase))
                         {
-                            if (MachineStatus.StartsWith("Run", StringComparison.OrdinalIgnoreCase)) { AddLogMessage("> ⚠️ Controller reports Run after hold release – forcing Idle tag"); MachineStatus = "Idle"; }
-                            AddLogMessage($"> ✅ Hold released without resume ({context}) -> {MachineStatus}");
+                            if (MachineStatus.StartsWith("Run", StringComparison.OrdinalIgnoreCase)) MachineStatus = "Idle";
                             return true;
                         }
-                        AddLogMessage("> … still Hold – retrying");
                     }
                 }
-                AddLogMessage($"> ❌ Hold could not be released automatically ({context}) – final status: {MachineStatus}");
                 return false;
             }
-            catch (Exception ex) { AddLogMessage($"> ❌ Hold release exception: {ex.Message}"); return false; }
+            catch { return false; }
         }
 
         /// <summary>
@@ -1296,7 +1288,6 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
         {
             try
             {
-                AddLogMessage("> ✅ Stop onaylandı - Emergency Stop sequence başlatılıyor...");
                 // Stop kararından sonra başka "Stop" kararı pencerelerinin açılmaması için bayrakları hemen temizle
                 _isWaitingForStopDecision = false;
                 _pendingStopSequence = false;
@@ -1311,31 +1302,26 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
 
                         // Create and show reusable streaming popup
                         _stopStreamingPopup = new Controls.StreamingPopup { Owner = Application.Current.MainWindow };
-                        _stopStreamingPopup.SetTitle("STOP Sequence Çalışıyor");
-                        _stopStreamingPopup.SetSubtitle("> G-Code yürütme güvenli şekilde durduruluyor...\n> İşlem adımları aşağıda anlık olarak listelenir.");
+                        _stopStreamingPopup.SetTitle("STOP Sequence");
+                        _stopStreamingPopup.SetSubtitle("G-Code yürütme durduruluyor...");
                         _stopStreamingPopup.Show();
                         _stopProgressAppend = line => { try { _stopStreamingPopup?.Append(line); } catch { } };
-                        // Tek-seferlik (one-shot) kapatma işleyicisi ekle ve çalıştıktan sonra aboneliği kaldır
+                        // Tek-seferlik (one-shot) kapatma işleyicisi
                         Action onCompleted = null;
                         onCompleted = () =>
                         {
                             try
                             {
-                                AddLogMessage("> 🔔 onCompleted handler çağrıldı");
-                                // Aboneliği kaldır (birikmeyi ve çoklu tetiklemeyi önler)
                                 try { this.StopSequenceCompleted -= onCompleted; } catch { }
-
-                                _stopStreamingPopup?.Append("> ✅ Stop sequence tamamlandı");
-                                AddLogMessage("> 🔔 Popup kapatma timer başlatılıyor");
                                 // Küçük bir gecikme ardından popup'ı otomatik kapat
                                 var closeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
                                 closeTimer.Tick += (ts, te) =>
                                 {
-                                    try { closeTimer.Stop(); AddLogMessage("> 🔔 ForceClose çağrılıyor"); _stopStreamingPopup?.ForceClose(); AddLogMessage("> 🔔 ForceClose tamamlandı"); } catch (Exception ex) { AddLogMessage($"> ❌ ForceClose hatası: {ex.Message}"); }
+                                    try { closeTimer.Stop(); _stopStreamingPopup?.ForceClose(); } catch { }
                                 };
                                 closeTimer.Start();
                             }
-                            catch (Exception ex) { AddLogMessage($"> ❌ onCompleted hatası: {ex.Message}"); }
+                            catch { }
                         };
                         this.StopSequenceCompleted += onCompleted;
                     }
@@ -1343,7 +1329,7 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
                 }), DispatcherPriority.Background);
                 _ = Task.Run(async () => await ExecuteCompleteStopSequence());
             }
-            catch (Exception ex) { AddLogMessage($"> ❌ ConfirmStop hata: {ex.Message}"); }
+            catch { }
         }
         public async Task<bool> CancelStopAndContinueAsync()
         {
@@ -1583,5 +1569,169 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
             }
             catch (Exception ex) { Debug.WriteLine($"MainControll dispose error: {ex.Message}"); }
         }
+        
+        #region Resume From Line
+        
+        /// <summary>
+        /// Kaldığı yerden devam etme dialog'unu gösterir ve onay alırsa çalıştırır
+        /// </summary>
+        public async Task<bool> ShowResumeFromLineDialogAsync()
+        {
+            if (!CanResumeFromLine)
+            {
+                Controls.MessageDialog.ShowInfo("Resume", "Devam edilecek satır bilgisi bulunamadı.");
+                return false;
+            }
+            
+            var gCodeLines = _gCodeManager.GCodeLines.ToList();
+            int resumeFromLine = _lastStoppedLineIndex;
+            int totalLines = gCodeLines.Count;
+            
+            // Modal state'i çıkar
+            var modalState = _resumeService.ExtractModalStateUpToLine(gCodeLines, resumeFromLine);
+            
+            // Preamble satırlarını al
+            var preambleLines = _resumeService.GetPreambleLines(gCodeLines);
+            
+            // Resume komutlarını oluştur
+            var resumeCommands = modalState.GenerateResumeCommands();
+            
+            // Dialog'u göster
+            var dialog = new Controls.ResumeConfirmationDialog();
+            dialog.Owner = Application.Current.MainWindow;
+            dialog.SetResumeData(resumeFromLine, totalLines, modalState, preambleLines, resumeCommands);
+            
+            // Git butonu event'ini dinle
+            dialog.GoToPositionRequested += async (s, args) =>
+            {
+                await GoToResumePositionAsync(args.X, args.Y, args.Z);
+            };
+            
+            bool? result = dialog.ShowDialog();
+            
+            if (result == true && dialog.Confirmed)
+            {
+                // ✅ CRITICAL FIX: Resume should start from NEXT line after the completed one
+                // _lastStoppedLineIndex = LastCompletedLineIndex = last fully executed line
+                // So we need to start from resumeFromLine + 1
+                int actualResumeFromLine = resumeFromLine + 1;
+                return await ExecuteResumeFromLineAsync(actualResumeFromLine, dialog.RunPreamble, preambleLines, resumeCommands);
+            }
+            
+            return false;
+        }
+        
+        /// <summary>
+        /// Resume pozisyonuna G0 ile git
+        /// </summary>
+        private async Task GoToResumePositionAsync(double x, double y, double z)
+        {
+            try
+            {
+                // Önce Z'yi güvenli yüksekliğe çıkar (varsa mevcut Z'den yukarıda ise)
+                // Sonra XY'ye git, sonra Z'ye in
+                // Bu standart güvenli hareket sırası
+                
+                string zUp = $"G0 Z{z.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}";
+                string xyMove = $"G0 X{x.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)} Y{y.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}";
+                
+                AddLogMessage($"> 🚀 Resume pozisyonuna gidiliyor: X{x:F3} Y{y:F3} Z{z:F3}");
+                
+                // Tek komut olarak gönder - G0 X Y Z
+                string goCommand = $"G0 X{x.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)} Y{y.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)} Z{z.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}";
+                await SendGCodeCommandAsync(goCommand);
+                
+                AddLogMessage($"> ✅ Pozisyona gidiliyor...");
+            }
+            catch (System.Exception ex)
+            {
+                AddLogMessage($"> ❌ Pozisyona gidiş hatası: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// Kaldığı yerden devam etmeyi gerçekleştirir
+        /// </summary>
+        private async Task<bool> ExecuteResumeFromLineAsync(int resumeFromLine, bool runPreamble, List<string> preambleLines, List<string> resumeCommands)
+        {
+            try
+            {
+                // Streaming popup göster
+                Controls.StreamingPopup streamPopup = null;
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    streamPopup = new Controls.StreamingPopup { Owner = Application.Current.MainWindow };
+                    streamPopup.SetTitle("Resume - Kaldığı Yerden Devam");
+                    streamPopup.SetSubtitle($"Satır {resumeFromLine + 1}'den devam ediliyor...");
+                    streamPopup.Show();
+                });
+                
+                // 1. Preamble komutlarını gönder (isteğe bağlı)
+                if (runPreamble && preambleLines.Count > 0)
+                {
+                    streamPopup?.Append($"> 📋 Preamble gönderiliyor ({preambleLines.Count} satır)...");
+                    foreach (var line in preambleLines)
+                    {
+                        if (!string.IsNullOrWhiteSpace(line))
+                        {
+                            await SendGCodeCommandAsync(line);
+                            await Task.Delay(50);
+                        }
+                    }
+                    await Task.Delay(200);
+                }
+                
+                // 2. Modal state komutlarını gönder
+                streamPopup?.Append($"> ⚙️ Modal state restore ediliyor...");
+                foreach (var cmd in resumeCommands)
+                {
+                    if (!string.IsNullOrWhiteSpace(cmd))
+                    {
+                        streamPopup?.Append($">   {cmd}");
+                        await SendGCodeCommandAsync(cmd);
+                        await Task.Delay(50);
+                    }
+                }
+                await Task.Delay(300);
+                
+                // 3. Kaldığı satırdan itibaren GCode'u çalıştır
+                streamPopup?.Append($"> ▶️ Satır {resumeFromLine + 1}'den devam ediliyor...");
+                
+                // GCodeManager'ı resume modunda başlat
+                bool startResult = await _gCodeManager.RunGCodeFromLineAsync(resumeFromLine);
+                
+                if (startResult)
+                {
+                    streamPopup?.Append("> ✅ Resume başarılı!");
+                    _lastStoppedLineIndex = -1; // Reset resume state
+                }
+                else
+                {
+                    streamPopup?.Append("> ❌ Resume başlatılamadı!");
+                }
+                
+                // Popup'ı kapat
+                await Task.Delay(1000);
+                await Application.Current.Dispatcher.InvokeAsync(() => streamPopup?.ForceClose());
+                
+                return startResult;
+            }
+            catch (Exception ex)
+            {
+                AddLogMessage($"> ❌ Resume hatası: {ex.Message}");
+                return false;
+            }
+        }
+        
+        /// <summary>
+        /// Resume bilgisini temizler
+        /// </summary>
+        public void ClearResumeState()
+        {
+            _lastStoppedLineIndex = -1;
+            OnPropertyChanged(nameof(CanResumeFromLine));
+        }
+        
+        #endregion
     }
 }

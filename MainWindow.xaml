@@ -256,12 +256,12 @@
                            Orientation="Vertical"
                            VerticalAlignment="Center" 
                            HorizontalAlignment="Center">
-                    <TextBlock Text="CNC CONTROL SYSTEM" 
+                    <TextBlock Text="CNC KONTROL ARAYÜZÜ" 
                                FontSize="18" 
                                FontWeight="Bold" 
                                Foreground="White" 
                                HorizontalAlignment="Center"/>
-                    <TextBlock Text="Professional CNC Management Interface" 
+                    <TextBlock Text="RAPTOREX - 2025  |  v4.0.4" 
                                FontSize="12" 
                                Foreground="#FFB0BEC5" 
                                HorizontalAlignment="Center"/>

@@ -514,8 +514,9 @@ namespace CncControlApp.Managers
        return false;
    }
         
-       // ✅ CRITICAL FIX: Clear stop state before starting new execution
+       // ✅ CRITICAL FIX: Clear ALL stop/execution state before starting new execution
        _wasStopped = false;
+       _internalStreaming = false;  // Will be set to true when streaming actually starts
        ErrorLogger.LogDebug("Stop state temizlendi, execution başlıyor");
       
           ClearLineAnnotations();
@@ -594,6 +595,103 @@ CurrentlyExecutingLineIndex = -1;
      }
       finally { _executionCts?.Dispose(); _executionCts = null; }
       }
+
+        /// <summary>
+        /// Belirtilen satırdan itibaren GCode çalıştırır (Resume için)
+        /// </summary>
+        public async Task<bool> RunGCodeFromLineAsync(int startFromLine)
+        {
+            try
+            {
+                if (GCodeLines == null || GCodeLines.Count == 0)
+                {
+                    _log("> ❌ Resume: GCode yüklü değil");
+                    return false;
+                }
+                
+                if (startFromLine < 0 || startFromLine >= GCodeLines.Count)
+                {
+                    _log($"> ❌ Resume: Geçersiz satır numarası: {startFromLine}");
+                    return false;
+                }
+                
+                if (!IsConnected)
+                {
+                    _log("> ❌ Resume: Bağlantı yok");
+                    return false;
+                }
+                
+                // Controller hazır mı kontrol et
+                if (!await WaitForControllerReadyAsync())
+                {
+                    _log("> ⚠️ Resume: Controller hazır değil");
+                    return false;
+                }
+                
+                // Kalan satırları al
+                var remainingLines = GCodeLines.Skip(startFromLine).ToList();
+                _log($"> ▶️ Resume: Satır {startFromLine + 1}'den itibaren {remainingLines.Count} satır çalıştırılacak");
+                
+                // State'leri temizle
+                _wasStopped = false;
+                _internalStreaming = false;
+                ClearLineAnnotations();
+                
+                // Satır indekslerini ayarla
+                LastCompletedLineIndex = startFromLine - 1;
+                CurrentlyExecutingLineIndex = startFromLine;
+                CurrentGCodeLineIndex = startFromLine;
+                
+                // Timing'i başlat
+                ExecutionStartTime = DateTime.Now;
+                _liveElapsedSeconds = 0;
+                _liveElapsedTimer?.Stop();
+                
+                // Modal değerleri reset etme - bunlar zaten dışarıdan gönderildi
+                _completedSegments.Clear();
+                _hasOverrideAdjustment = false;
+                
+                // IsGCodeRunning'i ayarla
+                if (!IsGCodeRunning)
+                {
+                    IsGCodeRunning = true;
+                    if ((GetMachineStatusSafe() ?? string.Empty).StartsWith("Idle", StringComparison.OrdinalIgnoreCase))
+                    {
+                        SetMachineStatusSafe("Run");
+                    }
+                }
+                
+                // UI refresh
+                RaisePropertyChanged(nameof(ElapsedTimeText));
+                RaisePropertyChanged(nameof(RemainingTimeText));
+                RaisePropertyChanged(nameof(ExecutionProgress));
+                RaisePropertyChanged(nameof(ExecutionProgressText));
+                
+                // GCode run scope
+                try { _gcodeRunScope?.Dispose(); _gcodeRunScope = App.MainController?.BeginScopedCentralStatusOverride(200); } catch { }
+                
+                _internalStreaming = true;
+                _executionCts?.Dispose();
+                _executionCts = new CancellationTokenSource();
+                
+                // Kalan satırları streaming service'e yükle - lineOffset ile orijinal satır numarasını koru
+                _streamingService.LoadGCode(remainingLines, startFromLine);
+                
+                // Streaming başlat
+                await _streamingService.StartAsync();
+                
+                _log($"> ✅ Resume başladı - Satır {startFromLine + 1}'den itibaren {remainingLines.Count} satır kaldı");
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _internalStreaming = false;
+                if (IsGCodeRunning) IsGCodeRunning = false;
+                _logError("RunGCodeFromLineAsync", ex, ErrorHandlingService.ErrorSeverity.Critical);
+                return false;
+            }
+        }
 
         public async Task<bool> PauseGCodeAsync()
         {
@@ -693,7 +791,19 @@ CurrentlyExecutingLineIndex = -1;
 
         public void CompleteStopSequence()
         {
-            _wasStopped = true; if (IsGCodeRunning) IsGCodeRunning = false; CurrentGCodeLineIndex = 0; LastCompletedLineIndex = -1; CurrentlyExecutingLineIndex = -1; UpdateExecutionProperties();
+            // ✅ CRITICAL FIX: Reset all execution state to allow fresh start
+            _wasStopped = true; 
+            _internalStreaming = false;
+            if (IsGCodeRunning) IsGCodeRunning = false; 
+            CurrentGCodeLineIndex = 0; 
+            LastCompletedLineIndex = -1; 
+            CurrentlyExecutingLineIndex = -1; 
+            
+            // ✅ Dispose GCode run scope if active
+            try { _gcodeRunScope?.Dispose(); _gcodeRunScope = null; } catch { }
+            
+            UpdateExecutionProperties();
+            ErrorLogger.LogDebug($"CompleteStopSequence tamamlandı - _wasStopped={_wasStopped}, IsGCodeRunning={IsGCodeRunning}");
         }
 
         // OpenBuilds-style Character Counting Protocol streaming

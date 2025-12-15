@@ -117,6 +117,9 @@
     <Compile Include="CncControlApp\Controls\StreamingPopup.xaml.cs">
       <DependentUpon>StreamingPopup.xaml</DependentUpon>
     </Compile>
+    <Compile Include="CncControlApp\Controls\ResumeConfirmationDialog.xaml.cs">
+      <DependentUpon>ResumeConfirmationDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="CncControlApp\Controls\CompletionPopup.xaml.cs">
       <DependentUpon>CompletionPopup.xaml</DependentUpon>
     </Compile>
@@ -202,6 +205,7 @@
     <Compile Include="CncControlApp\Services\CoordinateService.cs" />
     <Compile Include="CncControlApp\Services\DiagnosticTimingService.cs" />
     <Compile Include="CncControlApp\Services\ErrorHandlingService.cs" />
+    <Compile Include="CncControlApp\Services\GCodeResumeService.cs" />
     <Compile Include="CncControlApp\Services\GrblStreamingService.cs" />
     <Compile Include="CncControlApp\Services\GCodeRunLineLogger.cs" />
     <Compile Include="CncControlApp\Services\MachineControlService.cs" />
@@ -280,6 +284,9 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="CncControlApp\Controls\StreamingPopup.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="CncControlApp\Controls\ResumeConfirmationDialog.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="CncControlApp\Controls\CompletionPopup.xaml">
