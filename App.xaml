@@ -7,6 +7,61 @@
         <!-- Converter'lar -->
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <local:StepBackgroundConverter x:Key="StepBackgroundConverter"/>
+
+        <!-- Base styles for Status LEDs -->
+        <Style x:Key="StatusLEDStyle" TargetType="Ellipse">
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Stroke" Value="#66000000"/>
+            <Setter Property="StrokeThickness" Value="1"/>
+            <Setter Property="Fill" Value="#FF9E9E9E"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+        </Style>
+        <Style x:Key="StatusTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#FF34C759"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Alarm-aware LED style -->
+        <Style x:Key="StatusLEDAlarmStyle" TargetType="Ellipse" BasedOn="{StaticResource StatusLEDStyle}">
+            <Setter Property="Fill" Value="#FF9E9E9E"/> <!-- Disconnected default -->
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Normal">
+                    <Setter Property="Fill" Value="#FF34C759"/> <!-- Green -->
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Alarm">
+                    <Setter Property="Fill" Value="#FFFFC107"/> <!-- Amber -->
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Error">
+                    <Setter Property="Fill" Value="#FFFF3B30"/> <!-- Red -->
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Disconnected">
+                    <Setter Property="Fill" Value="#FF9E9E9E"/> <!-- Gray -->
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Status text color changes -->
+        <Style x:Key="StatusTextAlarmStyle" TargetType="TextBlock" BasedOn="{StaticResource StatusTextStyle}">
+            <Setter Property="Text" Value="{Binding MachineStatus}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Normal">
+                    <Setter Property="Foreground" Value="#FF34C759"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Alarm">
+                    <Setter Property="Foreground" Value="#FFFFC107"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Error">
+                    <Setter Property="Foreground" Value="#FFFF3B30"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SystemStateIndicator}" Value="Disconnected">
+                    <Setter Property="Foreground" Value="#FF9E9E9E"/>
+                    <Setter Property="Text" Value="Disconnected"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
         
         <!-- Emergency Stop Icon -->
         <ImageSource x:Key="StopButtonIcon">pack://application:,,,/Images/stopbutton.png</ImageSource>
@@ -409,7 +464,7 @@
             <Setter Property="FontSize" Value="20"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Foreground" Value="Black"/>
-            <Setter Property="Background" Value="#FFD3D3D3"/>
+            <Setter Property="Background" Value="#FFB3B3B3"/>
             <Setter Property="BorderBrush" Value="#FFA0A0A0"/>
             <Setter Property="BorderThickness" Value="2"/>
             <Setter Property="Margin" Value="5"/>
@@ -441,10 +496,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="true">
-                                <Setter TargetName="border" Property="Background" Value="#FFE8E8E8"/>
+                                <Setter TargetName="border" Property="Background" Value="#FFC4C4C4"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="true">
-                                <Setter TargetName="border" Property="Background" Value="#FFBCBCBC"/>
+                                <Setter TargetName="border" Property="Background" Value="#FF999999"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="false">
                                 <Setter Property="Opacity" Value="0.6"/>
@@ -511,46 +566,8 @@
             <Setter Property="Margin" Value="0,5,0,10"/>
         </Style>
 
-        <!-- Status LED Style -->
-        <Style x:Key="StatusLEDStyle" TargetType="{x:Type Ellipse}">
-            <Setter Property="Width" Value="30"/>
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Stroke" Value="#FF333333"/>
-            <Setter Property="StrokeThickness" Value="2"/>
-            <Setter Property="Fill" Value="#FFFF4444"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Opacity="0.4"/>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding IsConnected}" Value="True">
-                    <Setter Property="Fill">
-                        <Setter.Value>
-                            <RadialGradientBrush>
-                                <GradientStop Color="#FF44FF44" Offset="0"/>
-                                <GradientStop Color="#FF22AA22" Offset="0.7"/>
-                                <GradientStop Color="#FF116611" Offset="1"/>
-                            </RadialGradientBrush>
-                        </Setter.Value>
-                    </Setter>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
 
-        <!-- Status Text Style -->
-        <Style x:Key="StatusTextStyle" TargetType="{x:Type TextBlock}">
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Text" Value="SYSTEM: NOT READY"/>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding IsConnected}" Value="True">
-                    <Setter Property="Text" Value="SYSTEM: READY"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
+
 
         <!-- Touch-Friendly Slider Style -->
         <Style x:Key="TouchFriendlySliderStyle" TargetType="{x:Type Slider}">

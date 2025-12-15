@@ -1,6 +1,7 @@
 ﻿// MenuView.xaml.cs - CLEANED PROBE LOGGING + Selection Highlight
 using System;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -221,6 +222,35 @@ namespace CncControlApp
             catch (Exception ex)
             {
                 SafeLog($"> CTRL+X hata: {ex.Message}");
+            }
+        }
+
+        private async void ClearAlarmMenuButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var mc = App.MainController;
+                if (mc?.IsConnected != true)
+                {
+                    mc?.AddLogMessage("> ❌ Bağlantı yok - Alarm çözülemedi");
+                    return;
+                }
+
+                mc.AddLogMessage("> 🧹 Alarm temizleme (menü butonu) başlatılıyor...");
+                await mc.SendControlCharacterAsync('\x18'); // Ctrl+X
+                await Task.Delay(700);                      // bir miktar daha bekle
+
+                await mc.SendGCodeCommandAsync("$X");      // patch #1 ile izinli
+                await Task.Delay(300);
+
+                await mc.SendGCodeCommandAsync("?");       // durum güncelle
+                await Task.Delay(200);
+
+                mc.AddLogMessage("> ✅ Alarm temizleme tamamlandı (gerekirse $H ile Homing yapın)");
+            }
+            catch (Exception ex)
+            {
+                App.MainController?.AddLogMessage($"> ❌ Alarm temizleme hata: {ex.Message}");
             }
         }
     }

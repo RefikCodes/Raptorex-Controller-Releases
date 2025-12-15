@@ -872,34 +872,7 @@ namespace CncControlApp
             }
         }
 
-        private async void ClearAlarmTopButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var mc = App.MainController;
-                if (mc?.IsConnected != true)
-                {
-                    mc?.AddLogMessage("> ❌ Bağlantı yok - Alarm çözülemedi");
-                    return;
-                }
 
-                mc.AddLogMessage("> 🧹 Alarm temizleme (üst buton) başlatılıyor...");
-                await mc.SendControlCharacterAsync('\x18'); // Ctrl+X
-                await Task.Delay(700);                      // bir miktar daha bekle
-
-                await mc.SendGCodeCommandAsync("$X");      // patch #1 ile izinli
-                await Task.Delay(300);
-
-                await mc.SendGCodeCommandAsync("?");       // durum güncelle
-                await Task.Delay(200);
-
-                mc.AddLogMessage("> ✅ Alarm temizleme tamamlandı (gerekirse $H ile Homing yapın)");
-            }
-            catch (Exception ex)
-            {
-                App.MainController?.AddLogMessage($"> ❌ Alarm temizleme hata: {ex.Message}");
-            }
-        }
 
         #region Debug Report (Temporary Diagnostic Button)
 
@@ -1517,11 +1490,7 @@ namespace CncControlApp
             }
         }
 
-        public void ActivateAlarmState()
-        {
-            if (StatusLED != null) StatusLED.Fill = new SolidColorBrush(Colors.Yellow);
-      if (StatusText != null) StatusText.Text = "Alarm";
-        }
+
 
         private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
         {

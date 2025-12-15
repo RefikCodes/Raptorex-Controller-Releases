@@ -180,6 +180,227 @@
 
             </StackPanel>
 
+            <!-- Status Indicators Panel (Moved from MainWindow) -->
+            <StackPanel Grid.Row="1" Margin="6,10,6,10" VerticalAlignment="Bottom">
+                
+                <!-- Machine Status -->
+                <Border Background="#FF262626" BorderBrush="#FF666666" BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,0,6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding MachineStatus}" 
+                                   Style="{StaticResource StatusTextAlarmStyle}"
+                                   FontSize="14" FontWeight="Bold"
+                                   VerticalAlignment="Center"/>
+                        <Ellipse Grid.Column="1" 
+                                 Style="{StaticResource StatusLEDAlarmStyle}"
+                                 Width="26" Height="26" Margin="0"/>
+                    </Grid>
+                </Border>
+
+                <!-- Spindle -->
+                <Border Background="#FF262626" BorderBrush="#FF666666" BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,0,6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Spindle" FontSize="14" FontWeight="Bold" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#FFB0BEC5"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSpindleOn}" Value="True">
+                                            <Setter Property="Foreground" Value="#FF34C759"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <Ellipse Grid.Column="1" Width="26" Height="26" Stroke="#66000000" StrokeThickness="1">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#FF9E9E9E"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSpindleOn}" Value="True">
+                                            <Setter Property="Fill" Value="#FF34C759"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                    </Grid>
+                </Border>
+
+                <!-- Coolant -->
+                <Border Background="#FF262626" BorderBrush="#FF666666" BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,0,6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Coolant" FontSize="14" FontWeight="Bold" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#FFB0BEC5"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsCoolantOn}" Value="True">
+                                            <Setter Property="Foreground" Value="#FF34C759"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <Ellipse Grid.Column="1" Width="26" Height="26" Stroke="#66000000" StrokeThickness="1">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#FF9E9E9E"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsCoolantOn}" Value="True">
+                                            <Setter Property="Fill" Value="#FF34C759"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                    </Grid>
+                </Border>
+
+                <!-- Limits Row -->
+                <Border Background="#FF262626" BorderBrush="#FF666666" BorderThickness="1" CornerRadius="6" Padding="6,10" Margin="0,0,0,6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- X Limit -->
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                            <TextBlock Text="X Lim" FontSize="10" Margin="0,0,0,4">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#FFB0BEC5"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding MStatus.IsXLimitTriggered}" Value="True">
+                                                <Setter Property="Foreground" Value="#FF00BFFF"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <Ellipse Width="12" Height="12" Stroke="#66000000" StrokeThickness="1">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="#FF9E9E9E"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding MStatus.IsXLimitTriggered}" Value="True">
+                                                <Setter Property="Fill" Value="#FF00BFFF"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                        </StackPanel>
+
+                        <!-- Y Limit -->
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                            <TextBlock Text="Y Lim" FontSize="10" Margin="0,0,0,4">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#FFB0BEC5"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding MStatus.IsYLimitTriggered}" Value="True">
+                                                <Setter Property="Foreground" Value="#FF00BFFF"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <Ellipse Width="12" Height="12" Stroke="#66000000" StrokeThickness="1">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="#FF9E9E9E"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding MStatus.IsYLimitTriggered}" Value="True">
+                                                <Setter Property="Fill" Value="#FF00BFFF"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                        </StackPanel>
+
+                        <!-- Z Limit -->
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                            <TextBlock Text="Z Lim" FontSize="10" Margin="0,0,0,4">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#FFB0BEC5"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding MStatus.IsZLimitTriggered}" Value="True">
+                                                <Setter Property="Foreground" Value="#FF00BFFF"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <Ellipse Width="12" Height="12" Stroke="#66000000" StrokeThickness="1">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="#FF9E9E9E"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding MStatus.IsZLimitTriggered}" Value="True">
+                                                <Setter Property="Fill" Value="#FF00BFFF"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Clear Alarm Button -->
+                <Button x:Name="ClearAlarmMenuButton"
+                        Content="CLEAR ALARM"
+                        Click="ClearAlarmMenuButton_Click"
+                        Margin="0,0,0,0"
+                        Padding="0,8"
+                        Foreground="White"
+                        Cursor="Hand">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Setter Property="Background" Value="#FFFF7043"/>
+                            <Setter Property="BorderBrush" Value="#FFBF360C"/>
+                            <Setter Property="BorderThickness" Value="1"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="6">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding MachineStatus}" Value="Alarm">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+            </StackPanel>
+
         </Grid>
     </Border>
 </UserControl>

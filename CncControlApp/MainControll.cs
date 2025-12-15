@@ -1111,6 +1111,20 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
             try
             {
                 _stopProgressAppend?.Invoke("> === STOP SEQUENCE START ===");
+                
+                // ✅ CRITICAL FIX: Call StopGCodeAsync to actually stop the streaming service
+                // This sends Feed Hold, Queue Flush, Jog Cancel, Soft Reset to GRBL
+                try
+                {
+                    bool stopResult = await _gCodeManager.StopGCodeAsync();
+                    _stopProgressAppend?.Invoke(stopResult ? "> ✅ GrblStreamingService stopped" : "> ⚠️ GrblStreamingService stop returned false");
+                }
+                catch (Exception stopEx)
+                {
+                    _stopProgressAppend?.Invoke($"> ⚠️ GrblStreamingService stop error: {stopEx.Message}");
+                    AddLogMessage($"> ⚠️ StopGCodeAsync error: {stopEx.Message}");
+                }
+                
                 _gCodeManager?.CompleteStopSequence();
                 _stopProgressAppend?.Invoke("> Planner/completion flags set (CompleteStopSequence)");
                 _gCodeManager?.CancelExecution();
