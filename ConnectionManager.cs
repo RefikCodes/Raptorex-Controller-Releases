@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using CncControlApp.Services;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -98,6 +99,9 @@ namespace CncControlApp
         private bool _isAAxisAvailable = false;
     // Detect whether device speaks FluidNC config ($CD) for conditional features
     private bool _isFluidNCDetected = false;
+    
+    // Event-driven response tracker for ok/error/alarm handling
+    private readonly GCodeResponseTracker _responseTracker = new GCodeResponseTracker();
     // Track if we ever saw a welcome line that mentions RaptorexCNC
     private bool _sawRaptorexWelcome = false;
     // Track last seen Grbl base version from any line (e.g., 3.0, 1.1f)
@@ -319,6 +323,11 @@ namespace CncControlApp
         }
         public string ParserStateDisplay => _lastGcLine ?? "(bilgi yok)";
         public string MachineParamsText => _lastParamLines != null && _lastParamLines.Count > 0 ? string.Join(Environment.NewLine, _lastParamLines) : "";
+        
+        /// <summary>
+        /// Event-driven response tracker for ok/error/alarm - use for probe sequences
+        /// </summary>
+        public GCodeResponseTracker ResponseTracker => _responseTracker;
 
         #endregion
 
@@ -1624,6 +1633,9 @@ namespace CncControlApp
                 string trimmedLine = line.Trim();
                 if (string.IsNullOrWhiteSpace(trimmedLine)) continue;
 
+                // ✅ EVENT-DRIVEN: Forward ok/error/alarm to ResponseTracker for probe sequences
+                ProcessResponseForTracker(trimmedLine);
+
                 // Assemble bracketed lines that may arrive in fragments (e.g., "[G54:...", "[GC:...")
                 // If we see a segment starting with '[' but not ending with ']', keep buffering
                 if (trimmedLine.StartsWith("[", StringComparison.Ordinal) && !trimmedLine.EndsWith("]", StringComparison.Ordinal))
@@ -1886,6 +1898,139 @@ namespace CncControlApp
             }
 
             ResponseReceived?.Invoke(response);
+        }
+
+        /// <summary>
+        /// Forward ok/error/alarm/PRB responses to the ResponseTracker for event-driven probe handling
+        /// </summary>
+        private void ProcessResponseForTracker(string trimmedLine)
+        {
+            try
+            {
+                // Handle "ok" response
+                if (trimmedLine.Equals("ok", StringComparison.OrdinalIgnoreCase))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ResponseTracker] OK received, forwarding to tracker");
+                    _responseTracker.OnOkReceived();
+                    return;
+                }
+
+                // Handle "error:N" response
+                if (trimmedLine.StartsWith("error:", StringComparison.OrdinalIgnoreCase))
+                {
+                    int errorCode = 0;
+                    var errorMatch = System.Text.RegularExpressions.Regex.Match(trimmedLine, @"error:\s*(\d+)");
+                    if (errorMatch.Success)
+                    {
+                        int.TryParse(errorMatch.Groups[1].Value, out errorCode);
+                    }
+                    var errorMsg = GetGrblErrorMessage(errorCode);
+                    System.Diagnostics.Debug.WriteLine($"[ResponseTracker] ERROR received: {errorCode} - {errorMsg}");
+                    _responseTracker.OnErrorReceived(errorCode, errorMsg);
+                    return;
+                }
+
+                // Handle "ALARM:N" response
+                if (trimmedLine.StartsWith("ALARM:", StringComparison.OrdinalIgnoreCase))
+                {
+                    int alarmCode = 0;
+                    var alarmMatch = System.Text.RegularExpressions.Regex.Match(trimmedLine, @"ALARM:\s*(\d+)");
+                    if (alarmMatch.Success)
+                    {
+                        int.TryParse(alarmMatch.Groups[1].Value, out alarmCode);
+                    }
+                    var alarmMsg = GetGrblAlarmMessage(alarmCode);
+                    System.Diagnostics.Debug.WriteLine($"[ResponseTracker] ALARM received: {alarmCode} - {alarmMsg}");
+                    _responseTracker.OnAlarmReceived(alarmCode, alarmMsg);
+                    return;
+                }
+
+                // Handle "[PRB:x,y,z:1]" probe result
+                if (trimmedLine.StartsWith("[PRB:", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (GCodeResponseTracker.TryParsePrbResponse(trimmedLine, out double x, out double y, out double z, out bool success))
+                    {
+                        _responseTracker.OnProbeResultReceived(x, y, z, success);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ResponseTracker] Processing error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Get GRBL error message from code
+        /// </summary>
+        private static string GetGrblErrorMessage(int code)
+        {
+            switch (code)
+            {
+                case 1: return "G-code words consist of a letter and a value. Letter was not found.";
+                case 2: return "Numeric value format is not valid or missing an expected value.";
+                case 3: return "Grbl '$' system command was not recognized or supported.";
+                case 4: return "Negative value received for an expected positive value.";
+                case 5: return "Homing cycle is not enabled via settings.";
+                case 6: return "Minimum step pulse time must be greater than 3usec.";
+                case 7: return "EEPROM read failed. Reset and restored to default values.";
+                case 8: return "Grbl '$' command cannot be used unless Grbl is IDLE.";
+                case 9: return "G-code locked out during alarm or jog state.";
+                case 10: return "Soft limits cannot be enabled without homing also enabled.";
+                case 11: return "Max characters per line exceeded.";
+                case 12: return "Grbl '$' setting value exceeds the maximum step rate supported.";
+                case 13: return "Safety door detected as opened and door state initiated.";
+                case 14: return "Build info or startup line exceeds EEPROM line length limit.";
+                case 15: return "Jog target exceeds machine travel. Command ignored.";
+                case 16: return "Jog command with no '=' or contains prohibited g-code.";
+                case 17: return "Laser mode requires PWM output.";
+                case 20: return "Unsupported or invalid g-code command found.";
+                case 21: return "More than one g-code command from same modal group found.";
+                case 22: return "Feed rate has not yet been set or is undefined.";
+                case 23: return "G-code command in block requires an integer value.";
+                case 24: return "Two G-code commands that both require the use of the XYZ axis words were detected.";
+                case 25: return "A G-code word was repeated in the block.";
+                case 26: return "A G-code command implicitly or explicitly requires XYZ axis words in the block, but none were detected.";
+                case 27: return "N line number value is not within the valid range of 1 - 9,999,999.";
+                case 28: return "A G-code command was sent, but is missing some required P or L value.";
+                case 29: return "Grbl supports six work coordinate systems G54-G59.";
+                case 30: return "The G53 G-code command requires either a G0 seek or G1 feed motion mode to be active.";
+                case 31: return "There are unused axis words in the block and G80 motion mode cancel is active.";
+                case 32: return "A G2 or G3 arc was commanded but there are no XYZ axis words to trace the arc.";
+                case 33: return "The motion command has an invalid target.";
+                case 34: return "Arc radius value is invalid.";
+                case 35: return "A G2 or G3 arc, traced along the helical path, exceeds the configured axis travel.";
+                case 36: return "A G2 or G3 arc has an offset that requires a non-zero offset in the plane.";
+                case 37: return "An arc could not be computed.";
+                case 38: return "The selected plane for the arc is missing one of the required axis words.";
+                default: return $"Unknown error code {code}";
+            }
+        }
+
+        /// <summary>
+        /// Get GRBL alarm message from code
+        /// </summary>
+        private static string GetGrblAlarmMessage(int code)
+        {
+            switch (code)
+            {
+                case 1: return "Hard limit triggered. Machine position is likely lost due to sudden and immediate halt.";
+                case 2: return "G-code motion target exceeds machine travel. Machine position safely retained.";
+                case 3: return "Reset while in motion. Grbl cannot guarantee position. Lost steps are likely.";
+                case 4: return "Probe fail. Probe did not contact the workpiece.";
+                case 5: return "Probe fail. Probe did not clear during pulloff motion.";
+                case 6: return "Homing fail. Reset during active homing cycle.";
+                case 7: return "Homing fail. Safety door was opened during active homing cycle.";
+                case 8: return "Homing fail. Cycle failed to clear limit switch when pulling off.";
+                case 9: return "Homing fail. Could not find limit switch within search distance.";
+                case 10: return "EStop triggered.";
+                case 11: return "Homing required.";
+                case 12: return "Spindle control error.";
+                case 13: return "Control pins error.";
+                case 14: return "Ambiguous switch closure.";
+                case 15: return "Motor fault.";
+                default: return $"Unknown alarm code {code}";
+            }
         }
 
         private void AddOrUpdateSetting(GCodeSetting setting, bool isGrblFallback = false)

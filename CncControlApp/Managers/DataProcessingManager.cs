@@ -68,6 +68,10 @@ namespace CncControlApp.Managers
         public event Action<int> ExecutingLineReported;
         // NEW: Modal state updated from $G response (isSpindleOn, isCoolantOn)
         public event Action<bool, bool> ModalStateUpdated;
+        
+        // NEW: Event-driven response tracking for SendGCodeAndWaitAsync
+        public event Action OkReceived;
+        public event Action<int, string> ErrorReceived; // errorCode, errorMessage
 
         #endregion
 
@@ -248,7 +252,28 @@ namespace CncControlApp.Managers
             while ((lineEndIndex = bufferContent.IndexOf('\n')) != -1 && processedLines < 50)
             {
                 string line = bufferContent.Substring(0, lineEndIndex).Trim();
-                if (!string.IsNullOrWhiteSpace(line) && !line.Equals("ok", StringComparison.OrdinalIgnoreCase))
+                
+                // ✅ NEW: Event-driven "ok" detection for tracker
+                if (line.Equals("ok", StringComparison.OrdinalIgnoreCase))
+                {
+                    try { OkReceived?.Invoke(); } catch { }
+                    bufferContent = bufferContent.Remove(0, lineEndIndex + 1);
+                    processedLines++;
+                    continue;
+                }
+                
+                // ✅ NEW: Event-driven "error:N" detection for tracker
+                if (line.StartsWith("error:", StringComparison.OrdinalIgnoreCase))
+                {
+                    int errorCode = -1;
+                    string errorMsg = line;
+                    var codePart = line.Substring(6).Trim();
+                    int.TryParse(codePart.Split(' ')[0], out errorCode);
+                    try { ErrorReceived?.Invoke(errorCode, errorMsg); } catch { }
+                    // Continue to log the error message below
+                }
+                
+                if (!string.IsNullOrWhiteSpace(line))
                 {
                     DiagnosticTimingService.Record("ProcessBuffer.LineFound");
                     // NEW: Alarm detection (GRBL/FluidNC) e.g. ALARM:14 or info message containing Unhomed

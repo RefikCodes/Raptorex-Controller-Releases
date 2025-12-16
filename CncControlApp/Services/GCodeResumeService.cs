@@ -56,8 +56,12 @@ namespace CncControlApp.Services
             // Hangi satırdan alındı
             public int FromLine { get; set; } = 0;
             
+            // Güvenli Z yüksekliği (resume sırasında XY hareketinden önce Z bu yüksekliğe çekilir)
+            public const double SafeZHeight = 30.0;
+            
             /// <summary>
-            /// Resume için gerekli GCode komutlarını oluşturur
+            /// Resume için gerekli GCode komutlarını oluşturur.
+            /// Sıralama: Z güvenli yüksekliğe -> XY konumuna -> Z çalışma konumuna
             /// </summary>
             public List<string> GenerateResumeCommands()
             {
@@ -92,6 +96,16 @@ namespace CncControlApp.Services
                 {
                     commands.Add(CoolantState);
                 }
+                
+                // 8. GÜVENLİ POZİSYONA GİT:
+                // 8a. Önce Z'yi güvenli yüksekliğe çek (hızlı hareket)
+                commands.Add($"G0 Z{SafeZHeight.ToString("F3", CultureInfo.InvariantCulture)}");
+                
+                // 8b. XY konumuna git (hızlı hareket)
+                commands.Add($"G0 X{LastX.ToString("F3", CultureInfo.InvariantCulture)} Y{LastY.ToString("F3", CultureInfo.InvariantCulture)}");
+                
+                // 8c. Z'yi çalışma konumuna indir (hızlı hareket)
+                commands.Add($"G0 Z{LastZ.ToString("F3", CultureInfo.InvariantCulture)}");
                 
                 return commands;
             }

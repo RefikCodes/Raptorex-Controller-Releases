@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -58,7 +59,11 @@ namespace CncControlApp
         // Resume from line support
         private int _lastStoppedLineIndex = -1;
         private readonly Services.GCodeResumeService _resumeService = new Services.GCodeResumeService();
-        public int LastStoppedLineIndex => _lastStoppedLineIndex;
+        public int LastStoppedLineIndex 
+        { 
+            get => _lastStoppedLineIndex;
+            set => _lastStoppedLineIndex = value;
+        }
         public bool CanResumeFromLine => _lastStoppedLineIndex >= 0 && _gCodeManager?.GCodeLines?.Count > 0;
 
         // State
@@ -71,6 +76,10 @@ namespace CncControlApp
         private CentralStatusQuerier _centralStatusQuerier;
         private IDisposable _centralStatusSubscription;
         private bool _centralStatusQuerierEnabled = false;
+        
+        // Event-driven response tracker for SendGCodeAndWaitAsync
+        private TaskCompletionSource<bool> _currentOkWaiter;
+        private readonly object _okWaiterLock = new object();
 
         // Events
         public event Action<MenuPage> NavigateToPanel;
@@ -438,6 +447,27 @@ namespace CncControlApp
                     AddLogMessage($"> Homing alarm handle error: {ex.Message}");
                 }
             };
+            
+            // ✅ NEW: Event-driven "ok" response handling for SendGCodeAndWaitAsync
+            _dataProcessingManager.OkReceived += () =>
+            {
+                lock (_okWaiterLock)
+                {
+                    _currentOkWaiter?.TrySetResult(true);
+                    _currentOkWaiter = null;
+                }
+            };
+            
+            // ✅ NEW: Event-driven "error" response handling
+            _dataProcessingManager.ErrorReceived += (code, msg) =>
+            {
+                lock (_okWaiterLock)
+                {
+                    _currentOkWaiter?.TrySetResult(false);
+                    _currentOkWaiter = null;
+                }
+                AddLogMessage($"> ❌ GRBL Error {code}: {msg}");
+            };
 
             _errorHandlingService = new ErrorHandlingService(m => _uiManager.LogMessages.Add(m));
             ErrorLogger.LogDebug("ErrorHandlingService oluşturuldu");
@@ -633,6 +663,132 @@ namespace CncControlApp
 
         public Task<bool> SendGCodeCommandWithConfirmationAsync(string g) => _gCodeManager.SendGCodeCommandWithConfirmationAsync(g);
         public Task<bool> SendControlCharacterAsync(char c) => _gCodeManager.SendControlCharacterAsync(c);
+        
+        /// <summary>
+        /// Send a G-code command and wait for 'ok' response using event-driven tracking.
+        /// This is the RELIABLE way to send commands during probe sequences.
+        /// </summary>
+        /// <param name="gcode">G-code command to send</param>
+        /// <param name="timeoutMs">Timeout in milliseconds (default 5000)</param>
+        /// <returns>CommandResult with success/error status</returns>
+        public async Task<Services.CommandResult> SendAndWaitOkAsync(string gcode, int timeoutMs = 5000)
+        {
+            if (!IsConnected)
+            {
+                AddLogMessage($"> ❌ SendAndWaitOkAsync: Not connected - {gcode}");
+                return Services.CommandResult.Failed("Not connected", gcode);
+            }
+
+            try
+            {
+                var tracker = _connectionManager.ResponseTracker;
+                
+                // Create completion task BEFORE sending command
+                using (var cts = new System.Threading.CancellationTokenSource(timeoutMs))
+                {
+                    var completionTask = tracker.TrackCommandWithCompletionAsync(gcode, cts.Token);
+                    
+                    AddLogMessage($"> 📤 Sending: {gcode} (timeout={timeoutMs}ms)");
+                    
+                    // Now send the command
+                    bool sent = await _connectionManager.SendGCodeCommandAsync(gcode);
+                    if (!sent)
+                    {
+                        AddLogMessage($"> ❌ SendAndWaitOkAsync: Send failed - {gcode}");
+                        return Services.CommandResult.Failed("Send failed", gcode);
+                    }
+
+                    // Wait for ok/error response
+                    try
+                    {
+                        var result = await completionTask;
+                        if (result.IsSuccess)
+                        {
+                            AddLogMessage($"> ✅ OK received for: {gcode}");
+                        }
+                        else
+                        {
+                            AddLogMessage($"> ❌ Error for {gcode}: {result.ErrorMessage}");
+                        }
+                        return result;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        AddLogMessage($"> ⏱️ TIMEOUT ({timeoutMs}ms) waiting for: {gcode}");
+                        return Services.CommandResult.Failed($"Timeout ({timeoutMs}ms)", gcode);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLogMessage($"> ❌ SendAndWaitOkAsync error: {ex.Message}");
+                return Services.CommandResult.Failed(ex.Message, gcode);
+            }
+        }
+
+        /// <summary>
+        /// Send a G-code command and wait for 'ok', returning simple bool.
+        /// ✅ NOW EVENT-DRIVEN: Waits for actual "ok" response from GRBL via DataProcessingManager events.
+        /// </summary>
+        public async Task<bool> SendGCodeAndWaitAsync(string gcode, int timeoutMs = 5000)
+        {
+            if (!IsConnected)
+            {
+                AddLogMessage($"> ❌ SendGCodeAndWaitAsync: Not connected - {gcode}");
+                return false;
+            }
+
+            try
+            {
+                // Create waiter BEFORE sending command
+                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                lock (_okWaiterLock)
+                {
+                    _currentOkWaiter = tcs;
+                }
+
+                AddLogMessage($"> 📤 Sending (event-driven): {gcode}");
+                
+                // Send command directly to serial port
+                bool sent = await _connectionManager.SendGCodeCommandAsync(gcode);
+                if (!sent)
+                {
+                    lock (_okWaiterLock) { _currentOkWaiter = null; }
+                    AddLogMessage($"> ❌ Failed to send: {gcode}");
+                    return false;
+                }
+                
+                // Wait for "ok" or timeout
+                using (var cts = new CancellationTokenSource(timeoutMs))
+                {
+                    try
+                    {
+                        cts.Token.Register(() => tcs.TrySetResult(false));
+                        bool result = await tcs.Task;
+                        if (result)
+                        {
+                            AddLogMessage($"> ✅ Ok received for: {gcode}");
+                        }
+                        else
+                        {
+                            AddLogMessage($"> ⚠️ Timeout or error waiting for ok: {gcode}");
+                        }
+                        return result;
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        AddLogMessage($"> ⏱️ Timeout waiting for ok: {gcode}");
+                        return false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLogMessage($"> ❌ SendGCodeAndWaitAsync error: {ex.Message}");
+                return false;
+            }
+        }
+        
         public void RecalculateRemainingTimeWithFeedOverride(int p) { try { _gCodeManager?.RecalculateRemainingTimeWithFeedOverride(p); } catch { } }
 
         // Step helpers
@@ -1601,12 +1757,6 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
             dialog.Owner = Application.Current.MainWindow;
             dialog.SetResumeData(resumeFromLine, totalLines, modalState, preambleLines, resumeCommands);
             
-            // Git butonu event'ini dinle
-            dialog.GoToPositionRequested += async (s, args) =>
-            {
-                await GoToResumePositionAsync(args.X, args.Y, args.Z);
-            };
-            
             bool? result = dialog.ShowDialog();
             
             if (result == true && dialog.Confirmed)
@@ -1619,34 +1769,6 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
             }
             
             return false;
-        }
-        
-        /// <summary>
-        /// Resume pozisyonuna G0 ile git
-        /// </summary>
-        private async Task GoToResumePositionAsync(double x, double y, double z)
-        {
-            try
-            {
-                // Önce Z'yi güvenli yüksekliğe çıkar (varsa mevcut Z'den yukarıda ise)
-                // Sonra XY'ye git, sonra Z'ye in
-                // Bu standart güvenli hareket sırası
-                
-                string zUp = $"G0 Z{z.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}";
-                string xyMove = $"G0 X{x.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)} Y{y.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}";
-                
-                AddLogMessage($"> 🚀 Resume pozisyonuna gidiliyor: X{x:F3} Y{y:F3} Z{z:F3}");
-                
-                // Tek komut olarak gönder - G0 X Y Z
-                string goCommand = $"G0 X{x.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)} Y{y.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)} Z{z.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}";
-                await SendGCodeCommandAsync(goCommand);
-                
-                AddLogMessage($"> ✅ Pozisyona gidiliyor...");
-            }
-            catch (System.Exception ex)
-            {
-                AddLogMessage($"> ❌ Pozisyona gidiş hatası: {ex.Message}");
-            }
         }
         
         /// <summary>

@@ -537,7 +537,13 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
 
         <!-- NEW: Horizontal Menu Panel between Stats and Canvas -->
         <Grid Grid.Row="1" Grid.Column="0" Margin="10,6,10,6">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Sol taraf: Mevcut menü butonları -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <!-- Frame 1: OPEN FILE and RUN -->
                 <Border Background="#FF1E1E20"
      BorderBrush="#FF5F6368"
@@ -563,17 +569,6 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <TextBlock Text="▶️" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                 <TextBlock Text="RUN" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                        <Button x:Name="ResumeFromLineButton"
-  Style="{StaticResource HorizontalMenuButtonStyle}"
-         Click="ResumeFromLineButton_Click"
-           Foreground="#FF00BFFF"
-  Margin="0"
-  Visibility="Collapsed">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <TextBlock Text="⏩" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="ResumeButtonText" Text="RESUME" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -635,6 +630,39 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
                     </StackPanel>
                 </Button>
             </StackPanel>
+            
+            <!-- Sağ taraf: Başlama Satırı butonu - G-Code yüklü değilse gizli -->
+            <Border x:Name="ResumeButtonsPanel" Grid.Column="1" Background="#FF1E1E20"
+                    BorderBrush="#FF5F6368"
+                    BorderThickness="1"
+                    CornerRadius="5"
+                    Padding="6"
+                    Height="62"
+                    HorizontalAlignment="Right"
+                    Visibility="Collapsed">
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                    <!-- Uyarı etiketi - sadece kayıtlı satır varsa görünür -->
+                    <TextBlock x:Name="ResumeWarningLabel" 
+                               Text="⚠️ Son kalan işin devamı" 
+                               FontSize="9" 
+                               Foreground="#FFFFCC00" 
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,4"
+                               Visibility="Collapsed"/>
+                    <Button x:Name="StartFromLineButton"
+                            Style="{StaticResource HorizontalMenuButtonStyle}"
+                            Click="StartFromLineButton_Click"
+                            Foreground="#FFFFAA00"
+                            Height="36"
+                            IsEnabled="False">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="📍" FontSize="16" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Başlama Satırı:" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock x:Name="StartLineNumberText" Text="0" FontSize="12" FontWeight="Bold" Foreground="#FF00BFFF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Border>
         </Grid>
 
         <!-- RIGHT: TOP BUTTON PANEL removed; primary actions moved to horizontal menu -->

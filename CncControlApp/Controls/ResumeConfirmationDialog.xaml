@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Kaldığı Yerden Devam Et"
-        Width="500" Height="580"
+        Width="550" Height="620"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="#FF1E1E20"
@@ -22,188 +22,129 @@
             </Grid.RowDefinitions>
             
             <!-- Header -->
-            <Border Grid.Row="0" Background="#FF3D3D40" Padding="18,14" CornerRadius="14,14,0,0">
+            <Border Grid.Row="0" Background="#FF3D3D40" Padding="16,12" CornerRadius="14,14,0,0">
                 <DockPanel>
                     <Ellipse Width="10" Height="10" Fill="#FF34C759" VerticalAlignment="Center"/>
                     <TextBlock Text="▶️ Kaldığı Yerden Devam Et" 
                                Margin="10,0,0,0"
-                               Foreground="White" FontSize="20" FontWeight="SemiBold"/>
-                    <Button Content="✕" Width="30" Height="30" 
+                               Foreground="White" FontSize="18" FontWeight="SemiBold"/>
+                    <Button Content="✕" Width="28" Height="28" 
                             HorizontalAlignment="Right" DockPanel.Dock="Right"
                             Background="Transparent" Foreground="#FFAAAAAA" BorderThickness="0"
-                            FontSize="16" Cursor="Hand"
+                            FontSize="14" Cursor="Hand"
                             Click="CloseButton_Click"/>
                 </DockPanel>
             </Border>
             
             <!-- Content -->
-            <ScrollViewer Grid.Row="1" Margin="15" VerticalScrollBarVisibility="Auto">
-                <StackPanel>
-                    <!-- Stop Info -->
-                    <Border Background="#FF3D3D40" CornerRadius="8" Padding="12" Margin="0,0,0,10">
-                        <StackPanel>
-                            <TextBlock Text="📍 Durma Bilgisi" Foreground="#FFDDDDDD" FontWeight="Bold" FontSize="14"/>
-                            <Grid Margin="0,8,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Durduğu Satır:" Foreground="#aaa" Margin="0,0,10,4"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtStoppedLine" Foreground="White" FontWeight="Bold"/>
-                                
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Toplam Satır:" Foreground="#aaa" Margin="0,0,10,4"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtTotalLines" Foreground="White"/>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-                    
-                    <!-- ⚠️ CRITICAL: Son Pozisyon Bilgisi -->
-                    <Border Background="#FF3D3D40" BorderBrush="#FFFFC107" BorderThickness="2" CornerRadius="8" Padding="12" Margin="0,0,0,10">
-                        <StackPanel>
-                            <TextBlock Text="🎯 MAKİNEYİ BU POZİSYONA GETİRİN!" Foreground="#FFFFC107" FontWeight="Bold" FontSize="14"/>
-                            <Grid Margin="0,10,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="50"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="X:" Foreground="#FFFFC107" FontWeight="Bold" FontSize="16"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtLastX" Foreground="White" FontWeight="Bold" FontSize="16"/>
-                                
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Y:" Foreground="#FFFFC107" FontWeight="Bold" FontSize="16" Margin="0,4,0,0"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtLastY" Foreground="White" FontWeight="Bold" FontSize="16" Margin="0,4,0,0"/>
-                                
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Z:" Foreground="#FFFFC107" FontWeight="Bold" FontSize="16" Margin="0,4,0,0"/>
-                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtLastZ" Foreground="White" FontWeight="Bold" FontSize="16" Margin="0,4,0,0"/>
-                            </Grid>
-                            
-                            <!-- Git Butonu - G0 ile bu pozisyona gönder -->
-                            <Button x:Name="btnGoToPosition" Content="🚀 Bu Pozisyona Git (G0)" 
-                                    Width="200" Height="32" Margin="0,12,0,0"
-                                    Background="#FFFFC107" Foreground="#FF1E1E20" FontWeight="Bold"
-                                    BorderThickness="0" Cursor="Hand"
-                                    Click="GoToPosition_Click">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="10,5">
-                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                            
-                            <TextBlock Text="⚠️ Resume'dan önce makineyi bu koordinatlara getirmeniz gerekiyor!" 
-                                       Foreground="#ffcc00" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
-                        </StackPanel>
-                    </Border>
-                    
-                    <!-- Modal State -->
-                    <Border Background="#FF3D3D40" CornerRadius="8" Padding="12" Margin="0,0,0,10">
-                        <StackPanel>
-                            <TextBlock Text="⚙️ Modal State (Otomatik Algılandı)" Foreground="#FFDDDDDD" FontWeight="Bold" FontSize="14"/>
-                            <Grid Margin="0,8,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Koordinat Sistemi:" Foreground="#aaa" Margin="0,0,10,4"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtCoordSystem" Foreground="#00ff88" FontWeight="Bold"/>
-                                
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Distance Mode:" Foreground="#aaa" Margin="0,0,10,4"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtDistanceMode" Foreground="White"/>
-                                
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Birim:" Foreground="#aaa" Margin="0,0,10,4"/>
-                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtUnits" Foreground="White"/>
-                                
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Spindle:" Foreground="#aaa" Margin="0,0,10,4"/>
-                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="txtSpindle" Foreground="#ffaa00" FontWeight="Bold"/>
-                                
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Feed Rate:" Foreground="#aaa" Margin="0,0,10,4"/>
-                                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="txtFeedRate" Foreground="#00aaff"/>
-                                
-                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Coolant:" Foreground="#aaa" Margin="0,0,10,4"/>
-                                <TextBlock Grid.Row="5" Grid.Column="1" x:Name="txtCoolant" Foreground="White"/>
-                                
-                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Tool:" Foreground="#aaa" Margin="0,0,10,4"/>
-                                <TextBlock Grid.Row="6" Grid.Column="1" x:Name="txtTool" Foreground="White"/>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-                    
-                    <!-- Preamble Info -->
-                    <Border Background="#FF3D3D40" CornerRadius="8" Padding="12" Margin="0,0,0,10">
-                        <StackPanel>
-                            <TextBlock Text="📋 Preamble (Başlangıç Komutları)" Foreground="#FFDDDDDD" FontWeight="Bold" FontSize="14"/>
-                            <TextBlock x:Name="txtPreambleInfo" Foreground="#aaa" Margin="0,4,0,0" TextWrapping="Wrap"/>
-                            <CheckBox x:Name="chkRunPreamble" Content="Preamble'ı çalıştır" 
-                                      Foreground="White" Margin="0,8,0,0" IsChecked="True"/>
-                        </StackPanel>
-                    </Border>
-                    
-                    <!-- Resume Commands Preview -->
-                    <Border Background="#FF3D3D40" CornerRadius="8" Padding="12">
-                        <StackPanel>
-                            <TextBlock Text="🔧 Gönderilecek Hazırlık Komutları" Foreground="#FFDDDDDD" FontWeight="Bold" FontSize="14"/>
-                            <Border Background="#FF1E1E20" CornerRadius="6" Margin="0,8,0,0" Padding="8">
-                                <TextBlock x:Name="txtResumeCommands" Foreground="#00ff88" 
-                                           FontFamily="Consolas" FontSize="11" TextWrapping="Wrap"/>
-                            </Border>
-                        </StackPanel>
-                    </Border>
-                    
-                    <!-- Warning -->
-                    <Border Background="#FF4A3030" CornerRadius="8" Padding="10" Margin="0,10,0,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="⚠️" FontSize="20" Margin="0,0,10,0"/>
-                            <TextBlock Text="Makineyi MANUEL olarak doğru pozisyona getirdiğinizden emin olun!" 
-                                       Foreground="#FFFF6B6B" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </ScrollViewer>
+            <StackPanel Grid.Row="1" Margin="16,12,16,12">
+                <!-- Stop Info - Kompakt -->
+                <Border Background="#FF3D3D40" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="📍 Satır:" Foreground="#aaa" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" x:Name="txtStoppedLine" Foreground="White" FontWeight="Bold" Margin="6,0,20,0" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="Toplam:" Foreground="#aaa" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="3" x:Name="txtTotalLines" Foreground="White" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+                
+                <!-- ℹ️ Otomatik Pozisyonlama Bilgisi -->
+                <Border Background="#FF203040" BorderBrush="#FF00BFFF" BorderThickness="1.5" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                    <StackPanel>
+                        <TextBlock Text="ℹ️ Otomatik Pozisyonlama" 
+                                   Foreground="#FF00BFFF" FontWeight="Bold" FontSize="13"/>
+                        <TextBlock Text="Z önce 30mm güvenli yüksekliğe çekilecek, sonra XY konumuna gidilecek, ardından Z çalışma yüksekliğine indirilecek." 
+                                   Foreground="#FFB0D0E0" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Hedef Koordinatlar -->
+                <Border Background="#FF3D3D40" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                    <StackPanel>
+                        <TextBlock Text="🎯 Hedef Koordinatlar (Otomatik Gidilecek)" Foreground="#FFDDDDDD" FontWeight="Bold" FontSize="12"/>
+                        <Grid Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <TextBlock Text="X:" Foreground="#FF00BFFF" FontWeight="Bold" FontSize="14"/>
+                                <TextBlock x:Name="txtLastX" Foreground="White" FontWeight="Bold" FontSize="14" Margin="4,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <TextBlock Text="Y:" Foreground="#FF00BFFF" FontWeight="Bold" FontSize="14"/>
+                                <TextBlock x:Name="txtLastY" Foreground="White" FontWeight="Bold" FontSize="14" Margin="4,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <TextBlock Text="Z:" Foreground="#FF00BFFF" FontWeight="Bold" FontSize="14"/>
+                                <TextBlock x:Name="txtLastZ" Foreground="White" FontWeight="Bold" FontSize="14" Margin="4,0,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                
+                <!-- ⚠️ Koordinat Sıfır Kontrolü -->
+                <Border Background="#FF4A3A20" BorderBrush="#FFFFC107" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                    <StackPanel>
+                        <TextBlock Text="⚠️ Koordinat Kayması Kontrolü" Foreground="#FFFFC107" FontWeight="Bold" FontSize="12"/>
+                        <TextBlock Text="Work Zero (G-Code sıfır noktası) değişmediyse, makine doğru koordinata gidecektir." 
+                                   Foreground="#FFE0D0A0" FontSize="11" Margin="0,4,0,6"/>
+                        <CheckBox x:Name="chkZeroConfirmed" Foreground="White" FontSize="12">
+                            <CheckBox.Content>
+                                <TextBlock Text="Koordinat sıfırlarının doğru olduğunu onaylıyorum" Foreground="White"/>
+                            </CheckBox.Content>
+                        </CheckBox>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Modal State -->
+                <Border Background="#FF3D3D40" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                    <StackPanel>
+                        <TextBlock Text="⚙️ Modal State" Foreground="#FFDDDDDD" FontWeight="Bold" FontSize="12"/>
+                        <TextBlock x:Name="txtModalSummary" Foreground="#FF00FF88" FontFamily="Consolas" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Preamble -->
+                <Border Background="#FF3D3D40" CornerRadius="6" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="📋 Preamble" Foreground="#FFDDDDDD" FontWeight="Bold" FontSize="12"/>
+                        <TextBlock x:Name="txtPreambleInfo" Foreground="#aaa" FontSize="11" Margin="0,4,0,4"/>
+                        <CheckBox x:Name="chkRunPreamble" Content="Preamble'ı çalıştır" 
+                                  Foreground="White" FontSize="11" IsChecked="True"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
             
             <!-- Buttons -->
-            <Border Grid.Row="2" Background="#FF3D3D40" Padding="15" CornerRadius="0,0,14,14">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Button Content="✅ Devam Et" Width="130" Height="38" 
-                            Background="#FF34C759" Foreground="White" FontWeight="Bold"
-                            BorderThickness="0" Margin="0,0,15,0"
-                            Cursor="Hand" Click="ConfirmButton_Click">
+            <Border Grid.Row="2" Background="#FF3D3D40" Padding="16,12" CornerRadius="0,0,14,14">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button x:Name="btnConfirm" Content="✅ Devam Et" Width="140" Height="38" 
+                            Background="#FF34C759" Foreground="White" FontWeight="Bold" FontSize="13"
+                            BorderThickness="0" Margin="0,0,12,0"
+                            Cursor="Hand" Click="ConfirmButton_Click" IsEnabled="False">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="10,5">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="8,4">
                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                             </ControlTemplate>
                         </Button.Template>
                     </Button>
-                    <Button Content="❌ İptal" Width="130" Height="38"
-                            Background="#FFFF3B30" Foreground="White" FontWeight="Bold"
+                    <Button Content="❌ İptal" Width="140" Height="38"
+                            Background="#FFFF3B30" Foreground="White" FontWeight="Bold" FontSize="13"
                             BorderThickness="0" Cursor="Hand"
                             Click="CancelButton_Click">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="10,5">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="8,4">
                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                             </ControlTemplate>

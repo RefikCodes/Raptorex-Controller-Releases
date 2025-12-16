@@ -237,16 +237,30 @@ namespace CncControlApp
                         }
                     }
                     
-                    // Resume butonu görünürlüğü
-                    if (ResumeFromLineButton != null)
+                    // Başlama Satırı paneli - sadece G-Code yüklüyse görünür
+                    if (ResumeButtonsPanel != null)
                     {
-                        bool showResume = canResume && !running && !hold && connected && loaded;
-                        ResumeFromLineButton.Visibility = showResume ? Visibility.Visible : Visibility.Collapsed;
+                        ResumeButtonsPanel.Visibility = loaded ? Visibility.Visible : Visibility.Collapsed;
+                    }
+                    
+                    // Başlama Satırı butonu ve satır numarası gösterimi
+                    if (StartFromLineButton != null)
+                    {
+                        StartFromLineButton.IsEnabled = connected && loaded && !running && !hold;
                         
-                        if (showResume && ResumeButtonText != null)
+                        // Satır numarasını güncelle
+                        int lastLine = App.MainController?.LastStoppedLineIndex ?? -1;
+                        int displayLine = (lastLine >= 0) ? (lastLine + 1) : 0;
+                        
+                        if (StartLineNumberText != null)
                         {
-                            int lastLine = App.MainController.LastStoppedLineIndex;
-                            ResumeButtonText.Text = $"RESUME ({lastLine + 1})";
+                            StartLineNumberText.Text = displayLine.ToString();
+                        }
+                        
+                        // Uyarı etiketi - kayıtlı satır varsa göster
+                        if (ResumeWarningLabel != null)
+                        {
+                            ResumeWarningLabel.Visibility = (lastLine >= 0) ? Visibility.Visible : Visibility.Collapsed;
                         }
                     }
 
@@ -292,9 +306,51 @@ namespace CncControlApp
         }
         
         /// <summary>
-        /// Resume from line butonu click handler
+        /// Başlama Satırı butonunun görünürlüğünü günceller
         /// </summary>
-        private async void ResumeFromLineButton_Click(object sender, RoutedEventArgs e)
+        private void UpdateResumeButtonVisibility()
+        {
+            try
+            {
+                if (StartFromLineButton == null) return;
+                
+                int lastLine = App.MainController?.LastStoppedLineIndex ?? -1;
+                bool isConnected = App.MainController?.IsConnected ?? false;
+                bool hasGCode = App.MainController?.CanStartExecution ?? false;
+                
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    // Panel görünürlüğü - sadece G-Code yüklüyse görünür
+                    if (ResumeButtonsPanel != null)
+                    {
+                        ResumeButtonsPanel.Visibility = hasGCode ? Visibility.Visible : Visibility.Collapsed;
+                    }
+                    
+                    // Başlama Satırı butonu - bağlı ve G-Code yüklüyse aktif
+                    StartFromLineButton.IsEnabled = isConnected && hasGCode;
+                    
+                    // Satır numarasını güncelle
+                    int displayLine = (lastLine >= 0) ? (lastLine + 1) : 0;
+                    
+                    if (StartLineNumberText != null)
+                    {
+                        StartLineNumberText.Text = displayLine.ToString();
+                    }
+                    
+                    // Uyarı etiketi - kayıtlı satır varsa göster
+                    if (ResumeWarningLabel != null)
+                    {
+                        ResumeWarningLabel.Visibility = (lastLine >= 0) ? Visibility.Visible : Visibility.Collapsed;
+                    }
+                }));
+            }
+            catch { }
+        }
+        
+        /// <summary>
+        /// Başlama Satırı butonu click handler - kayıtlı satır varsa onu kullanır, yoksa dialog açar
+        /// </summary>
+        private async void StartFromLineButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -310,11 +366,27 @@ namespace CncControlApp
                     return;
                 }
                 
-                if (!App.MainController.CanResumeFromLine)
+                if (!App.MainController.CanStartExecution)
                 {
-                    ShowErrorMessage("Devam edilecek satır bilgisi bulunamadı.\nÖnce bir iş çalıştırıp STOP yapmalısınız.", "Resume Mümkün Değil");
+                    ShowErrorMessage("G-Code dosyası yüklü değil.", "G-Code Gerekli");
                     return;
                 }
+                
+                // Kayıtlı satır numarasını al
+                int lastLine = App.MainController.LastStoppedLineIndex;
+                int defaultLine = (lastLine >= 0) ? (lastLine + 1) : 1; // 1-based for dialog
+                
+                // Satır numarası sor (kayıtlı satır varsa onu default olarak göster)
+                var lineInput = await ShowLineInputDialogAsync(defaultLine);
+                if (lineInput == null || lineInput < 1)
+                {
+                    return; // Kullanıcı iptal etti
+                }
+                
+                int lineIndex = lineInput.Value - 1; // 0-based index
+                
+                // LastStoppedLineIndex'i ayarla ve resume dialog'u göster
+                App.MainController.LastStoppedLineIndex = lineIndex;
                 
                 bool result = await App.MainController.ShowResumeFromLineDialogAsync();
                 
@@ -325,33 +397,29 @@ namespace CncControlApp
             }
             catch (Exception ex)
             {
-                ShowErrorMessage($"Resume hatası:\n{ex.Message}", "Resume Error");
+                ShowErrorMessage($"Satırdan başlama hatası:\n{ex.Message}", "Hata");
             }
         }
         
         /// <summary>
-        /// Resume butonunun görünürlüğünü günceller
+        /// Satır numarası giriş dialogu gösterir
         /// </summary>
-        private void UpdateResumeButtonVisibility()
+        private async System.Threading.Tasks.Task<int?> ShowLineInputDialogAsync(int defaultLine = 1)
         {
-            try
+            int? result = null;
+            
+            await Dispatcher.InvokeAsync(() =>
             {
-                if (ResumeFromLineButton == null) return;
+                var dialog = new Controls.LineInputDialog(defaultLine);
+                dialog.Owner = Window.GetWindow(this);
                 
-                bool canResume = App.MainController?.CanResumeFromLine ?? false;
-                int lastLine = App.MainController?.LastStoppedLineIndex ?? -1;
-                
-                Dispatcher.BeginInvoke(new Action(() =>
+                if (dialog.ShowDialog() == true)
                 {
-                    ResumeFromLineButton.Visibility = canResume ? Visibility.Visible : Visibility.Collapsed;
-                    
-                    if (canResume && ResumeButtonText != null && lastLine >= 0)
-                    {
-                        ResumeButtonText.Text = $"RESUME ({lastLine + 1})";
-                    }
-                }));
-            }
-            catch { }
+                    result = dialog.LineNumber;
+                }
+            });
+            
+            return result;
         }
     }
 }

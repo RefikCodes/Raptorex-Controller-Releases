@@ -9,14 +9,21 @@ using CncControlApp.Helpers;
 namespace CncControlApp.Services
 {
     /// <summary>
-    /// Centralized Probe Manager - Unified probing system for all axes (Z, X+, X-, Y+, Y-)
-    /// Uses the same robust sequence: coarse probe → multiple fine probes with validation
+    /// Probe Manager - Temiz ve basit probe sistemi
+    /// 
+    /// AKIŞ (tüm eksenler için aynı):
+    /// 1. Coarse probe (hızlı yaklaşma)
+    /// 2. Retract (geri çekil)
+    /// 3. Fine probe x N (yavaş, hassas - doğrulama için)
+    /// 4. Sonuç hesapla ve dön
     /// </summary>
     public class ProbeManager
     {
         private readonly MainControll _controller;
+        
+        // Sabitler
         private const int MaxProbeFeed = 300;
-        private const double FineToleranceThreshold = 0.06; // mm
+        private const double FineToleranceThreshold = 0.06; // mm - iki ölçüm arası max fark
         private const int MaxFineAttempts = 6;
 
         public ProbeManager(MainControll controller)
@@ -24,705 +31,191 @@ namespace CncControlApp.Services
             _controller = controller ?? throw new ArgumentNullException(nameof(controller));
         }
 
-        #region Public Probe Methods
+        #region Public API
 
-        /// <summary>
-        /// Execute Z probe with validated fine measurements
-        /// </summary>
-        public async Task<ProbeResult> ProbeZAsync(bool manageSession = true)
+        /// <summary>Z probe - aşağı doğru</summary>
+        public Task<ProbeResult> ProbeZAsync(bool manageSession = true)
         {
-            return await ExecuteProbeSequenceAsync(
-                axis: 'Z',
-                direction: -1, // Z probes downward (negative direction)
-                coarseDistance: 30.0,
-                fineDistance: 6.0,
-                retractAfterCoarse: 2.0,
-                retractAfterFine: 1.0,
-                finalRetract: 10.0,
-                manageSession: manageSession // Caller controls session management
-            );
+            return ExecuteProbeAsync('Z', -1, 30.0, 6.0, 2.0, 1.0, 10.0, manageSession);
         }
 
-        /// <summary>
-        /// Execute X+ probe (positive direction)
-        /// </summary>
-        public async Task<ProbeResult> ProbeXPlusAsync(double maxDistance = 30.0, bool manageSession = true)
+        /// <summary>X+ probe - sağa doğru</summary>
+        public Task<ProbeResult> ProbeXPlusAsync(double maxDistance = 30.0, bool manageSession = true)
         {
-            return await ExecuteProbeSequenceAsync(
-                axis: 'X',
-                direction: 1, // X+ moves in positive direction
-                coarseDistance: maxDistance,
-                fineDistance: 6.0,
-                retractAfterCoarse: 2.0,
-                retractAfterFine: 1.0,
-                finalRetract: 10.0,
-                manageSession: manageSession // Caller controls session management
-            );
+            return ExecuteProbeAsync('X', +1, maxDistance, 6.0, 2.0, 1.0, 10.0, manageSession);
         }
 
-        /// <summary>
-        /// Execute X- probe (negative direction)
-        /// </summary>
-        public async Task<ProbeResult> ProbeXMinusAsync(double maxDistance = 30.0, bool manageSession = true)
+        /// <summary>X- probe - sola doğru</summary>
+        public Task<ProbeResult> ProbeXMinusAsync(double maxDistance = 30.0, bool manageSession = true)
         {
-            return await ExecuteProbeSequenceAsync(
-                axis: 'X',
-                direction: -1, // X- moves in negative direction
-                coarseDistance: maxDistance,
-                fineDistance: 6.0,
-                retractAfterCoarse: 2.0,
-                retractAfterFine: 1.0,
-                finalRetract: 10.0,
-                manageSession: manageSession
-            );
+            return ExecuteProbeAsync('X', -1, maxDistance, 6.0, 2.0, 1.0, 10.0, manageSession);
         }
 
-        /// <summary>
-        /// Execute Y+ probe (positive direction)
-        /// </summary>
-        public async Task<ProbeResult> ProbeYPlusAsync(double maxDistance = 30.0, bool manageSession = true)
+        /// <summary>Y+ probe - öne doğru</summary>
+        public Task<ProbeResult> ProbeYPlusAsync(double maxDistance = 30.0, bool manageSession = true)
         {
-            return await ExecuteProbeSequenceAsync(
-                axis: 'Y',
-                direction: 1, // Y+ moves in positive direction
-                coarseDistance: maxDistance,
-                fineDistance: 6.0,
-                retractAfterCoarse: 2.0,
-                retractAfterFine: 1.0,
-                finalRetract: 10.0,
-                manageSession: manageSession
-            );
+            return ExecuteProbeAsync('Y', +1, maxDistance, 6.0, 2.0, 1.0, 10.0, manageSession);
         }
 
-        /// <summary>
-        /// Execute Y- probe (negative direction)
-        /// </summary>
-        public async Task<ProbeResult> ProbeYMinusAsync(double maxDistance = 30.0, bool manageSession = true)
+        /// <summary>Y- probe - arkaya doğru</summary>
+        public Task<ProbeResult> ProbeYMinusAsync(double maxDistance = 30.0, bool manageSession = true)
         {
-            return await ExecuteProbeSequenceAsync(
-                axis: 'Y',
-                direction: -1, // Y- moves in negative direction
-                coarseDistance: maxDistance,
-                fineDistance: 6.0,
-                retractAfterCoarse: 2.0,
-                retractAfterFine: 1.0,
-                finalRetract: 10.0,
-                manageSession: manageSession
-            );
+            return ExecuteProbeAsync('Y', -1, maxDistance, 6.0, 2.0, 1.0, 10.0, manageSession);
         }
 
         #endregion
 
-        #region Core Probe Sequence
-
-        private async Task<bool> EnsureAbsoluteModeAsync()
-        {
-            if (_controller == null) return false;
-            try
-            {
-                string status = _controller.MachineStatus ?? string.Empty;
-                status = status.ToLowerInvariant();
-
-                // Fast alarm clear
-                if (status.StartsWith("alarm"))
-                {
-                    _controller.AddLogMessage("> ⚠️ G90 pre-check: Alarm state detected – sending $X");
-                    await _controller.SendGCodeCommandAsync("$X");
-                    await Task.Delay(200);
-                }
-
-                // Fast hold clear
-                if (status.StartsWith("hold"))
-                {
-                    _controller.AddLogMessage("> ⚠️ G90 pre-check: Hold state detected – soft reset + unlock");
-                    try { await _controller.SendControlCharacterAsync('\x18'); } catch { }
-                    await Task.Delay(250);
-                    await _controller.SendGCodeCommandAsync("$X");
-                    await Task.Delay(200);
-                }
-
-                // Retry G90 up to3 times, fallback to direct send
-                for (int attempt =1; attempt <=3; attempt++)
-                {
-                    bool ok = await _controller.SendGCodeCommandWithConfirmationAsync("G90");
-                    if (!ok)
-                    {
-                        _controller.AddLogMessage($"> ⚠️ G90 attempt {attempt} failed – retrying");
-                        // Fallback direct send on last attempt
-                        if (attempt ==3)
-                        {
-                            _controller.AddLogMessage("> 🔄 G90 direct send fallback");
-                            try { ok = await _controller.ForceSendGCodeCommandAsync("G90"); } catch { ok = false; }
-                        }
-                    }
-                    if (ok)
-                    {
-                        await Task.Delay(120);
-                        _controller.AddLogMessage("> ✅ G90 confirmed (absolute mode)");
-                        return true;
-                    }
-                    await Task.Delay(180);
-                }
-                _controller.AddLogMessage("> ❌ Failed to acquire G90 after retries");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _controller.AddLogMessage($"> ❌ EnsureAbsoluteModeAsync error: {ex.Message}");
-                return false;
-            }
-        }
+        #region Ana Probe Akışı
 
         /// <summary>
-        /// Unified probe sequence for all axes
-        /// SEQUENCE:
-        /// 1. Switch to G91 (relative mode)
-        /// 2. Coarse probe: retract → idle → probe → idle (Z probe style: retract BEFORE probe)
-        /// 3. Fine probes (up to 6): retract → idle → probe → idle → wait 400ms → read coordinate
-        /// 4. Validate fine measurements (find pair with difference < threshold)
-        /// 5. Final retract and return result
+        /// Tek bir probe sekansı çalıştır
         /// </summary>
-        private async Task<ProbeResult> ExecuteProbeSequenceAsync(
-            char axis,
-            int direction,
-            double coarseDistance,
-            double fineDistance,
-            double retractAfterCoarse,
-            double retractAfterFine,
-            double finalRetract,
-            bool manageSession = true) // NEW: allow caller to manage session
+        private async Task<ProbeResult> ExecuteProbeAsync(
+            char axis, int dir,
+            double coarseDist, double fineDist,
+            double retractCoarse, double retractFine, double retractFinal,
+            bool manageSession)
         {
+            bool sessionStarted = false;
             IDisposable fastScope = null;
-            bool sessionStartedHere = false;
+
             try
             {
-                _controller?.AddLogMessage($"> 🔧 {axis} Probe başlatılıyor (direction: {(direction >0 ? "+" : "-")})...");
+                Log($"🔧 {axis} Probe başlıyor (yön: {(dir > 0 ? "+" : "-")})...");
 
-                // BEGIN PROBE SESSION only if we're managing it (standalone probe)
-                // For multi-probe sequences (Center XY), caller manages the session
+                // Session yönetimi
                 if (manageSession && !RunUiLocker.IsProbeSessionActive())
                 {
                     RunUiLocker.BeginProbeSession();
-                    sessionStartedHere = true;
+                    sessionStarted = true;
                 }
 
-                // Enable fast central status updates (100ms) during probing
+                // Hızlı status güncellemesi
                 fastScope = _controller?.BeginScopedCentralStatusOverride(100);
 
+                // Bağlantı kontrolü
                 if (_controller?.IsConnected != true)
-                {
-                    return ProbeResult.Failed($"{axis} probe failed: Not connected");
-                }
+                    return ProbeResult.Failed("Bağlantı yok");
 
-                // Robust absolute mode acquisition
-                if (!await EnsureAbsoluteModeAsync())
-                {
-                    return ProbeResult.Failed($"{axis} probe failed: Could not set G90 (robust acquisition)");
-                }
+                // Feed hesapla
+                double rapid = GetAxisRapid(axis);
+                int coarseFeed = Clamp((int)(rapid / 8), 1, MaxProbeFeed);
+                int fineFeed = Clamp((int)(rapid / 15), 1, MaxProbeFeed);
 
-                // Switch to relative mode (G91) with retry once
-                if (!await SendCommandAsync("G91"))
-                {
-                    _controller?.AddLogMessage("> ⚠️ G91 first attempt failed – retrying");
-                    await Task.Delay(150);
-                    if (!await SendCommandAsync("G91"))
-                    {
-                        return ProbeResult.Failed($"{axis} probe failed: Could not set G91");
-                    }
-                }
-                await Task.Delay(120); // Let controller process mode change
-                _controller?.AddLogMessage("> ⚙️ G91 aktif (Rölatif mod)");
+                Log($"📏 Rapid: {rapid:F0}, Coarse: {coarseFeed}, Fine: {fineFeed} mm/min");
 
-                // Get axis rapid speed and calculate feeds
-                double axisRapid = GetAxisRapid(axis);
-                int coarseFeed = ClampProbeFeed((int)(axisRapid /8.0));
-                int fineFeed = ClampProbeFeed((int)(axisRapid /15.0));
+                // G91 - relative mode
+                await SendCmd("G91");
+                Log("⚙️ G91 aktif");
 
-                _controller?.AddLogMessage($"> 🚀 {axis} rapid: {axisRapid:F0} mm/min");
-                _controller?.AddLogMessage($"> 📏 Coarse feed: {coarseFeed} mm/min (rapid/8)");
-                _controller?.AddLogMessage($"> 📏 Fine feed: {fineFeed} mm/min (rapid/15)");
-
-                // ===== COARSE PROBE =====
-                if (!await ExecuteCoarseProbeAsync(axis, direction, coarseDistance, retractAfterCoarse, coarseFeed))
-                {
-                    await SendCommandAsync("G90");
-                    return ProbeResult.Failed($"{axis} coarse probe failed");
-                }
-
-                // ===== FINE PROBES WITH VALIDATION =====
-                var fineResult = await ExecuteFineProbesAsync(
-                    axis, direction, fineDistance, retractAfterFine, fineFeed);
-
-                if (!fineResult.Success)
-                {
-                    await SendCommandAsync("G90");
-                    return fineResult;
-                }
-
-                // ===== FINAL RETRACT =====
-                double retractDirection = -direction; // Retract in opposite direction (away from contact)
+                // ========== COARSE PROBE ==========
+                Log($"🔍 Coarse probe başlıyor: {coarseDist}mm");
                 
-                // Apply safe retract calculation using machine limits
-                double safeRetract = MachineLimitsHelper.GetSafeRetractDistance(
-                    axis, 
-                    (int)retractDirection,
-                    finalRetract, 
-                    _controller);
-                
-                if (safeRetract < 0.5)
+                if (!await DoProbe(axis, dir, coarseDist, coarseFeed, "Coarse"))
+                    return Fail("Coarse probe başarısız");
+
+                Log("✅ Coarse temas");
+
+                // ========== RETRACT ==========
+                await DoRetract(axis, -dir, retractCoarse, rapid);
+
+                // ========== FINE PROBES ==========
+                var readings = new List<double>();
+
+                for (int i = 0; i < MaxFineAttempts; i++)
                 {
-                    _controller?.AddLogMessage($"> ⚠️ Final retract atlandı - {axis} limit çok yakın");
-                }
-                else
-                {
-                    // Use rapid move for final retract to avoid slow feed-limited motion
-                    string retractCmd = FormatMoveCommand(axis, retractDirection * safeRetract, rapid: true);
+                    int step = i + 1;
+                    Log($"🎯 Fine#{step} başlıyor...");
+
+                    // Retract before fine probe
+                    if (i > 0) // İlk fine probe için coarse retract yeterli
+                        await DoRetract(axis, -dir, retractFine, rapid);
+
+                    // Fine probe
+                    DateTime probeStart = DateTime.UtcNow;
+                    if (!await DoProbe(axis, dir, fineDist, fineFeed, $"Fine#{step}"))
+                        return Fail($"Fine#{step} başarısız");
+
+                    // Koordinat oku
+                    await Task.Delay(400);
+                    double contact = await ReadContact(axis, probeStart);
                     
-                    _controller?.AddLogMessage($"> 🔼 Final retract (rapid): {safeRetract:F1}mm");
-                    if (!await SendCommandAsync(retractCmd))
-                    {
-                        await SendCommandAsync("G90");
-                        return ProbeResult.Failed($"{axis} final retract failed");
-                    }
+                    if (double.IsNaN(contact))
+                        return Fail($"Fine#{step} koordinat okunamadı");
 
-                    int retractTimeout = EstimateTimeoutMsForRapid(safeRetract, axisRapid);
-                    if (!await WaitForIdleAsync(retractTimeout, $"{axis}Probe_FinalRetract"))
+                    readings.Add(contact);
+                    Log($"📍 Fine#{step}: {contact:F3} mm");
+
+                    // Doğrulama - en az 2 ölçüm lazım
+                    if (readings.Count >= 2)
                     {
-                        await SendCommandAsync("G90");
-                        return ProbeResult.Failed($"{axis} final retract - idle timeout");
+                        var (validated, avg, tol, idxA, idxB) = ValidateReadings(readings);
+                        if (validated)
+                        {
+                            Log($"✅ Doğrulama OK: #{idxA + 1} ve #{idxB + 1}, fark={tol:F3}mm");
+
+                            // Final retract
+                            await DoRetract(axis, -dir, retractFinal, rapid);
+                            
+                            // G90 - absolute mode
+                            await SendCmd("G90");
+
+                            return ProbeResult.CreateSuccess(avg, tol, readings, idxA, idxB);
+                        }
                     }
                 }
 
-                // Switch back to absolute mode (G90)
-                await SendCommandAsync("G90");
-                _controller?.AddLogMessage("> ⚙️ G90 aktif (Absolut mod)");
-
-                _controller?.AddLogMessage($"> ✅ {axis} Probe tamamlandı: {fineResult.ContactPosition:F3} mm (tolerance: {fineResult.Tolerance:F3} mm)");
-                return fineResult;
+                // Doğrulama başarısız
+                string vals = string.Join(", ", readings.Select(r => r.ToString("F3")));
+                return Fail($"Doğrulama başarısız: {vals}");
             }
             catch (Exception ex)
             {
-                _controller?.AddLogMessage($"> ❌ {axis} Probe HATA: {ex.Message}");
-                try { await SendCommandAsync("G90"); } catch { }
-                return ProbeResult.Failed($"{axis} probe exception: {ex.Message}");
+                Log($"❌ Hata: {ex.Message}");
+                return Fail(ex.Message);
             }
             finally
             {
-                // END PROBE SESSION only if we started it here
-                if (sessionStartedHere)
-                {
-                    RunUiLocker.EndProbeSession();
-                }
- 
-                // Restore normal central status interval
+                try { await SendCmd("G90"); } catch { }
+                if (sessionStarted) RunUiLocker.EndProbeSession();
                 fastScope?.Dispose();
             }
         }
 
         #endregion
 
-        #region Coarse Probe
-
-        private async Task<bool> ExecuteCoarseProbeAsync(
-            char axis, int direction, double distance, double retract, int feed)
-        {
-                // 1. Initial retract BEFORE coarse probe - WITH LIMIT CHECK
-                double safeRetract = MachineLimitsHelper.GetSafeRetractDistance(
-                    axis, 
-                    -direction,  // Retract is opposite to probe direction
-                    retract, 
-                    _controller);
-                
-                if (safeRetract < 0.5)
-                {
-                    _controller?.AddLogMessage($"> ⚠️ Initial retract atlandı - {axis} limit çok yakın");
-                }
-                else
-                {
-                    _controller?.AddLogMessage($"> 🔼 Coarse: {safeRetract:F1}mm initial retract");
-                    string initialRetractCmd = FormatMoveCommand(axis, -direction * safeRetract, rapid: true);
-                    if (!await SendCommandAsync(initialRetractCmd))
-                    {
-                        _controller?.AddLogMessage("> ❌ Coarse initial retract failed");
-                        return false;
-                    }
-
-                    // 2. Wait for idle after initial retract
-                    if (!await WaitForIdleAsync(15000, $"{axis}Coarse_InitialRetract"))
-                    {
-                        _controller?.AddLogMessage("> ❌ Idle timeout (coarse initial retract)");
-                        return false;
-                    }
-                }
-
-                // 3. Coarse probe - with status query suspension
-                string probeCmd = FormatProbeCommand(axis, direction * distance, feed);
-            _controller?.AddLogMessage($"> 🔍 Coarse probe: {probeCmd}");
-            
-            // Use SendProbeCommandAsync which suspends status query during probe
-            if (!await SendProbeCommandAsync(probeCmd, 45000, $"{axis}Coarse_Probe"))
-            {
-                return false;
-            }
-
-            _controller?.AddLogMessage("> ✅ Coarse probe completed");
-            return true;
-        }
-
-        #endregion
-
-        #region Fine Probes with Validation
-
-        private async Task<ProbeResult> ExecuteFineProbesAsync(
-            char axis, int direction, double distance, double retract, int feed)
-        {
-            var fineContacts = new List<double>(MaxFineAttempts);
-            bool validated = false;
-            double avgUsed = 0.0;
-            double tolerance = 0.0;
-            int usedA = -1, usedB = -1;
-
-            for (int i = 0; i < MaxFineAttempts; i++)
-            {
-                int stepIndex = i + 1;
-
-                    // A. Retract before fine probe - WITH LIMIT CHECK
-                    double safeRetract = MachineLimitsHelper.GetSafeRetractDistance(
-                        axis, 
-                        -direction,  // Retract is opposite to probe direction
-                        retract, 
-                        _controller);
-                    
-                    if (safeRetract < 0.5)
-                    {
-                        _controller?.AddLogMessage($"> ⚠️ Fine#{stepIndex} retract atlandı - {axis} limit çok yakın");
-                    }
-                    else
-                    {
-                        _controller?.AddLogMessage($"> 🔼 Fine#{stepIndex}: {safeRetract:F1}mm retract");
-                        string retractCmd = FormatMoveCommand(axis, -direction * safeRetract, rapid: true);
-                        if (!await SendCommandAsync(retractCmd))
-                        {
-                            _controller?.AddLogMessage($"> ❌ Fine#{stepIndex} retract failed");
-                            return ProbeResult.Failed($"Fine#{stepIndex} retract failed");
-                        }
-
-                        // B. Wait for idle after retract
-                        if (!await WaitForIdleAsync(15000, $"{axis}Fine{stepIndex}_Retract"))
-                        {
-                            _controller?.AddLogMessage($"> ❌ Fine#{stepIndex} retract idle timeout");
-                            return ProbeResult.Failed($"Fine#{stepIndex} retract idle timeout");
-                        }
-                    }
-
-                    // C. Fine probe - with status query suspension
-                DateTime fineStartTs = DateTime.UtcNow;
-                string probeCmd = FormatProbeCommand(axis, direction * distance, feed);
-                _controller?.AddLogMessage($"> 🎯 Fine#{stepIndex} probe: {probeCmd}");
-                
-                // Use SendProbeCommandAsync which suspends status query during probe
-                if (!await SendProbeCommandAsync(probeCmd, 30000, $"{axis}Fine{stepIndex}_Probe"))
-                {
-                    return ProbeResult.Failed($"Fine#{stepIndex} probe failed");
-                }
-
-                    // E. Wait 400ms before reading (Z probe does this)
-                    await Task.Delay(400);
-
-                    // F. Read contact coordinate
-                var (ok, contactValue, fromPrb) = await ReadContactCoordinateAsync(axis, fineStartTs, 800);
-                if (!ok || !IsFinite(contactValue))
-                {
-                    _controller?.AddLogMessage($"> ❌ Fine#{stepIndex} coordinate read failed");
-                    return ProbeResult.Failed($"Fine#{stepIndex} coordinate read failed");
-                }
-
-                // Prefer WORK coordinates for X/Y; keep previous behavior for Z
-                double toRecord = contactValue;
-                if (axis == 'X' || axis == 'Y')
-                {
-                    var st = _controller?.MStatus;
-                    if (st != null)
-                    {
-                        double w = axis == 'X' ? st.WorkX : st.WorkY;
-                        if (!double.IsNaN(w) && !double.IsInfinity(w))
-                            toRecord = w;
-                    }
-                }
-
-                fineContacts.Add(toRecord);
-                string src = (axis == 'X' || axis == 'Y') ? "Work" : (fromPrb ? "PRB" : "MPos");
-                _controller?.AddLogMessage($"> 📍 Fine#{stepIndex} contact {axis} = {toRecord:F3} mm (source: {src})");
-
-                    // G. Validation check (from 2nd measurement onwards)
-                if (fineContacts.Count >= 2)
-                {
-                    // Find the pair with smallest difference
-                    double minDiff = double.MaxValue;
-                    int bestI = -1, bestJ = -1;
-                    for (int a = 0; a < fineContacts.Count - 1; a++)
-                    {
-                        for (int b = a + 1; b < fineContacts.Count; b++)
-                        {
-                            double diff = Math.Abs(fineContacts[a] - fineContacts[b]);
-                            if (diff < minDiff)
-                            {
-                                minDiff = diff;
-                                bestI = a;
-                                bestJ = b;
-                            }
-                        }
-                    }
-
-                    if (minDiff < FineToleranceThreshold)
-                    {
-                        usedA = bestI;
-                        usedB = bestJ;
-                        avgUsed = (fineContacts[bestI] + fineContacts[bestJ]) / 2.0;
-                        tolerance = Math.Abs(fineContacts[bestI] - fineContacts[bestJ]);
-                        validated = true;
-                        _controller?.AddLogMessage($"> ✅ Validation OK: Fine#{bestI + 1} and Fine#{bestJ + 1}, diff={tolerance:F3}mm < {FineToleranceThreshold:F3}mm, avg={avgUsed:F3}mm");
-                        break; // Early exit - validation successful
-                    }
-                    else
-                    {
-                        _controller?.AddLogMessage($"> ℹ️ No validation yet: min diff={minDiff:F3}mm (threshold {FineToleranceThreshold:F3}mm)");
-                    }
-                }
-            }
-
-            // Check if validation succeeded
-            if (!validated)
-            {
-                string measurements = string.Join(", ", fineContacts.Select((v, idx) => $"Fine#{idx + 1}:{v:F3}"));
-                _controller?.AddLogMessage($"> ❌ Validation failed after {MaxFineAttempts} attempts: {measurements}");
-                return ProbeResult.Failed(
-                    $"Validation failed. Measurements: {measurements}",
-                    fineContacts
-                );
-            }
-
-            return ProbeResult.CreateSuccess(avgUsed, tolerance, fineContacts, usedA, usedB);
-        }
-
-        #endregion
-
-        #region Helper Methods - Command Formatting
-
-        private string FormatMoveCommand(char axis, double distance, bool rapid = false)
-        {
-            string gCode = rapid ? "G00" : "G01";
-            string distStr = distance.ToString("F3", CultureInfo.InvariantCulture);
-            return $"{gCode} {axis}{distStr}";
-        }
-
-        private string FormatProbeCommand(char axis, double distance, int feed)
-        {
-            string distStr = distance.ToString("F3", CultureInfo.InvariantCulture);
-            return $"G38.2 {axis}{distStr} F{feed}";
-        }
-
-        private static int ClampProbeFeed(int feed)
-        {
-            if (feed < 1) return 1;
-            return feed > MaxProbeFeed ? MaxProbeFeed : feed;
-        }
-
-        #endregion
-
-        #region Helper Methods - Coordinate Reading
+        #region Temel İşlemler
 
         /// <summary>
-        /// Read contact coordinate for specific axis after probe
-        /// First tries PRB data, falls back to current machine position
+        /// Probe komutu gönder ve tamamlanmasını bekle
         /// </summary>
-        private async Task<(bool ok, double value, bool fromPrb)> ReadContactCoordinateAsync(
-            char axis, DateTime sinceUtc, int waitPrbMs = 800)
+        private async Task<bool> DoProbe(char axis, int dir, double dist, int feed, string ctx)
         {
-            var deadline = DateTime.UtcNow.AddMilliseconds(waitPrbMs);
+            bool querierWasOn = _controller.CentralStatusQuerierEnabled;
 
-            // Try to get PRB data
-            while (DateTime.UtcNow < deadline)
-            {
-                if (ProbeContactCache.TryGetAfter(sinceUtc, out double prbX, out double prbY, out double prbZ, out _))
-                {
-                    double prbValue;
-                    if (axis == 'X')
-                        prbValue = prbX;
-                    else if (axis == 'Y')
-                        prbValue = prbY;
-                    else if (axis == 'Z')
-                        prbValue = prbZ;
-                    else
-                        prbValue = double.NaN;
-                        
-                    return (true, prbValue, true);
-                }
-                await Task.Delay(50);
-            }
-
-            // Fallback: read machine position from MStatus (updated by CentralStatusQuerier)
-            // No additional query needed - CentralStatusQuerier keeps MStatus updated
-            await Task.Delay(150); // Small delay to ensure latest status is available
-
-            var mStatus = _controller?.MStatus;
-            double value;
-            if (axis == 'X')
-                value = mStatus?.X ?? double.NaN;
-            else if (axis == 'Y')
-                value = mStatus?.Y ?? double.NaN;
-            else if (axis == 'Z')
-                value = mStatus?.Z ?? double.NaN;
-            else
-                value = double.NaN;
-
-            return (true, value, false);
-        }
-
-        #endregion
-
-        #region Helper Methods - Axis Configuration
-
-        private double GetAxisRapid(char axis)
-        {
-            int settingId;
-            if (axis == 'X')
-                settingId = 110; // $110 X-axis maximum rate
-            else if (axis == 'Y')
-                settingId = 111; // $111 Y-axis maximum rate
-            else if (axis == 'Z')
-                settingId = 112; // $112 Z-axis maximum rate
-            else
-                settingId = 110;
-
-            double defaultRapid = 1000.0;
             try
             {
-                var setting = _controller?.Settings?.FirstOrDefault(s => s.Id == settingId);
-                if (setting != null && double.TryParse(setting.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double value))
-                {
-                    return Math.Max(1.0, value);
-                }
-            }
-            catch { }
+                // Alarm temizle
+                await _controller.SendGCodeCommandAsync("$X");
+                await Task.Delay(100);
 
-            return defaultRapid;
-        }
-
-        #endregion
-
-        #region Helper Methods - Timing and Waiting
-
-        private async Task<bool> WaitForIdleAsync(int timeoutMs, string context)
-        {
-            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-            bool seenNonIdle = false;
-            int consecutiveIdleCount = 0;
-            const int requiredIdleCount = 2; // Require 2 consecutive Idle readings for stability
-
-            while (DateTime.UtcNow < deadline)
-            {
-                // CRITICAL: Send manual status query since CentralStatusQuerier may be stopped during probes
-                // This ensures we get fresh status even when status query is suspended
-                try
-                {
-                    await _controller?.SendGCodeCommandAsync("?");
-                    await Task.Delay(50); // Wait for response to be processed
-                }
-                catch { /* Ignore query errors */ }
-
-                string state = _controller?.MachineStatus ?? string.Empty;
-
-                // Check for Idle state
-                if (state.Equals("Idle", StringComparison.OrdinalIgnoreCase))
-                {
-                    consecutiveIdleCount++;
-                    
-                    // For probe commands: accept immediate Idle (contact can be instant)
-                    // For other commands: accept Idle after seeing non-Idle OR after 2 consecutive Idles
-                    if (context.Contains("Probe") || seenNonIdle || consecutiveIdleCount >= requiredIdleCount)
-                    {
-                        _controller?.AddLogMessage($"> ✅ Idle confirmed in {context} (consecutive: {consecutiveIdleCount})");
-                        return true;
-                    }
-                }
-                else
-                {
-                    consecutiveIdleCount = 0; // Reset count if not Idle
-                    
-                    if (state.StartsWith("Run", StringComparison.OrdinalIgnoreCase) ||
-                        state.StartsWith("Jog", StringComparison.OrdinalIgnoreCase))
-                    {
-                        seenNonIdle = true;
-                    }
-                    else if (state.StartsWith("Alarm", StringComparison.OrdinalIgnoreCase))
-                    {
-                        _controller?.AddLogMessage($"> ⚠️ ALARM detected during {context}");
-                        return false;
-                    }
-                }
-
-                await Task.Delay(100); // Poll every 100ms (50ms query + 50ms wait = 100ms total)
-            }
-
-            _controller?.AddLogMessage($"> ⚠️ Idle timeout in {context} (last state: {_controller?.MachineStatus})");
-            return false;
-        }
-
-        private int EstimateTimeoutMsForRapid(double distanceMm, double rapidMmMin, int minMs = 5000)
-        {
-            double feed = Math.Max(1.0, rapidMmMin);
-            double minutes = Math.Abs(distanceMm) / feed;
-            int ms = (int)(minutes * 60000.0);
-            ms = (int)(ms * 1.8) + 2000; // 1.8x slack + 2s overhead
-            return Math.Max(ms, minMs);
-        }
-
-        private static bool IsFinite(double value)
-        {
-            return !double.IsNaN(value) && !double.IsInfinity(value);
-        }
-
-        #endregion
-
-        #region Helper Methods - Command Sending
-
-        private async Task<bool> SendCommandAsync(string command)
-        {
-            if (_controller == null) return false;
-            return await _controller.SendGCodeCommandWithConfirmationAsync(command);
-        }
-
-        /// <summary>
-        /// Send probe command with status query suspension to prevent interference.
-        /// Status query is stopped before probe, then restarted after idle is reached.
-        /// </summary>
-        private async Task<bool> SendProbeCommandAsync(string probeCmd, int timeoutMs, string context)
-        {
-            if (_controller == null) return false;
-
-            bool wasQuerierRunning = _controller.CentralStatusQuerierEnabled;
-            
-            try
-            {
-                // STOP status query before probe to prevent interference
-                if (wasQuerierRunning)
+                // Querier durdur (probe sırasında karışmasın)
+                if (querierWasOn)
                 {
                     _controller.StopCentralStatusQuerier();
-                    await Task.Delay(50); // Let pending queries finish
+                    await Task.Delay(50);
                 }
 
-                // Send probe command
-                if (!await _controller.SendGCodeCommandWithConfirmationAsync(probeCmd))
-                {
-                    _controller?.AddLogMessage($"> ❌ {context}: Probe command failed to send");
-                    return false;
-                }
+                // Probe komutu
+                string cmd = $"G38.2 {axis}{(dir * dist).ToString("F3", CultureInfo.InvariantCulture)} F{feed}";
+                Log($"📤 {ctx}: {cmd}");
 
-                // Wait for idle (probe completion)
-                if (!await WaitForIdleAsync(timeoutMs, context))
+                await _controller.SendGCodeCommandAsync(cmd);
+
+                // Idle bekle
+                if (!await WaitIdle(30000, ctx))
                 {
-                    _controller?.AddLogMessage($"> ❌ {context}: Idle timeout");
+                    Log($"❌ {ctx}: Timeout");
                     return false;
                 }
 
@@ -730,23 +223,163 @@ namespace CncControlApp.Services
             }
             finally
             {
-                // ALWAYS restart status query (even on failure)
-                if (wasQuerierRunning)
+                // Querier'ı geri başlat
+                if (querierWasOn)
                 {
                     await Task.Delay(50);
-                    _controller?.StartCentralStatusQuerier();
+                    _controller.StartCentralStatusQuerier();
                 }
             }
+        }
+
+        /// <summary>
+        /// JOG ile geri çekil ($J komutu alarm durumunda bile çalışır)
+        /// </summary>
+        private async Task DoRetract(char axis, int dir, double dist, double rapid)
+        {
+            Log($"🔼 Retract: {dist:F1}mm");
+
+            // Alarm temizle
+            await _controller.SendGCodeCommandAsync("$X");
+            await Task.Delay(100);
+
+            // JOG komutu
+            string jog = $"$J=G91 {axis}{(dir * dist).ToString("F3", CultureInfo.InvariantCulture)} F{rapid:F0}";
+            await _controller.SendGCodeCommandAsync(jog);
+
+            // Tamamlanmasını bekle
+            await WaitIdle(5000, "Retract");
+        }
+
+        /// <summary>
+        /// Idle durumunu bekle
+        /// </summary>
+        private async Task<bool> WaitIdle(int timeoutMs, string ctx)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+
+            while (DateTime.UtcNow < deadline)
+            {
+                // Status sorgula
+                await _controller.SendGCodeCommandAsync("?");
+                await Task.Delay(80);
+
+                string status = _controller.MachineStatus ?? "";
+
+                if (status.Equals("Idle", StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (status.StartsWith("Alarm", StringComparison.OrdinalIgnoreCase))
+                {
+                    Log($"⚠️ {ctx}: Alarm - $X gönderiliyor");
+                    await _controller.SendGCodeCommandAsync("$X");
+                    await Task.Delay(100);
+                }
+
+                await Task.Delay(50);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Temas koordinatını oku (PRB cache veya MStatus'tan)
+        /// </summary>
+        private async Task<double> ReadContact(char axis, DateTime since)
+        {
+            // PRB cache'den dene
+            var deadline = DateTime.UtcNow.AddMilliseconds(500);
+            while (DateTime.UtcNow < deadline)
+            {
+                if (ProbeContactCache.TryGetAfter(since, out double x, out double y, out double z, out _))
+                {
+                    return axis == 'X' ? x : axis == 'Y' ? y : z;
+                }
+                await Task.Delay(50);
+            }
+
+            // Fallback: MStatus
+            await Task.Delay(100);
+            var st = _controller.MStatus;
+            if (st == null) return double.NaN;
+
+            // X/Y için Work koordinat tercih et
+            if (axis == 'X') return double.IsNaN(st.WorkX) ? st.X : st.WorkX;
+            if (axis == 'Y') return double.IsNaN(st.WorkY) ? st.Y : st.WorkY;
+            return st.Z;
+        }
+
+        /// <summary>
+        /// Ölçümleri doğrula - birbirine yakın iki değer bul
+        /// </summary>
+        private (bool ok, double avg, double tol, int a, int b) ValidateReadings(List<double> r)
+        {
+            double minDiff = double.MaxValue;
+            int bestA = -1, bestB = -1;
+
+            for (int i = 0; i < r.Count - 1; i++)
+            {
+                for (int j = i + 1; j < r.Count; j++)
+                {
+                    double diff = Math.Abs(r[i] - r[j]);
+                    if (diff < minDiff)
+                    {
+                        minDiff = diff;
+                        bestA = i;
+                        bestB = j;
+                    }
+                }
+            }
+
+            if (minDiff < FineToleranceThreshold)
+            {
+                double avg = (r[bestA] + r[bestB]) / 2.0;
+                return (true, avg, minDiff, bestA, bestB);
+            }
+
+            return (false, 0, 0, -1, -1);
+        }
+
+        #endregion
+
+        #region Yardımcılar
+
+        private void Log(string msg) => _controller?.AddLogMessage($"> {msg}");
+
+        private async Task<bool> SendCmd(string cmd)
+        {
+            return await _controller.SendGCodeAndWaitAsync(cmd, 2000);
+        }
+
+        private double GetAxisRapid(char axis)
+        {
+            int id = axis == 'X' ? 110 : axis == 'Y' ? 111 : 112;
+            try
+            {
+                var s = _controller?.Settings?.FirstOrDefault(x => x.Id == id);
+                if (s != null && double.TryParse(s.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double v))
+                    return Math.Max(1, v);
+            }
+            catch { }
+            return 1000;
+        }
+
+        private static int Clamp(int val, int min, int max)
+        {
+            return val < min ? min : val > max ? max : val;
+        }
+
+        private ProbeResult Fail(string msg)
+        {
+            Log($"❌ {msg}");
+            return ProbeResult.Failed(msg);
         }
 
         #endregion
     }
 
-    #region Probe Result Class
+    #region Probe Result
 
-    /// <summary>
-    /// Result of a probe operation
-    /// </summary>
     public class ProbeResult
     {
         public bool Success { get; set; }
@@ -757,16 +390,16 @@ namespace CncControlApp.Services
         public int UsedIndexB { get; set; }
         public string ErrorMessage { get; set; }
 
-        public static ProbeResult CreateSuccess(double position, double tolerance, List<double> readings, int idxA, int idxB)
+        public static ProbeResult CreateSuccess(double pos, double tol, List<double> readings, int a, int b)
         {
             return new ProbeResult
             {
                 Success = true,
-                ContactPosition = position,
-                Tolerance = tolerance,
+                ContactPosition = pos,
+                Tolerance = tol,
                 FineReadings = readings,
-                UsedIndexA = idxA,
-                UsedIndexB = idxB
+                UsedIndexA = a,
+                UsedIndexB = b
             };
         }
 

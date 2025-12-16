@@ -15,14 +15,18 @@ namespace CncControlApp.Controls
         public List<string> PreambleLines { get; private set; }
         public List<string> ResumeCommands { get; private set; }
         
-        /// <summary>
-        /// Event: Git butonuna basıldığında tetiklenir
-        /// </summary>
-        public event System.EventHandler<GoToPositionEventArgs> GoToPositionRequested;
-        
         public ResumeConfirmationDialog()
         {
             InitializeComponent();
+            
+            // Z onay checkbox değişikliğini dinle
+            chkZeroConfirmed.Checked += (s, e) => UpdateConfirmButtonState();
+            chkZeroConfirmed.Unchecked += (s, e) => UpdateConfirmButtonState();
+        }
+        
+        private void UpdateConfirmButtonState()
+        {
+            btnConfirm.IsEnabled = chkZeroConfirmed.IsChecked == true;
         }
         
         /// <summary>
@@ -44,31 +48,42 @@ namespace CncControlApp.Controls
             txtStoppedLine.Text = $"{stoppedLine + 1}";
             txtTotalLines.Text = $"{totalLines}";
             
-            // ⚠️ SON POZİSYON - Makine buraya getirilmeli!
+            // Başlangıç koordinatları (bilgi amaçlı)
             txtLastX.Text = modalState.LastX.ToString("F3", CultureInfo.InvariantCulture) + " mm";
             txtLastY.Text = modalState.LastY.ToString("F3", CultureInfo.InvariantCulture) + " mm";
             txtLastZ.Text = modalState.LastZ.ToString("F3", CultureInfo.InvariantCulture) + " mm";
             
-            // Modal state
-            txtCoordSystem.Text = modalState.CoordinateSystem;
-            txtDistanceMode.Text = $"{modalState.DistanceMode} ({(modalState.DistanceMode == "G90" ? "Absolute" : "Incremental")})";
-            txtUnits.Text = $"{modalState.Units} ({(modalState.Units == "G21" ? "mm" : "inch")})";
-            txtSpindle.Text = $"{modalState.SpindleState} @ S{modalState.SpindleSpeed}";
-            txtFeedRate.Text = $"F{modalState.FeedRate}";
-            txtCoolant.Text = modalState.CoolantState;
-            txtTool.Text = $"T{modalState.ToolNumber}";
+            // Modal state özeti (kompakt)
+            var summaryParts = new List<string>();
+            summaryParts.Add(modalState.CoordinateSystem);
+            summaryParts.Add(modalState.DistanceMode);
+            summaryParts.Add(modalState.Units);
+            if (!string.IsNullOrEmpty(modalState.SpindleState) && modalState.SpindleState != "M5")
+                summaryParts.Add($"{modalState.SpindleState} S{modalState.SpindleSpeed}");
+            if (modalState.FeedRate > 0)
+                summaryParts.Add($"F{modalState.FeedRate}");
+            if (!string.IsNullOrEmpty(modalState.CoolantState) && modalState.CoolantState != "M9")
+                summaryParts.Add(modalState.CoolantState);
+            
+            txtModalSummary.Text = string.Join(" | ", summaryParts);
             
             // Preamble info
             txtPreambleInfo.Text = preambleLines.Count > 0 
                 ? $"{preambleLines.Count} satır hazırlık kodu bulundu" 
                 : "Hazırlık kodu bulunamadı";
             
-            // Resume commands
-            txtResumeCommands.Text = string.Join("\n", resumeCommands);
+            // Devam Et butonu başlangıçta devre dışı (Z onayı bekliyor)
+            UpdateConfirmButtonState();
         }
         
         private void ConfirmButton_Click(object sender, RoutedEventArgs e)
         {
+            if (chkZeroConfirmed.IsChecked != true)
+            {
+                MessageDialog.ShowError("Onay Gerekli", "Devam etmeden önce Z sıfırının doğru olduğunu onaylamalısınız!");
+                return;
+            }
+            
             Confirmed = true;
             DialogResult = true;
             Close();
@@ -87,22 +102,10 @@ namespace CncControlApp.Controls
             DialogResult = false;
             Close();
         }
-        
-        private void GoToPosition_Click(object sender, RoutedEventArgs e)
-        {
-            if (ModalState != null)
-            {
-                // Event ile MainController'a bildir - o G0 komutu gönderecek
-                GoToPositionRequested?.Invoke(this, new GoToPositionEventArgs(
-                    ModalState.LastX, 
-                    ModalState.LastY, 
-                    ModalState.LastZ));
-            }
-        }
     }
     
     /// <summary>
-    /// Git butonu event argümanları
+    /// Git butonu event argümanları (uyumluluk için kalıyor)
     /// </summary>
     public class GoToPositionEventArgs : System.EventArgs
     {
