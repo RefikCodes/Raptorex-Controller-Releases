@@ -78,9 +78,8 @@ namespace CncControlApp
                                 {
                                     bool hasUpdate = latestVersion > CurrentVersion;
                                     
-                                    // Download URL'i oluştur - Inno Setup kısa versiyon kullanıyor (4.0.0 -> 4.0)
-                                    string shortVersion = GetShortVersion(latestVersionStr);
-                                    string downloadUrl = $"https://github.com/{GITHUB_REPO}/releases/download/v{latestVersionStr}/RaptorexController_Setup_{shortVersion}.exe";
+                                    // Download URL'i oluştur - yeni format: RaptorexController-4.0.7-Setup.exe
+                                    string downloadUrl = $"https://github.com/{GITHUB_REPO}/releases/download/v{latestVersionStr}/RaptorexController-{latestVersionStr}-Setup.exe";
                                     
                                     return new UpdateInfo
                                     {
