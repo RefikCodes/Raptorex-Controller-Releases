@@ -77,16 +77,24 @@ namespace CncControlApp
                                 if (Version.TryParse(NormalizeVersion(latestVersionStr), out Version latestVersion))
                                 {
                                     bool hasUpdate = latestVersion > CurrentVersion;
-                                    
-                                    // Download URL'i oluştur - yeni format: RaptorexController-4.0.7-Setup.exe
-                                    string downloadUrl = $"https://github.com/{GITHUB_REPO}/releases/download/v{latestVersionStr}/RaptorexController-{latestVersionStr}-Setup.exe";
+
+                                    // Aday dosya adlarını sırayla kontrol et (yeni ve eski formatlar)
+                                    string shortVersion = GetShortVersion(latestVersionStr);
+                                    string[] candidates = new[]
+                                    {
+                                        $"https://github.com/{GITHUB_REPO}/releases/download/v{latestVersionStr}/RaptorexController-{latestVersionStr}-Setup.exe", // yeni dash format
+                                        $"https://github.com/{GITHUB_REPO}/releases/download/v{latestVersionStr}/RaptorexController_Setup_{latestVersionStr}.exe",   // eski underscore (tam)
+                                        $"https://github.com/{GITHUB_REPO}/releases/download/v{latestVersionStr}/RaptorexController_Setup_{shortVersion}.exe"        // eski underscore (kısa)
+                                    };
+
+                                    string resolvedUrl = await ResolveFirstExistingAsync(candidates);
                                     
                                     return new UpdateInfo
                                     {
                                         HasUpdate = hasUpdate,
                                         CurrentVersion = CurrentVersion,
                                         LatestVersion = latestVersion,
-                                        DownloadUrl = downloadUrl,
+                                        DownloadUrl = resolvedUrl ?? candidates[0],
                                         ReleaseNotes = ""
                                     };
                                 }
@@ -585,6 +593,36 @@ del ""%~f0""
                 ErrorLogger.LogError("Installer başlatma hatası", ex);
                 ShowInfoDialog("Kurulum Hatası", $"Kurulum başlatılamadı:\n{ex.Message}\n\nLütfen indirilen dosyayı manuel çalıştırın:\n{installerPath}", isError: true);
             }
+        }
+
+        /// <summary>
+        /// Verilen URL adaylarından ilk erişilebilenini döndürür (HEAD/redirect kontrolü)
+        /// </summary>
+        private static async Task<string> ResolveFirstExistingAsync(string[] urls)
+        {
+            foreach (var url in urls)
+            {
+                try
+                {
+                    using (var handler = new HttpClientHandler { AllowAutoRedirect = false })
+                    using (var client = new HttpClient(handler))
+                    using (var request = new HttpRequestMessage(HttpMethod.Head, url))
+                    {
+                        client.DefaultRequestHeaders.Add("User-Agent", "RaptorexController-UpdateChecker");
+                        client.Timeout = TimeSpan.FromSeconds(8);
+                        var response = await client.SendAsync(request);
+                        if ((int)response.StatusCode >= 200 && (int)response.StatusCode < 400)
+                        {
+                            return url;
+                        }
+                    }
+                }
+                catch
+                {
+                    // ignore and try next
+                }
+            }
+            return null;
         }
     }
 
