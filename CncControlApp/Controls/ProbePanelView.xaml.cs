@@ -18,6 +18,11 @@ namespace CncControlApp.Controls
         public event RoutedEventHandler CenterYOuterClicked;
         public event RoutedEventHandler CenterXYOuterClicked;
 
+        // Center from inner edges events
+        public event RoutedEventHandler CenterXInnerClicked;
+        public event RoutedEventHandler CenterYInnerClicked;
+        public event RoutedEventHandler CenterXYInnerClicked;
+
         public ProbePanelView()
         {
             InitializeComponent();
@@ -35,5 +40,10 @@ namespace CncControlApp.Controls
         private void CenterXOuter_Click(object sender, RoutedEventArgs e) => CenterXOuterClicked?.Invoke(sender, e);
         private void CenterYOuter_Click(object sender, RoutedEventArgs e) => CenterYOuterClicked?.Invoke(sender, e);
         private void CenterXYOuter_Click(object sender, RoutedEventArgs e) => CenterXYOuterClicked?.Invoke(sender, e);
+
+        // Center from inner edges event handlers
+        private void CenterXInner_Click(object sender, RoutedEventArgs e) => CenterXInnerClicked?.Invoke(sender, e);
+        private void CenterYInner_Click(object sender, RoutedEventArgs e) => CenterYInnerClicked?.Invoke(sender, e);
+        private void CenterXYInner_Click(object sender, RoutedEventArgs e) => CenterXYInnerClicked?.Invoke(sender, e);
     }
 }

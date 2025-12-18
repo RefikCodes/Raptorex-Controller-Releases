@@ -60,8 +60,8 @@
 
  <!-- Streaming log -->
  <Border Grid.Row="4" Background="#FF3A3A3E" Padding="14" CornerRadius="12" Margin="22,0,22,0">
- <ScrollViewer x:Name="LogScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Height="160" Width="220">
- <TextBlock x:Name="LogText" FontFamily="Consolas" FontSize="11" Foreground="#FFCCCCCC" TextWrapping="Wrap"/>
+ <ScrollViewer x:Name="LogScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Height="176" Width="220">
+ <TextBlock x:Name="LogText" FontFamily="Consolas" FontSize="13" Foreground="#FFCCCCCC" TextWrapping="Wrap"/>
  </ScrollViewer>
  </Border>
 

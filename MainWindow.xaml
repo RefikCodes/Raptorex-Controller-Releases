@@ -261,7 +261,7 @@
                                FontWeight="Bold" 
                                Foreground="White" 
                                HorizontalAlignment="Center"/>
-                    <TextBlock Text="RAPTOREX - 2025  |  v4.0.4" 
+                    <TextBlock Text="{Binding SoftwareVersion, StringFormat='RAPTOREX - 2025  |  v{0}'}" 
                                FontSize="12" 
                                Foreground="#FFB0BEC5" 
                                HorizontalAlignment="Center"/>
@@ -462,16 +462,10 @@
                                     </Hyperlink>
                                 </TextBlock>
 
-                                <!-- Address -->
-                                <TextBlock Foreground="#FFB0BEC5" FontSize="12" Margin="0,4,0,0">
-                                    <Run Text="Adres: "/>
-                                    <Run Text="[Firma adresi buraya]"/>
-                                </TextBlock>
-
-                                <!-- Phone -->
+                                <!-- Email -->
                                 <TextBlock Foreground="#FFB0BEC5" FontSize="12" Margin="0,4,0,8">
-                                    <Run Text="Telefon: "/>
-                                    <Run Text="[0 (xxx) xxx xx xx]"/>
+                                    <Run Text="Email: "/>
+                                    <Run Text="info@raptorextech.com" Foreground="#FF00D9FF"/>
                                 </TextBlock>
 
                                 <Separator Margin="0,4,0,8"/>
@@ -600,14 +594,6 @@
                                     <TextBlock Grid.Row="21" Grid.Column="0" Text="Buffer (R/W):" FontSize="11" Foreground="#FFB0BEC5" Margin="0,2,8,2"/>
                                     <TextBlock Grid.Row="21" Grid.Column="1" Text="{Binding SerialBuffers}" FontSize="11" Foreground="#FFDDDDDD" Margin="0,2,0,2"/>
                                 </Grid>
-
-                                <Separator Margin="0,8,0,8"/>
-
-                                <!-- About -->
-                                <TextBlock Text="Hakkımızda" FontSize="14" FontWeight="Bold" Foreground="#FF4CAF50"/>
-                                <TextBlock Foreground="#FFDDDDDD" TextWrapping="Wrap" Margin="0,4,0,0">
-                                    RaptorexTech, CNC otomasyon ve üretim süreçleri için yüksek performanslı çözümler geliştirir. Bu uygulama, makinenizi güvenle kontrol etmeniz ve verimli çalışmanız için tasarlanmıştır.
-                                </TextBlock>
                             </StackPanel>
                         </ScrollViewer>
                     </Border>

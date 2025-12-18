@@ -101,6 +101,9 @@ namespace CncControlApp
             panel.CenterXOuterClicked -= Panel_CenterXOuterClicked;
             panel.CenterYOuterClicked -= Panel_CenterYOuterClicked;
             panel.CenterXYOuterClicked -= Panel_CenterXYOuterClicked;
+            panel.CenterXInnerClicked -= Panel_CenterXInnerClicked;
+            panel.CenterYInnerClicked -= Panel_CenterYInnerClicked;
+            panel.CenterXYInnerClicked -= Panel_CenterXYInnerClicked;
             panel.ZProbeClicked += ZProbeButton_Click;
             panel.PlusXProbeClicked += PlusXProbeButton_Click;
             panel.MinusXProbeClicked += MinusXProbeButton_Click;
@@ -109,6 +112,9 @@ namespace CncControlApp
             panel.CenterXOuterClicked += Panel_CenterXOuterClicked;
             panel.CenterYOuterClicked += Panel_CenterYOuterClicked;
             panel.CenterXYOuterClicked += Panel_CenterXYOuterClicked;
+            panel.CenterXInnerClicked += Panel_CenterXInnerClicked;
+            panel.CenterYInnerClicked += Panel_CenterYInnerClicked;
+            panel.CenterXYInnerClicked += Panel_CenterXYInnerClicked;
             
             // HomeZeroPanelView is now controlled by RunUiLocker - no manual update needed
         }
@@ -1177,6 +1183,94 @@ namespace CncControlApp
             catch (Exception ex)
             {
                 App.MainController?.AddLogMessage($"> ❌ Center XY hata: {ex.Message}");
+            }
+        }
+
+        private async void Panel_CenterXInnerClicked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var probeManager = App.MainController?.ProbeManager;
+                if (probeManager == null)
+                {
+                    Controls.MessageDialog.ShowInfo("Hata", "ProbeManager bulunamadı");
+                    return;
+                }
+                
+                // Önceki marker'ları temizle
+                CncControlApp.Managers.GCodeOverlayManager.ClearProbeEdgeMarkers();
+
+                var result = await probeManager.CenterXInnerAsync();
+                
+                if (result.Success)
+                {
+                    Controls.MessageDialog.ShowInfo("İç Merkez X Tamamlandı", 
+                        $"Sol İç Kenar: {result.LeftEdge:F3} mm\n" +
+                        $"Sağ İç Kenar: {result.RightEdge:F3} mm\n" +
+                        $"İç Genişlik: {result.Width:F3} mm\n\n" +
+                        "X = 0 olarak ayarlandı.");
+                }
+                else
+                {
+                    Controls.MessageDialog.ShowInfo("İç Merkez X Başarısız", result.ErrorMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                App.MainController?.AddLogMessage($"> ❌ İç Merkez X hata: {ex.Message}");
+            }
+        }
+
+        private async void Panel_CenterYInnerClicked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var probeManager = App.MainController?.ProbeManager;
+                if (probeManager == null)
+                {
+                    Controls.MessageDialog.ShowInfo("Hata", "ProbeManager bulunamadı");
+                    return;
+                }
+
+                // Önceki marker'ları temizle
+                CncControlApp.Managers.GCodeOverlayManager.ClearProbeEdgeMarkers();
+
+                var result = await probeManager.CenterYInnerAsync();
+
+                if (result.Success)
+                {
+                    string depthInfo = result.Width > 0 ? $"Derinlik: {result.Width:F3} mm\n\n" : "";
+                    Controls.MessageDialog.ShowInfo("İç Merkez Y Tamamlandı",
+                        depthInfo +
+                        "Y = 0 olarak ayarlandı.");
+                }
+                else
+                {
+                    Controls.MessageDialog.ShowInfo("İç Merkez Y Başarısız", result.ErrorMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                App.MainController?.AddLogMessage($"> ❌ İç Merkez Y hata: {ex.Message}");
+            }
+        }
+
+        private async void Panel_CenterXYInnerClicked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var probeManager = App.MainController?.ProbeManager;
+                if (probeManager == null)
+                {
+                    Controls.MessageDialog.ShowInfo("Hata", "ProbeManager bulunamadı");
+                    return;
+                }
+                
+                Controls.MessageDialog.ShowInfo("Henüz Hazır Değil", "İç Merkez XY işlevi henüz geliştirilmemiştir.");
+            }
+            catch (Exception ex)
+            {
+                App.MainController?.AddLogMessage($"> ❌ İç Merkez XY hata: {ex.Message}");
             }
         }
 

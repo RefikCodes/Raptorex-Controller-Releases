@@ -111,12 +111,12 @@
         </Style>
 
         <Style x:Key="ProbeModeRadioStyle" TargetType="RadioButton">
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#FF5A8AC4"/>
-            <Setter Property="BorderBrush" Value="#FF4A7AB4"/>
-            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#FFB0BEC5"/>
+            <Setter Property="Background" Value="#FF3E3E40"/>
+            <Setter Property="BorderBrush" Value="#FF555555"/>
+            <Setter Property="BorderThickness" Value="2"/>
             <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -128,7 +128,7 @@
  Background="{TemplateBinding Background}"
  BorderBrush="{TemplateBinding BorderBrush}"
  BorderThickness="{TemplateBinding BorderThickness}"
- CornerRadius="4"
+ CornerRadius="6"
  SnapsToDevicePixels="True">
                             <ContentPresenter Margin="{TemplateBinding Padding}"
  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -136,15 +136,28 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Root" Property="Background" Value="#FF7AAAE4"/>
+                                <Setter TargetName="Root" Property="Background" Value="#FF4A4A4C"/>
+                                <Setter TargetName="Root" Property="BorderBrush" Value="#FF00D9FF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF2D2D2F"/>
+                                <Setter TargetName="Root" Property="BorderBrush" Value="#FF00BFFF"/>
+                                <Setter TargetName="Root" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.97" ScaleY="0.97"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="Root" Property="RenderTransformOrigin" Value="0.5,0.5"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Root" Property="Background" Value="#FF6A9AD4"/>
-                                <Setter TargetName="Root" Property="BorderBrush" Value="#FF5A8AC4"/>
+                                <!-- Muted cyan for selected state -->
+                                <Setter TargetName="Root" Property="Background" Value="#FF1188AA"/>
+                                <Setter TargetName="Root" Property="BorderBrush" Value="#FF00B8DF"/>
                                 <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Root" Property="Opacity" Value="0.6"/>
+                                <Setter TargetName="Root" Property="Opacity" Value="0.5"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -288,17 +301,20 @@
                         <Button Grid.Column="0"
                  Style="{StaticResource UnifiedJogButtonStyle}"
                  Margin="0,0,3,0"
-                 Content="XY Merkez"/>
+                 Content="X Merkez"
+                 Click="CenterXInner_Click"/>
 
                         <Button Grid.Column="1"
                  Style="{StaticResource UnifiedJogButtonStyle}"
                  Margin="3,0"
-                 Content="X Merkez"/>
+                 Content="Y Merkez"
+                 Click="CenterYInner_Click"/>
 
                         <Button Grid.Column="2"
                  Style="{StaticResource UnifiedJogButtonStyle}"
                  Margin="3,0,0,0"
-                 Content="Y Merkez"/>
+                 Content="XY Merkez"
+                 Click="CenterXYInner_Click"/>
                     </Grid>
 
                     <!-- HARITALAMA (Z MAPPING) MODE - TextBox'lar ve OK butonu -->

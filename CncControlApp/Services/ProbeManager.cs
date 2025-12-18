@@ -870,6 +870,399 @@ namespace CncControlApp.Services
             return CenterResult.CreateXY(xResult, yResult);
         }
 
+        /// <summary>
+        /// Center X Inner: İç kenardan X merkezleme (Z probe YOK)
+        /// Manuel Z konumundan başlayarak X ekseninde iki tarafa probe yapar
+        /// </summary>
+        public async Task<CenterResult> CenterXInnerAsync()
+        {
+            bool sessionStarted = false;
+            IDisposable fastScope = null;
+            Controls.StreamingPopup popup = null;
+
+            const double maxProbeDistance = 50.0; // Tek yönde maksimum probe mesafesi
+
+            // Cancel kontrolü için helper
+            bool CheckCancelled()
+            {
+                bool cancelled = false;
+                try { popup?.Dispatcher?.Invoke(() => cancelled = popup?.IsCancelled == true); } catch { }
+                return cancelled;
+            }
+
+            // Helper: popup'a log yaz
+            void PopupLog(string msg)
+            {
+                Log(msg);
+                try { popup?.Dispatcher?.Invoke(() => popup.Append(msg)); } catch { }
+            }
+
+            try
+            {
+                Log("🎯 Center X Inner başlıyor...");
+                
+                // Önceki probe marker'larını temizle
+                Managers.GCodeOverlayManager.ClearProbeEdgeMarkers();
+
+                // Session yönetimi
+                if (!RunUiLocker.IsProbeSessionActive())
+                {
+                    RunUiLocker.BeginProbeSession();
+                    sessionStarted = true;
+                }
+
+                fastScope = _controller?.BeginScopedCentralStatusOverride(100);
+
+                if (_controller?.IsConnected != true)
+                    return CenterResult.Failed("Bağlantı yok");
+
+                // StreamingPopup aç
+                try
+                {
+                    System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                    {
+                        popup = new Controls.StreamingPopup();
+                        popup.ConfigureForProbe();
+                        popup.SetTitle("İç Merkez X - İç Kenar Tespit");
+                        popup.SetSubtitle("X probe ile iç kenarlar bulunuyor...");
+                        popup.Show();
+                    });
+                }
+                catch { }
+
+                // Başlangıç pozisyonunu kaydet
+                double startX = _controller.MStatus?.WorkX ?? _controller.MStatus?.X ?? 0;
+                double startY = _controller.MStatus?.WorkY ?? _controller.MStatus?.Y ?? 0;
+                PopupLog($"📍 Başlangıç: X={startX:F3}, Y={startY:F3}");
+
+                // X probe feed hesapla (Z feed'in yarısı)
+                double zRapid = GetAxisRapid('Z');
+                int zFeed = Clamp((int)(zRapid / 5), 1, MaxProbeFeed);
+                int xFeed = Clamp(zFeed / 2, 1, MaxProbeFeed);
+                
+                PopupLog($"⚙️ X Probe Hızı: {xFeed} mm/min");
+
+                // ===== SOL KENAR (Negatif X yönünde probe) =====
+                PopupLog("◀️ Sol kenar araması başlıyor (-X yönü)...");
+                
+                double leftX = double.NaN;
+                var leftProbeStart = DateTime.UtcNow;
+                
+                // Relative mode
+                await SendCmd("G91");
+                bool leftHit = await DoProbe('X', -1, maxProbeDistance, xFeed, "InnerLeftX");
+                await SendCmd("G90");
+
+                if (!leftHit)
+                {
+                    PopupLog("❌ Sol kenar bulunamadı - temas yok");
+                    await Task.Delay(2000);
+                    popup?.ForceClose();
+                    return CenterResult.Failed("Sol iç kenar probe başarısız");
+                }
+
+                // Sol kenar koordinatını oku
+                leftX = await ReadContact('X', leftProbeStart);
+                PopupLog($"✅ Sol kenar bulundu: X={leftX:F3}");
+
+                // 3mm geri çekil (parçadan uzaklaş, +X yönü)
+                PopupLog("➡️ Sol kenardan 3mm geri çekiliyor...");
+                await DoRetract('X', +1, 3.0, GetAxisRapid('X'));
+
+                // Cancel kontrolü
+                if (CheckCancelled())
+                {
+                    PopupLog("❌ İptal edildi");
+                    popup?.ForceClose();
+                    return CenterResult.Failed("Kullanıcı tarafından iptal edildi");
+                }
+
+                // Başlangıç noktasına dön
+                PopupLog($"🔄 Başlangıç noktasına dönülüyor: X={startX:F3}");
+                await SendCmd($"G90 G0 X{startX.ToString("F3", CultureInfo.InvariantCulture)}");
+                await WaitIdle(10000, "BackToStart");
+
+                // ===== SAĞ KENAR (Pozitif X yönünde probe) =====
+                PopupLog("▶️ Sağ kenar araması başlıyor (+X yönü)...");
+                
+                double rightX = double.NaN;
+                var rightProbeStart = DateTime.UtcNow;
+                
+                // Relative mode
+                await SendCmd("G91");
+                bool rightHit = await DoProbe('X', +1, maxProbeDistance, xFeed, "InnerRightX");
+                await SendCmd("G90");
+
+                if (!rightHit)
+                {
+                    PopupLog("❌ Sağ kenar bulunamadı - temas yok");
+                    await Task.Delay(2000);
+                    popup?.ForceClose();
+                    return CenterResult.Failed("Sağ iç kenar probe başarısız");
+                }
+
+                // Sağ kenar koordinatını oku
+                rightX = await ReadContact('X', rightProbeStart);
+                PopupLog($"✅ Sağ kenar bulundu: X={rightX:F3}");
+
+                // 3mm geri çekil (parçadan uzaklaş, -X yönü)
+                PopupLog("◀️ Sağ kenardan 3mm geri çekiliyor...");
+                await DoRetract('X', -1, 3.0, GetAxisRapid('X'));
+
+                // Merkez hesapla
+                double minX = Math.Min(leftX, rightX);
+                double maxX = Math.Max(leftX, rightX);
+                double centerX = (minX + maxX) / 2.0;
+                double width = maxX - minX;
+                
+                PopupLog($"🎯 Merkez hesaplandı:");
+                PopupLog($"   Sol: {minX:F3} mm");
+                PopupLog($"   Sağ: {maxX:F3} mm");
+                PopupLog($"   Merkez: {centerX:F3} mm");
+                PopupLog($"   İç Genişlik: {width:F3} mm");
+
+                // Canvas üzerine marker'ları ekle
+                Managers.GCodeOverlayManager.AddProbeEdgeMarker(minX, startY, 
+                    Managers.GCodeOverlayManager.ProbeEdgeType.LeftEdge, $"Sol:{minX:F1}");
+                Managers.GCodeOverlayManager.AddProbeEdgeMarker(maxX, startY, 
+                    Managers.GCodeOverlayManager.ProbeEdgeType.RightEdge, $"Sağ:{maxX:F1}");
+
+                // Merkeze git
+                double currWX = _controller.MStatus?.WorkX ?? _controller.MStatus?.X ?? 0;
+                double deltaX = centerX - currWX;
+                PopupLog($"↔️ Merkeze hareket: Mevcut={currWX:F3}, Hedef={centerX:F3}, ΔX={deltaX:F3}");
+                
+                await SendCmd("G91");
+                await SendCmd($"G0 X{deltaX.ToString("F3", CultureInfo.InvariantCulture)}");
+                await SendCmd("G90");
+                await WaitIdle(10000, "MoveCenterX");
+                
+                // Merkez marker'ı ekle
+                Managers.GCodeOverlayManager.AddProbeEdgeMarker(centerX, startY, 
+                    Managers.GCodeOverlayManager.ProbeEdgeType.Center, "Merkez");
+
+                // X=0 ayarla (kalıcı WCS)
+                try
+                {
+                    bool zres = await _controller.SetZeroAxisAsync("X", permanent: true);
+                    PopupLog(zres ? "✅ X=0 ayarlandı (G10 L20)" : "⚠️ X=0 ayarı başarısız");
+                }
+                catch { PopupLog("⚠️ X=0 ayarı sırasında hata"); }
+
+                try 
+                { 
+                    popup?.Dispatcher?.Invoke(() => 
+                    {
+                        popup.SetTitle("✅ İç Merkez Bulundu");
+                        popup.SetLiveLine($"Merkez: X={centerX:F3} (X=0), Genişlik: {width:F3}mm");
+                    }); 
+                } 
+                catch { }
+
+                await Task.Delay(2000);
+                popup?.ForceClose();
+
+                return CenterResult.CreateSuccess(centerX, minX, maxX, width);
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ Hata: {ex.Message}");
+                popup?.ForceClose();
+                return CenterResult.Failed(ex.Message);
+            }
+            finally
+            {
+                try { await SendCmd("G90"); } catch { }
+                try { popup?.ForceClose(); } catch { }
+                if (sessionStarted) RunUiLocker.EndProbeSession();
+                fastScope?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Center Y Inner: İç kenardan Y merkezleme (Z probe YOK)
+        /// Manuel Z konumundan başlayarak Y ekseninde iki tarafa probe yapar
+        /// </summary>
+        public async Task<CenterResult> CenterYInnerAsync()
+        {
+            bool sessionStarted = false;
+            IDisposable fastScope = null;
+            Controls.StreamingPopup popup = null;
+
+            const double maxProbeDistance = 50.0; // Tek yönde maksimum probe mesafesi
+
+            bool CheckCancelled()
+            {
+                bool cancelled = false;
+                try { popup?.Dispatcher?.Invoke(() => cancelled = popup?.IsCancelled == true); } catch { }
+                return cancelled;
+            }
+
+            void PopupLog(string msg)
+            {
+                Log(msg);
+                try { popup?.Dispatcher?.Invoke(() => popup.Append(msg)); } catch { }
+            }
+
+            try
+            {
+                Log("🎯 Center Y Inner başlıyor...");
+                Managers.GCodeOverlayManager.ClearProbeEdgeMarkers();
+
+                if (!RunUiLocker.IsProbeSessionActive())
+                {
+                    RunUiLocker.BeginProbeSession();
+                    sessionStarted = true;
+                }
+
+                fastScope = _controller?.BeginScopedCentralStatusOverride(100);
+                if (_controller?.IsConnected != true)
+                    return CenterResult.Failed("Bağlantı yok");
+
+                // Popup
+                try
+                {
+                    System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                    {
+                        popup = new Controls.StreamingPopup();
+                        popup.ConfigureForProbe();
+                        popup.SetTitle("İç Merkez Y - İç Kenar Tespit");
+                        popup.SetSubtitle("Y probe ile iç kenarlar bulunuyor...");
+                        popup.Show();
+                    });
+                }
+                catch { }
+
+                double startX = _controller.MStatus?.WorkX ?? _controller.MStatus?.X ?? 0;
+                double startY = _controller.MStatus?.WorkY ?? _controller.MStatus?.Y ?? 0;
+                PopupLog($"📍 Başlangıç: X={startX:F3}, Y={startY:F3}");
+
+                // Y feed (Z rapid/5, yarısı)
+                double zRapid = GetAxisRapid('Z');
+                int zFeed = Clamp((int)(zRapid / 5), 1, MaxProbeFeed);
+                int yFeed = Clamp(zFeed / 2, 1, MaxProbeFeed);
+                PopupLog($"⚙️ Y Probe Hızı: {yFeed} mm/min");
+
+                // ===== ÖN KENAR (Y- yönünde) =====
+                PopupLog("⬇️ Ön kenar araması başlıyor (Y- yönü)...");
+                double frontY = double.NaN;
+                var frontProbeStart = DateTime.UtcNow;
+
+                await SendCmd("G91");
+                bool frontHit = await DoProbe('Y', -1, maxProbeDistance, yFeed, "InnerFrontY");
+                await SendCmd("G90");
+                if (!frontHit)
+                {
+                    PopupLog("❌ Ön kenar bulunamadı - temas yok");
+                    await Task.Delay(2000);
+                    popup?.ForceClose();
+                    return CenterResult.Failed("Ön iç kenar probe başarısız");
+                }
+                frontY = await ReadContact('Y', frontProbeStart);
+                PopupLog($"✅ Ön kenar bulundu: Y={frontY:F3}");
+                PopupLog("🔼 Ön kenardan 3mm geri çekiliyor (+Y)...");
+                await DoRetract('Y', +1, 3.0, GetAxisRapid('Y'));
+
+                if (CheckCancelled())
+                {
+                    PopupLog("❌ İptal edildi");
+                    popup?.ForceClose();
+                    return CenterResult.Failed("Kullanıcı tarafından iptal edildi");
+                }
+
+                // Başlangıç noktasına dön
+                PopupLog($"🔄 Başlangıç noktasına dönülüyor: Y={startY:F3}");
+                await SendCmd($"G90 G0 Y{startY.ToString("F3", CultureInfo.InvariantCulture)}");
+                await WaitIdle(10000, "BackToStartY");
+
+                // ===== ARKA KENAR (Y+ yönünde) =====
+                PopupLog("⬆️ Arka kenar araması başlıyor (Y+ yönü)...");
+                double backY = double.NaN;
+                var backProbeStart = DateTime.UtcNow;
+
+                await SendCmd("G91");
+                bool backHit = await DoProbe('Y', +1, maxProbeDistance, yFeed, "InnerBackY");
+                await SendCmd("G90");
+                if (!backHit)
+                {
+                    PopupLog("❌ Arka kenar bulunamadı - temas yok");
+                    await Task.Delay(2000);
+                    popup?.ForceClose();
+                    return CenterResult.Failed("Arka iç kenar probe başarısız");
+                }
+                backY = await ReadContact('Y', backProbeStart);
+                PopupLog($"✅ Arka kenar bulundu: Y={backY:F3}");
+                PopupLog("🔽 Arka kenardan 3mm geri çekiliyor (-Y)...");
+                await DoRetract('Y', -1, 3.0, GetAxisRapid('Y'));
+
+                // Merkez ve derinlik
+                double minY = Math.Min(frontY, backY);
+                double maxY = Math.Max(frontY, backY);
+                double centerY = (minY + maxY) / 2.0;
+                double depth = maxY - minY;
+                PopupLog("🎯 Merkez hesaplandı:");
+                PopupLog($"   Ön: {minY:F3} mm");
+                PopupLog($"   Arka: {maxY:F3} mm");
+                PopupLog($"   Merkez: {centerY:F3} mm");
+                PopupLog($"   İç Derinlik: {depth:F3} mm");
+
+                // Marker'lar
+                Managers.GCodeOverlayManager.AddProbeEdgeMarker(startX, minY,
+                    Managers.GCodeOverlayManager.ProbeEdgeType.FrontEdge, $"Ön:{minY:F1}");
+                Managers.GCodeOverlayManager.AddProbeEdgeMarker(startX, maxY,
+                    Managers.GCodeOverlayManager.ProbeEdgeType.BackEdge, $"Arka:{maxY:F1}");
+
+                // Merkeze hareket
+                double currWY = _controller.MStatus?.WorkY ?? _controller.MStatus?.Y ?? 0;
+                double deltaY = centerY - currWY;
+                PopupLog($"↕️ Merkeze hareket: Mevcut={currWY:F3}, Hedef={centerY:F3}, ΔY={deltaY:F3}");
+                await SendCmd("G91");
+                await SendCmd($"G0 Y{deltaY.ToString("F3", CultureInfo.InvariantCulture)}");
+                await SendCmd("G90");
+                await WaitIdle(10000, "MoveCenterY");
+
+                // Merkez marker
+                Managers.GCodeOverlayManager.AddProbeEdgeMarker(startX, centerY,
+                    Managers.GCodeOverlayManager.ProbeEdgeType.Center, "Merkez");
+
+                // Y=0 ayarla
+                try
+                {
+                    bool yres = await _controller.SetZeroAxisAsync("Y", permanent: true);
+                    PopupLog(yres ? "✅ Y=0 ayarlandı (G10 L20)" : "⚠️ Y=0 ayarı başarısız");
+                }
+                catch { PopupLog("⚠️ Y=0 ayarı sırasında hata"); }
+
+                try
+                {
+                    popup?.Dispatcher?.Invoke(() =>
+                    {
+                        popup.SetTitle("✅ İç Merkez Bulundu");
+                        popup.SetLiveLine($"Merkez: Y={centerY:F3} (Y=0), Derinlik: {depth:F3}mm");
+                    });
+                }
+                catch { }
+
+                await Task.Delay(2000);
+                popup?.ForceClose();
+
+                return CenterResult.CreateSuccess(centerY, minY, maxY, depth);
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ Hata: {ex.Message}");
+                popup?.ForceClose();
+                return CenterResult.Failed(ex.Message);
+            }
+            finally
+            {
+                try { await SendCmd("G90"); } catch { }
+                try { popup?.ForceClose(); } catch { }
+                if (sessionStarted) RunUiLocker.EndProbeSession();
+                fastScope?.Dispose();
+            }
+        }
+
         #endregion
 
         #region Ana Probe Akışı

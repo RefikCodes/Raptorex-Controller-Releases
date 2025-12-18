@@ -1182,6 +1182,15 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
         private void ClearBuffer() { try { _dataProcessingManager?.ClearBuffer(); } catch { } }
         private void ClearCommandQueue() { try { _dataProcessingManager?.ClearDataQueue(); } catch { } }
 
+        // Public helper for UI popups to cancel any pending streaming/probe and clear buffers
+        public void ClearSendBuffer()
+        {
+            try { _gCodeManager?.CancelExecution(); } catch { }
+            try { ClearCommandQueue(); } catch { }
+            try { ClearBuffer(); } catch { }
+            try { AddLogMessage("> 🧹 Buffer + Queue cleared (user cancel)"); } catch { }
+        }
+
         // Stop popup controls
         private void ShowStopDecisionPopup()
         {

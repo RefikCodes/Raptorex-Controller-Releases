@@ -37,9 +37,10 @@ namespace CncControlApp.Controls
         {
             try
             {
-                SubtitleText.Width = 200;
-                LiveLine.Width = 200;
-                LogScroll.Width = 220;
+                // +30% width
+                SubtitleText.Width = 260;
+                LiveLine.Width = 260;
+                LogScroll.Width = 286;
                 CancelButtonBorder.Visibility = Visibility.Visible;
             }
             catch { }
@@ -52,9 +53,10 @@ namespace CncControlApp.Controls
         {
             try
             {
-                SubtitleText.Width = 440;
-                LiveLine.Width = 440;
-                LogScroll.Width = 440;
+                // +30% width
+                SubtitleText.Width = 572;
+                LiveLine.Width = 572;
+                LogScroll.Width = 572;
                 CancelButtonBorder.Visibility = Visibility.Collapsed;
             }
             catch { }
@@ -124,6 +126,7 @@ namespace CncControlApp.Controls
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
             IsCancelled = true;
+            try { App.MainController?.ClearSendBuffer(); } catch { }
             try { Cancelled?.Invoke(this, EventArgs.Empty); } catch { }
             ForceClose();
         }
