@@ -505,6 +505,8 @@ namespace CncControlApp
                 progressWindow.Show();
                 
                 // İndirme işlemi
+                ErrorLogger.LogInfo($"Güncelleme indiriliyor: {updateInfo.DownloadUrl}");
+                
                 using (var client = new HttpClient())
                 {
                     client.DefaultRequestHeaders.Add("User-Agent", "RaptorexController-Updater");
@@ -528,8 +530,8 @@ namespace CncControlApp
             catch (Exception ex)
             {
                 progressWindow?.Close();
-                ErrorLogger.LogError("Güncelleme indirme hatası", ex);
-                ShowInfoDialog("İndirme Hatası", $"Güncelleme indirilemedi:\n{ex.Message}\n\nManuel olarak GitHub'dan indirebilirsiniz.", isError: true);
+                ErrorLogger.LogError($"Güncelleme indirme hatası - URL: {updateInfo.DownloadUrl}", ex);
+                ShowInfoDialog("İndirme Hatası", $"Güncelleme indirilemedi:\n{ex.Message}\n\nURL: {updateInfo.DownloadUrl}\n\nManuel olarak GitHub'dan indirebilirsiniz.", isError: true);
                 
                 // Temp dosyasını temizle
                 try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
