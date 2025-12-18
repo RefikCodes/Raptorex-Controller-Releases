@@ -1712,31 +1712,42 @@ namespace CncControlApp
                     }
                     
                     // Parse PRB coordinates and feed to ProbeContactCache
-                    if (trimmedLine.StartsWith("[PRB:", StringComparison.OrdinalIgnoreCase))
+                    // PRB bazı firmware'lerde status satırı içinde (<... PRB:... ...>) gelir
+                    if (trimmedLine.IndexOf("PRB:", StringComparison.OrdinalIgnoreCase) >= 0)
                     {
                         try
                         {
-                            // Format: [PRB:123.456,78.901,234.567:1]
+                            // Format örnekleri:
+                            // [PRB:123.456,78.901,234.567:1]
+                            // <Idle|...|PRB:123.456,78.901,234.567:0|...>
+                            // PRB:X,Y,Z[:0/1]
                             var prbMatch = System.Text.RegularExpressions.Regex.Match(
                                 trimmedLine,
-                                @"\[PRB:([\d\.-]+),([\d\.-]+),([\d\.-]+)",
+                                @"PRB:([\d\.-]+),([\d\.-]+),([\d\.-]+)(?::(\d))?",
                                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                            
+
                             if (prbMatch.Success &&
                                 double.TryParse(prbMatch.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double px) &&
                                 double.TryParse(prbMatch.Groups[2].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double py) &&
                                 double.TryParse(prbMatch.Groups[3].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double pz))
                             {
-                                CncControlApp.Managers.ProbeContactCache.SetRaw(px, py, pz);
-                                if (_config.EnableDebugLogging)
+                                bool probeSuccess = true;
+                                if (prbMatch.Groups.Count >= 5 && !string.IsNullOrEmpty(prbMatch.Groups[4].Value))
                                 {
-                                    LogImportantMessage($"> 📍 PRB parsed: X={px:F3}, Y={py:F3}, Z={pz:F3}");
+                                    probeSuccess = prbMatch.Groups[4].Value == "1";
                                 }
+
+                                CncControlApp.Managers.ProbeContactCache.SetRaw(px, py, pz, probeSuccess);
+                                LogImportantMessage($"> 📍 PRB: X={px:F3}, Y={py:F3}, Z={pz:F3}, Success={probeSuccess}");
+                            }
+                            else if (_config.EnableDebugLogging)
+                            {
+                                LogImportantMessage($"> ⚠️ PRB parse FAILED: {trimmedLine}");
                             }
                         }
                         catch (Exception prbEx)
                         {
-                            System.Diagnostics.Debug.WriteLine($"PRB parse error: {prbEx.Message}");
+                            LogImportantMessage($"> ❌ PRB parse error: {prbEx.Message} - Line: {trimmedLine}");
                         }
                     }
                 }

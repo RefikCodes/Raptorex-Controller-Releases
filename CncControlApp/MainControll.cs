@@ -31,6 +31,10 @@ namespace CncControlApp
         private readonly UIPropertiesManager _uiManager;
         private readonly GCodeExecutionManager _gCodeManager;
         private readonly MemoryLogManager _memoryLogManager;
+        private ProbeManager _probeManager;
+        
+        // ProbeManager property
+        public ProbeManager ProbeManager => _probeManager;
 
         // UI/Timers
         private readonly DispatcherTimer _statusAndProcessTimer;
@@ -530,6 +534,11 @@ namespace CncControlApp
 
             AddLogMessage("> ✅ MainControll başlatıldı - Tüm servisler entegre edildi");
             ErrorLogger.LogDebug("MainControll constructor tamamlandı");
+            
+            // ProbeManager - initialize after MainControll is ready
+            _probeManager = new ProbeManager(this);
+            ErrorLogger.LogDebug("ProbeManager oluşturuldu");
+            
             _gCodeManager.CommandBlockedDueToHold += (s, e) => 
             { 
                 string icon = e.MachineStatus.StartsWith("Alarm", StringComparison.OrdinalIgnoreCase) ? "🚨" : "⏸️";
@@ -1458,6 +1467,7 @@ OnPropertyChanged(nameof(ExecutionProgressTime));
 
                         // Create and show reusable streaming popup
                         _stopStreamingPopup = new Controls.StreamingPopup { Owner = Application.Current.MainWindow };
+                        _stopStreamingPopup.ConfigureForStream(); // Geniş mod, iptal butonu gizli
                         _stopStreamingPopup.SetTitle("STOP Sequence");
                         _stopStreamingPopup.SetSubtitle("G-Code yürütme durduruluyor...");
                         _stopStreamingPopup.Show();

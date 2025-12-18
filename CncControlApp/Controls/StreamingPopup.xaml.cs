@@ -10,6 +10,16 @@ namespace CncControlApp.Controls
         private readonly StringBuilder _sb = new StringBuilder(4096);
         private bool _allowClose = false;
         
+        /// <summary>
+        /// Cancel butonuna basıldığında tetiklenir
+        /// </summary>
+        public event EventHandler Cancelled;
+        
+        /// <summary>
+        /// Sekans iptal edildi mi?
+        /// </summary>
+        public bool IsCancelled { get; private set; }
+        
         public StreamingPopup()
         {
             InitializeComponent();
@@ -18,6 +28,36 @@ namespace CncControlApp.Controls
             // ✅ Owner'ı disable etmiyoruz - bu beyazlaşmaya neden oluyor
             // Modal-like behavior yerine sadece topmost kullanıyoruz
             Topmost = true;
+        }
+        
+        /// <summary>
+        /// Probe modu: Dar popup, iptal butonu görünür
+        /// </summary>
+        public void ConfigureForProbe()
+        {
+            try
+            {
+                SubtitleText.Width = 200;
+                LiveLine.Width = 200;
+                LogScroll.Width = 220;
+                CancelButtonBorder.Visibility = Visibility.Visible;
+            }
+            catch { }
+        }
+        
+        /// <summary>
+        /// Stream/Stop modu: Geniş popup, iptal butonu gizli
+        /// </summary>
+        public void ConfigureForStream()
+        {
+            try
+            {
+                SubtitleText.Width = 440;
+                LiveLine.Width = 440;
+                LogScroll.Width = 440;
+                CancelButtonBorder.Visibility = Visibility.Collapsed;
+            }
+            catch { }
         }
 
         /// <summary>
@@ -79,6 +119,13 @@ namespace CncControlApp.Controls
                 });
             }
             catch { }
+        }
+
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            IsCancelled = true;
+            try { Cancelled?.Invoke(this, EventArgs.Empty); } catch { }
+            ForceClose();
         }
     }
 }

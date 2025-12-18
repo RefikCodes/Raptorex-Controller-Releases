@@ -39,7 +39,7 @@
  <TextBlock x:Name="SubtitleText"
  Text=""
  TextWrapping="Wrap"
- Width="840"
+ Width="200"
  Foreground="#FFDDDDDD"
  FontSize="15"/>
  </Border>
@@ -49,7 +49,7 @@
  <TextBlock x:Name="LiveLine"
  Text=""
  TextWrapping="Wrap"
- Width="840"
+ Width="200"
  Foreground="#FFEEEEEE"
  FontFamily="Consolas"
  FontSize="14"/>
@@ -60,13 +60,17 @@
 
  <!-- Streaming log -->
  <Border Grid.Row="4" Background="#FF3A3A3E" Padding="14" CornerRadius="12" Margin="22,0,22,0">
- <ScrollViewer x:Name="LogScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Height="320" Width="880">
- <TextBlock x:Name="LogText" FontFamily="Consolas" FontSize="13" Foreground="#FFCCCCCC" TextWrapping="Wrap"/>
+ <ScrollViewer x:Name="LogScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Height="160" Width="220">
+ <TextBlock x:Name="LogText" FontFamily="Consolas" FontSize="11" Foreground="#FFCCCCCC" TextWrapping="Wrap"/>
  </ScrollViewer>
  </Border>
 
- <!-- Bottom spacer (no close button - window closes automatically) -->
- <Border Grid.Row="5" Background="Transparent" Height="18"/>
+ <!-- Cancel button -->
+ <Border x:Name="CancelButtonBorder" Grid.Row="5" Background="Transparent" Padding="22,12,22,14">
+ <Button x:Name="CancelButton" Content="İptal" Width="100" Height="32" 
+ Background="#C42B1C" Foreground="White" FontWeight="SemiBold"
+ HorizontalAlignment="Center" Click="CancelButton_Click"/>
+ </Border>
  </Grid>
  </Border>
 </Window>

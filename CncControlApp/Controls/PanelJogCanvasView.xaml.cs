@@ -396,7 +396,7 @@ Stroke = Brushes.DarkGray,
    // Info box (top-left corner of workspace)
  var info = new TextBlock
      {
-  Text = $"Workspace: {_maxX:F0} × {_maxY:F0} mm",
+  Text = $"Çalışma Alanı: {_maxX:F0} × {_maxY:F0} mm",
  Foreground = Brushes.Orange,
        FontSize = 9,
      FontWeight = FontWeights.Bold,
@@ -491,7 +491,7 @@ double w = Root.ActualWidth;
             {
      if (App.MainController?.IsConnected != true)
       {
-      App.MainController?.AddLogMessage("> ❌ CNC not connected - PanelJog move cancelled");
+      App.MainController?.AddLogMessage("> ❌ CNC bağlı değil - PanelJog hareketi iptal edildi");
         return;
         }
 
@@ -503,7 +503,7 @@ double w = Root.ActualWidth;
             }
        catch (Exception ex)
         {
-        App.MainController?.AddLogMessage($"> ❌ PanelJog move error: {ex.Message}");
+        App.MainController?.AddLogMessage($"> ❌ PanelJog hareket hatası: {ex.Message}");
    }
         }
 
@@ -868,7 +868,7 @@ if (lx + 100 > w) lx = cx - 110;
                 // Grid bilgisi label
                 var label = new TextBlock
                 {
-                    Text = $"🗺️ Z Map: {_zMappingRows}x{_zMappingColumns} ({_zMappingRows * _zMappingColumns} nokta)",
+                    Text = $"🗺️ Z Haritası: {_zMappingRows}x{_zMappingColumns} ({_zMappingRows * _zMappingColumns} nokta)",
                     Foreground = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
                     FontSize = 11,
                     FontWeight = FontWeights.SemiBold,

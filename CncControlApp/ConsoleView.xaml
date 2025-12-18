@@ -215,12 +215,12 @@
                      Height="51"
                      VerticalContentAlignment="Center"
                      KeyDown="GCodeTextBox_KeyDown"
-                     ToolTip="Type G-code here (Enter to send)"/>
+                     ToolTip="G-code yazın (Göndermek için Enter)"/>
 
             <Button x:Name="SendButton"
                     Grid.Column="1"
                     Style="{StaticResource ActionButtonStyle}"
-                    Content="Send ▶"
+                    Content="Gönder ▶"
                     Background="#FF34C759"
                     Foreground="White"
                     BorderBrush="#FF28A745"
@@ -231,7 +231,7 @@
             <Button x:Name="ClearTextButton"
                     Grid.Column="2"
                     Style="{StaticResource ActionButtonStyle}"
-                    Content="Clear ✖"
+                    Content="Temizle ✖"
                     Background="#FFFF6B6B"
                     Foreground="White"
                     BorderBrush="#FFFF5252"
@@ -309,7 +309,7 @@
                                 <Button Style="{StaticResource KbButtonStyle}" Content="0" Click="KeyButton_Click"/>
                                 <Button Style="{StaticResource KbButtonStyle}" Content="." Click="KeyButton_Click"/>
                                 <Button Style="{StaticResource KbButtonStyle}" Content="-" Click="KeyButton_Click"/>
-                                <Button Style="{StaticResource WideKbButtonStyle}" Tag="BACKSPACE" Content="Backspace" Click="KeyButton_SpecialClick"/>
+                                <Button Style="{StaticResource WideKbButtonStyle}" Tag="BACKSPACE" Content="Geri Sil" Click="KeyButton_SpecialClick"/>
                             </StackPanel>
 
                             <!-- QWERTY row -->
@@ -337,7 +337,7 @@
                                 <Button Style="{StaticResource KbButtonStyle}" Content="J" Click="KeyButton_Click"/>
                                 <Button Style="{StaticResource KbButtonStyle}" Content="K" Click="KeyButton_Click"/>
                                 <Button Style="{StaticResource KbButtonStyle}" Content="L" Click="KeyButton_Click"/>
-                                <Button Style="{StaticResource WideKbButtonStyle}" Tag="CLEAR" Content="Clear" Click="KeyButton_SpecialClick"/>
+                                <Button Style="{StaticResource WideKbButtonStyle}" Tag="CLEAR" Content="Temizle" Click="KeyButton_SpecialClick"/>
                             </StackPanel>
 
                             <!-- ZXCV row + Special Characters -->
@@ -356,8 +356,8 @@
                             
                             <!-- Space/Enter row -->
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Button Style="{StaticResource ExtraWideKbButtonStyle}" Tag="SPACE" Content="Space" Click="KeyButton_SpecialClick"/>
-                                <Button Style="{StaticResource WideKbButtonStyle}" Tag="ENTER" Content="Enter ⏎" Click="KeyButton_SpecialClick"/>
+                                <Button Style="{StaticResource ExtraWideKbButtonStyle}" Tag="SPACE" Content="Boşluk" Click="KeyButton_SpecialClick"/>
+                                <Button Style="{StaticResource WideKbButtonStyle}" Tag="ENTER" Content="Gönder ⏎" Click="KeyButton_SpecialClick"/>
                             </StackPanel>
                         </StackPanel>
                     </Viewbox>
@@ -390,10 +390,10 @@
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="HAREKET" Foreground="#FFEEEEEE" FontSize="12" FontWeight="Bold" Margin="0,0,0,3" HorizontalAlignment="Center"/>
                                     <WrapPanel HorizontalAlignment="Center">
-                                        <Button Style="{StaticResource GMovementButtonStyle}" Content="G00" Click="KeyButton_Click" ToolTip="Rapid Move"/>
-                                        <Button Style="{StaticResource GMovementButtonStyle}" Content="G01" Click="KeyButton_Click" ToolTip="Linear Move"/>
-                                        <Button Style="{StaticResource GMovementButtonStyle}" Content="G02" Click="KeyButton_Click" ToolTip="Arc CW"/>
-                                        <Button Style="{StaticResource GMovementButtonStyle}" Content="G03" Click="KeyButton_Click" ToolTip="Arc CCW"/>
+                                        <Button Style="{StaticResource GMovementButtonStyle}" Content="G00" Click="KeyButton_Click" ToolTip="Hızlı Hareket"/>
+                                        <Button Style="{StaticResource GMovementButtonStyle}" Content="G01" Click="KeyButton_Click" ToolTip="Doğrusal Hareket"/>
+                                        <Button Style="{StaticResource GMovementButtonStyle}" Content="G02" Click="KeyButton_Click" ToolTip="Saat Yönünde Yay"/>
+                                        <Button Style="{StaticResource GMovementButtonStyle}" Content="G03" Click="KeyButton_Click" ToolTip="Saat Yönü Tersine Yay"/>
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -403,10 +403,10 @@
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="MOD / DÜZLEM" Foreground="#FFEEEEEE" FontSize="12" FontWeight="Bold" Margin="0,0,0,3" HorizontalAlignment="Center"/>
                                     <WrapPanel HorizontalAlignment="Center">
-                                        <Button Style="{StaticResource GModeButtonStyle}" Content="G17" Click="KeyButton_Click" ToolTip="XY Plane"/>
-                                        <Button Style="{StaticResource GModeButtonStyle}" Content="G90" Click="KeyButton_Click" ToolTip="Absolute Mode"/>
-                                        <Button Style="{StaticResource GModeButtonStyle}" Content="G91" Click="KeyButton_Click" ToolTip="Relative Mode"/>
-                                        <Button Style="{StaticResource GModeButtonStyle}" Content="G94" Click="KeyButton_Click" ToolTip="Feed/Min"/>
+                                        <Button Style="{StaticResource GModeButtonStyle}" Content="G17" Click="KeyButton_Click" ToolTip="XY Düzlemi"/>
+                                        <Button Style="{StaticResource GModeButtonStyle}" Content="G90" Click="KeyButton_Click" ToolTip="Mutlak Mod"/>
+                                        <Button Style="{StaticResource GModeButtonStyle}" Content="G91" Click="KeyButton_Click" ToolTip="Bağıl Mod"/>
+                                        <Button Style="{StaticResource GModeButtonStyle}" Content="G94" Click="KeyButton_Click" ToolTip="İlerleme/Dak"/>
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -416,10 +416,10 @@
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="AYAR / SIFIRLAMA" Foreground="#FFEEEEEE" FontSize="12" FontWeight="Bold" Margin="0,0,0,3" HorizontalAlignment="Center"/>
                                     <WrapPanel HorizontalAlignment="Center">
-                                        <Button Style="{StaticResource GSettingButtonStyle}" Content="G10" Click="KeyButton_Click" ToolTip="Set Offset"/>
-                                        <Button Style="{StaticResource GSettingButtonStyle}" Content="G28" Click="KeyButton_Click" ToolTip="Home"/>
-                                        <Button Style="{StaticResource GSettingButtonStyle}" Content="G30" Click="KeyButton_Click" ToolTip="2nd Home"/>
-                                        <Button Style="{StaticResource GSettingButtonStyle}" Content="G92" Click="KeyButton_Click" ToolTip="Set Position"/>
+                                        <Button Style="{StaticResource GSettingButtonStyle}" Content="G10" Click="KeyButton_Click" ToolTip="Offset Ayarla"/>
+                                        <Button Style="{StaticResource GSettingButtonStyle}" Content="G28" Click="KeyButton_Click" ToolTip="Referans"/>
+                                        <Button Style="{StaticResource GSettingButtonStyle}" Content="G30" Click="KeyButton_Click" ToolTip="2. Referans"/>
+                                        <Button Style="{StaticResource GSettingButtonStyle}" Content="G92" Click="KeyButton_Click" ToolTip="Pozisyon Ayarla"/>
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -427,12 +427,12 @@
                             <!-- Row 1, Col 1: Probe -->
                             <Border Grid.Row="1" Grid.Column="1" BorderBrush="#FF707072" BorderThickness="1" CornerRadius="6" Padding="5" Margin="3">
                                 <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="PROBE" Foreground="#FFEEEEEE" FontSize="12" FontWeight="Bold" Margin="0,0,0,3" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="PROB" Foreground="#FFEEEEEE" FontSize="12" FontWeight="Bold" Margin="0,0,0,3" HorizontalAlignment="Center"/>
                                     <WrapPanel HorizontalAlignment="Center">
-                                        <Button Style="{StaticResource GProbeButtonStyle}" Content="G38.2" Click="KeyButton_Click" ToolTip="Probe Toward"/>
-                                        <Button Style="{StaticResource GProbeButtonStyle}" Content="G38.3" Click="KeyButton_Click" ToolTip="Probe (no err)"/>
-                                        <Button Style="{StaticResource GProbeButtonStyle}" Content="G38.4" Click="KeyButton_Click" ToolTip="Probe Away"/>
-                                        <Button Style="{StaticResource GProbeButtonStyle}" Content="G38.5" Click="KeyButton_Click" ToolTip="Away (no err)"/>
+                                        <Button Style="{StaticResource GProbeButtonStyle}" Content="G38.2" Click="KeyButton_Click" ToolTip="Proba Doğru"/>
+                                        <Button Style="{StaticResource GProbeButtonStyle}" Content="G38.3" Click="KeyButton_Click" ToolTip="Prob (hatasız)"/>
+                                        <Button Style="{StaticResource GProbeButtonStyle}" Content="G38.4" Click="KeyButton_Click" ToolTip="Probdan Uzak"/>
+                                        <Button Style="{StaticResource GProbeButtonStyle}" Content="G38.5" Click="KeyButton_Click" ToolTip="Uzak (hatasız)"/>
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -442,11 +442,11 @@
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="SİSTEM" Foreground="#FFEEEEEE" FontSize="12" FontWeight="Bold" Margin="0,0,0,3" HorizontalAlignment="Center"/>
                                     <WrapPanel HorizontalAlignment="Center">
-                                        <Button Style="{StaticResource GSystemButtonStyle}" Content="$H" Click="KeyButton_Click" ToolTip="Homing Cycle"/>
-                                        <Button Style="{StaticResource GSystemButtonStyle}" Content="$X" Click="KeyButton_Click" ToolTip="Unlock"/>
-                                        <Button Style="{StaticResource GSystemButtonStyle}" Content="$$" Click="KeyButton_Click" ToolTip="View Settings"/>
-                                        <Button Style="{StaticResource GSystemButtonStyle}" Content="$#" Click="KeyButton_Click" ToolTip="View Parameters"/>
-                                        <Button Style="{StaticResource GSystemButtonStyle}" Tag="CTRLX" Content="Ctrl-X" Click="KeyButton_SpecialClick" ToolTip="Soft Reset"/>
+                                        <Button Style="{StaticResource GSystemButtonStyle}" Content="$H" Click="KeyButton_Click" ToolTip="Referans Döngüsü"/>
+                                        <Button Style="{StaticResource GSystemButtonStyle}" Content="$X" Click="KeyButton_Click" ToolTip="Kilidi Aç"/>
+                                        <Button Style="{StaticResource GSystemButtonStyle}" Content="$$" Click="KeyButton_Click" ToolTip="Ayarları Görüntüle"/>
+                                        <Button Style="{StaticResource GSystemButtonStyle}" Content="$#" Click="KeyButton_Click" ToolTip="Parametreleri Görüntüle"/>
+                                        <Button Style="{StaticResource GSystemButtonStyle}" Tag="CTRLX" Content="Ctrl-X" Click="KeyButton_SpecialClick" ToolTip="Yazılım Sıfırlama"/>
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -456,9 +456,9 @@
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="KONTROL" Foreground="#FFEEEEEE" FontSize="12" FontWeight="Bold" Margin="0,0,0,3" HorizontalAlignment="Center"/>
                                     <WrapPanel HorizontalAlignment="Center">
-                                        <Button Style="{StaticResource GControlButtonStyle}" Content="!" Click="KeyButton_Click" ToolTip="Feed Hold"/>
-                                        <Button Style="{StaticResource GControlButtonStyle}" Content="~" Click="KeyButton_Click" ToolTip="Cycle Start/Resume"/>
-                                        <Button Style="{StaticResource GControlButtonStyle}" Content="?" Click="KeyButton_Click" ToolTip="Status Report"/>
+                                        <Button Style="{StaticResource GControlButtonStyle}" Content="!" Click="KeyButton_Click" ToolTip="İlerleme Durdur"/>
+                                        <Button Style="{StaticResource GControlButtonStyle}" Content="~" Click="KeyButton_Click" ToolTip="Döngü Başlat/Devam"/>
+                                        <Button Style="{StaticResource GControlButtonStyle}" Content="?" Click="KeyButton_Click" ToolTip="Durum Raporu"/>
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -468,11 +468,11 @@
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="EKSEN / PARAMETRE" Foreground="#FFEEEEEE" FontSize="12" FontWeight="Bold" Margin="0,0,0,3" HorizontalAlignment="Center"/>
                                     <WrapPanel HorizontalAlignment="Center">
-                                        <Button Style="{StaticResource GAxisButtonStyle}" Content="X" Click="KeyButton_Click" ToolTip="X Axis"/>
-                                        <Button Style="{StaticResource GAxisButtonStyle}" Content="Y" Click="KeyButton_Click" ToolTip="Y Axis"/>
-                                        <Button Style="{StaticResource GAxisButtonStyle}" Content="Z" Click="KeyButton_Click" ToolTip="Z Axis"/>
-                                        <Button Style="{StaticResource GAxisButtonStyle}" Content="F" Click="KeyButton_Click" ToolTip="Feed Rate"/>
-                                        <Button Style="{StaticResource GAxisButtonStyle}" Content="S" Click="KeyButton_Click" ToolTip="Spindle Speed"/>
+                                        <Button Style="{StaticResource GAxisButtonStyle}" Content="X" Click="KeyButton_Click" ToolTip="X Ekseni"/>
+                                        <Button Style="{StaticResource GAxisButtonStyle}" Content="Y" Click="KeyButton_Click" ToolTip="Y Ekseni"/>
+                                        <Button Style="{StaticResource GAxisButtonStyle}" Content="Z" Click="KeyButton_Click" ToolTip="Z Ekseni"/>
+                                        <Button Style="{StaticResource GAxisButtonStyle}" Content="F" Click="KeyButton_Click" ToolTip="İlerleme Hızı"/>
+                                        <Button Style="{StaticResource GAxisButtonStyle}" Content="S" Click="KeyButton_Click" ToolTip="Mil Hızı"/>
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -487,7 +487,7 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 
-                                <TextBlock Grid.Row="0" Text="NUMPAD" Foreground="#FFEEEEEE" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                <TextBlock Grid.Row="0" Text="SAYI TUŞLARI" Foreground="#FFEEEEEE" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                                 
                                 <!-- Main numpad grid - stretches to fill -->
                                 <UniformGrid Grid.Row="1" Rows="4" Columns="3">
@@ -511,11 +511,11 @@
                                 <!-- Special keys at bottom -->
                                 <UniformGrid Grid.Row="2" Rows="2" Columns="3" Margin="0,8,0,0">
                                     <Button Style="{StaticResource NumpadButtonStyle}" Content="+" Click="KeyButton_Click" Margin="3" Height="40"/>
-                                    <Button Style="{StaticResource NumpadButtonStyle}" Tag="BACKSPACE" Content="⌫" Click="KeyButton_SpecialClick" Margin="3" Height="40" ToolTip="Backspace"/>
-                                    <Button Style="{StaticResource NumpadButtonStyle}" Tag="DELETE" Content="DEL" Click="KeyButton_SpecialClick" Margin="3" Height="40" FontSize="12" ToolTip="Delete"/>
+                                    <Button Style="{StaticResource NumpadButtonStyle}" Tag="BACKSPACE" Content="⌫" Click="KeyButton_SpecialClick" Margin="3" Height="40" ToolTip="Geri Sil"/>
+                                    <Button Style="{StaticResource NumpadButtonStyle}" Tag="DELETE" Content="SIL" Click="KeyButton_SpecialClick" Margin="3" Height="40" FontSize="12" ToolTip="Sil"/>
                                     
-                                    <Button Style="{StaticResource NumpadButtonStyle}" Tag="SPACE" Content="⎵" Click="KeyButton_SpecialClick" Margin="3" Height="40" ToolTip="Space"/>
-                                    <Button Style="{StaticResource NumpadButtonStyle}" Tag="ENTER" Content="↵" Click="KeyButton_SpecialClick" Margin="3" Height="40" Grid.ColumnSpan="2" ToolTip="Enter/Send"/>
+                                    <Button Style="{StaticResource NumpadButtonStyle}" Tag="SPACE" Content="⎵" Click="KeyButton_SpecialClick" Margin="3" Height="40" ToolTip="Boşluk"/>
+                                    <Button Style="{StaticResource NumpadButtonStyle}" Tag="ENTER" Content="↵" Click="KeyButton_SpecialClick" Margin="3" Height="40" Grid.ColumnSpan="2" ToolTip="Gönder"/>
                                 </UniformGrid>
                             </Grid>
                         </Border>

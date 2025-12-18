@@ -35,6 +35,37 @@ namespace CncControlApp.Managers
         private double _lastXRange = 0;
         private double _lastYRange = 0;
         
+        // Probe edge markers (static so ProbeManager can set them)
+        private static List<ProbeEdgeMarker> _probeEdgeMarkers = new List<ProbeEdgeMarker>();
+        private static readonly object _markerLock = new object();
+        
+        #endregion
+
+        #region Probe Edge Marker Types
+        
+        /// <summary>
+        /// Probe kenar işareti tipi
+        /// </summary>
+        public enum ProbeEdgeType
+        {
+            LeftEdge,   // Sol kenar (X-)
+            RightEdge,  // Sağ kenar (X+)
+            FrontEdge,  // Ön kenar (Y-)
+            BackEdge,   // Arka kenar (Y+)
+            Center      // Merkez nokta
+        }
+        
+        /// <summary>
+        /// Probe kenar işareti verisi
+        /// </summary>
+        public class ProbeEdgeMarker
+        {
+            public double X { get; set; }
+            public double Y { get; set; }
+            public ProbeEdgeType Type { get; set; }
+            public string Label { get; set; }
+        }
+        
         #endregion
 
         #region Constructor
@@ -123,6 +154,9 @@ namespace CncControlApp.Managers
 
                 // 4) Machine position marker
                 DrawMachinePositionMarker(w, h);
+                
+                // 5) Probe edge markers
+                DrawProbeEdgeMarkers(w, h);
             }
             catch (Exception ex)
             {
@@ -670,6 +704,136 @@ namespace CncControlApp.Managers
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ DrawMachinePositionMarker error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Draw probe edge markers on overlay (found edges from CenterX/Y/XY)
+        /// </summary>
+        private void DrawProbeEdgeMarkers(double canvasWidth, double canvasHeight)
+        {
+            try
+            {
+                List<ProbeEdgeMarker> markers;
+                lock (_markerLock)
+                {
+                    markers = _probeEdgeMarkers.ToList();
+                }
+                
+                if (markers.Count == 0) return;
+                
+                if (!_workspaceLimitsLoaded || _workspaceMaxX <= 0 || _workspaceMaxY <= 0) return;
+                
+                // Create transform
+                if (!CncControlApp.Helpers.WorkspaceTransform.TryCreateFromSettings(canvasWidth, canvasHeight, out var xf))
+                    return;
+                
+                foreach (var marker in markers)
+                {
+                    // Convert work coordinates to canvas position
+                    var canvasPos = xf.ToCanvas(marker.X, marker.Y);
+                    
+                    // Choose color based on type
+                    Color markerColor;
+                    switch (marker.Type)
+                    {
+                        case ProbeEdgeType.LeftEdge:
+                        case ProbeEdgeType.RightEdge:
+                            markerColor = Colors.Magenta; // X edges
+                            break;
+                        case ProbeEdgeType.FrontEdge:
+                        case ProbeEdgeType.BackEdge:
+                            markerColor = Colors.Cyan;    // Y edges
+                            break;
+                        case ProbeEdgeType.Center:
+                            markerColor = Colors.Yellow;  // Center
+                            break;
+                        default:
+                            markerColor = Colors.Orange;
+                            break;
+                    }
+                    
+                    // Draw diamond marker
+                    var diamond = new Polygon
+                    {
+                        Points = new PointCollection
+                        {
+                            new Point(0, -8),   // Top
+                            new Point(8, 0),    // Right
+                            new Point(0, 8),    // Bottom
+                            new Point(-8, 0)    // Left
+                        },
+                        Fill = new SolidColorBrush(Color.FromArgb(180, markerColor.R, markerColor.G, markerColor.B)),
+                        Stroke = new SolidColorBrush(markerColor),
+                        StrokeThickness = 2,
+                        IsHitTestVisible = false,
+                        RenderTransform = new TranslateTransform(canvasPos.X, canvasPos.Y)
+                    };
+                    _overlayCanvas.Children.Add(diamond);
+                    
+                    // Draw label if present
+                    if (!string.IsNullOrEmpty(marker.Label))
+                    {
+                        var label = new TextBlock
+                        {
+                            Text = marker.Label,
+                            Foreground = new SolidColorBrush(markerColor),
+                            FontSize = 9,
+                            FontWeight = FontWeights.Bold,
+                            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+                            Padding = new Thickness(2, 1, 2, 1),
+                            IsHitTestVisible = false
+                        };
+                        Canvas.SetLeft(label, canvasPos.X + 10);
+                        Canvas.SetTop(label, canvasPos.Y - 6);
+                        _overlayCanvas.Children.Add(label);
+                    }
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"✅ DrawProbeEdgeMarkers: {markers.Count} markers drawn");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ DrawProbeEdgeMarkers error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Static Probe Marker Methods
+
+        /// <summary>
+        /// Add a probe edge marker (call from ProbeManager)
+        /// </summary>
+        public static void AddProbeEdgeMarker(double x, double y, ProbeEdgeType type, string label = null)
+        {
+            lock (_markerLock)
+            {
+                _probeEdgeMarkers.Add(new ProbeEdgeMarker { X = x, Y = y, Type = type, Label = label });
+            }
+            System.Diagnostics.Debug.WriteLine($"📍 ProbeEdgeMarker added: {type} at ({x:F3}, {y:F3})");
+        }
+        
+        /// <summary>
+        /// Clear all probe edge markers
+        /// </summary>
+        public static void ClearProbeEdgeMarkers()
+        {
+            lock (_markerLock)
+            {
+                _probeEdgeMarkers.Clear();
+            }
+            System.Diagnostics.Debug.WriteLine($"🧹 ProbeEdgeMarkers cleared");
+        }
+        
+        /// <summary>
+        /// Get current probe edge marker count
+        /// </summary>
+        public static int ProbeEdgeMarkerCount
+        {
+            get
+            {
+                lock (_markerLock) { return _probeEdgeMarkers.Count; }
             }
         }
 

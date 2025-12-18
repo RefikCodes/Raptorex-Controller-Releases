@@ -51,10 +51,6 @@ namespace CncControlApp
 
         private DateTime _lastWorkspaceWarning = DateTime.MinValue;
 
-        // Z Mapping grid verileri
-        private int _zMappingRows = 0;
-        private int _zMappingColumns = 0;
-
         public MainWindow()
         {
             InitializeComponent();
@@ -102,107 +98,19 @@ namespace CncControlApp
             panel.MinusXProbeClicked -= MinusXProbeButton_Click;
             panel.PlusYProbeClicked -= PlusYProbeButton_Click;
             panel.MinusYProbeClicked -= MinusYProbeButton_Click;
-            panel.SetZeroXClicked -= ProbeSetZeroButton_Click;
-            panel.SetZeroYClicked -= ProbeSetZeroButton_Click;
-            panel.SetZeroZClicked -= ProbeSetZeroButton_Click;
-            panel.SetZeroAClicked -= ProbeSetZeroButton_Click;
             panel.CenterXOuterClicked -= Panel_CenterXOuterClicked;
             panel.CenterYOuterClicked -= Panel_CenterYOuterClicked;
             panel.CenterXYOuterClicked -= Panel_CenterXYOuterClicked;
-            panel.ZMappingRequested -= Panel_ZMappingRequested;
-
             panel.ZProbeClicked += ZProbeButton_Click;
             panel.PlusXProbeClicked += PlusXProbeButton_Click;
             panel.MinusXProbeClicked += MinusXProbeButton_Click;
             panel.PlusYProbeClicked += PlusYProbeButton_Click;
             panel.MinusYProbeClicked += MinusYProbeButton_Click;
-            panel.SetZeroXClicked += ProbeSetZeroButton_Click;
-            panel.SetZeroYClicked += ProbeSetZeroButton_Click;
-            panel.SetZeroZClicked += ProbeSetZeroButton_Click;
-            panel.SetZeroAClicked += ProbeSetZeroButton_Click;
             panel.CenterXOuterClicked += Panel_CenterXOuterClicked;
             panel.CenterYOuterClicked += Panel_CenterYOuterClicked;
             panel.CenterXYOuterClicked += Panel_CenterXYOuterClicked;
-            panel.ZMappingRequested += Panel_ZMappingRequested;
             
-            // Subscribe to MainController PropertyChanged for IsGCodeLoaded updates
-            if (App.MainController != null)
-            {
-                App.MainController.PropertyChanged += MainController_PropertyChanged;
-                // Initialize with current value
-                bool isLoaded = App.MainController.IsGCodeLoaded;
-                panel.IsGCodeLoaded = isLoaded;
-                
-                // HomeZeroPanelView is now controlled by RunUiLocker - no manual update needed
-            }
-        }
-        
-        private void MainController_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == nameof(MainControll.IsGCodeLoaded))
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    bool isLoaded = App.MainController?.IsGCodeLoaded ?? false;
-                    
-                    var probePanel = MainProbePanel as ProbePanelView;
-                    if (probePanel != null)
-                    {
-                        probePanel.IsGCodeLoaded = isLoaded;
-                    }
-                    
-                    // HomeZeroPanelView is now controlled by RunUiLocker - no manual update needed
-                });
-            }
-        }
-
-        /// <summary>
-        /// Z Mapping grid çizimi için event handler
-        /// </summary>
-        private void Panel_ZMappingRequested(object sender, ZMappingEventArgs e)
-        {
-            DrawZMappingGrid(e.RowCount, e.ColumnCount);
-        }
-
-        /// <summary>
-        /// Z Mapping grid'i GCodeView canvas üzerine çizer
-        /// GCode şeklinin bounding box'ı etrafına çerçeve ve grid çizer
-        /// </summary>
-        private void DrawZMappingGrid(int rows, int columns)
-        {
-            _zMappingRows = rows;
-            _zMappingColumns = columns;
-
-            // GCode bounds'u al
-            var bounds = _gcodeView?.GetCurrentGCodeBounds();
-            if (bounds == null)
-            {
-                Controls.MessageDialog.ShowError("Z Mapping Hatası", "GCode yüklü değil veya bounds hesaplanamadı.");
-                return;
-            }
-
-            var (minX, maxX, minY, maxY) = bounds.Value;
-            double width = maxX - minX;
-            double height = maxY - minY;
-
-            App.MainController?.AddLogMessage($"> 🗺️ Z Mapping Grid: {rows} satır x {columns} sütun");
-            App.MainController?.AddLogMessage($">    Bounds: X[{minX:F2} - {maxX:F2}] Y[{minY:F2} - {maxY:F2}]");
-            App.MainController?.AddLogMessage($">    Boyut: {width:F2} x {height:F2} mm");
-
-            // MainPanelJogCanvas'a grid overlay çizdir
-            MainPanelJogCanvas?.DrawZMappingGrid(minX, maxX, minY, maxY, rows, columns);
-
-            // ProbePanelView'daki DataGrid'e noktaları yükle
-            var panel = MainProbePanel as ProbePanelView;
-            panel?.PopulateZMappingPoints(minX, maxX, minY, maxY, rows, columns);
-
-            Controls.MessageDialog.ShowInfo("Z Mapping Grid", 
-                $"Grid oluşturuldu:\n\n" +
-                $"Satır (Y): {rows}\n" +
-                $"Sütun (X): {columns}\n" +
-                $"Toplam nokta: {rows * columns}\n\n" +
-                $"Boyut: {width:F1} x {height:F1} mm\n" +
-                $"Alan: X[{minX:F1} - {maxX:F1}] Y[{minY:F1} - {maxY:F1}]");
+            // HomeZeroPanelView is now controlled by RunUiLocker - no manual update needed
         }
 
         // Canvas elements removed from probe panel
@@ -1169,17 +1077,37 @@ namespace CncControlApp
             return true;
         }
 
-        // Center probe event handlers will be added here
+        // Center probe event handlers - use ProbeManager
         private async void Panel_CenterXOuterClicked(object sender, RoutedEventArgs e)
         {
             try
             {
-                App.MainController?.AddLogMessage("> ▶ Center X (outer edges) başlatılıyor – Z probe ile başlar");
-                await CenterXOuterSequenceAsync();
+                var probeManager = App.MainController?.ProbeManager;
+                if (probeManager == null)
+                {
+                    Controls.MessageDialog.ShowInfo("Hata", "ProbeManager bulunamadı");
+                    return;
+                }
+
+                App.MainController?.AddLogMessage("> ▶ Center X başlatılıyor...");
+                var result = await probeManager.CenterXAsync();
+                
+                if (result.Success)
+                {
+                    Controls.MessageDialog.ShowInfo("Center X Tamamlandı", 
+                        $"Sol Kenar: {result.LeftEdge:F3} mm\n" +
+                        $"Sağ Kenar: {result.RightEdge:F3} mm\n" +
+                        $"Genişlik: {result.Width:F3} mm\n\n" +
+                        "X = 0 olarak ayarlandı.");
+                }
+                else
+                {
+                    Controls.MessageDialog.ShowInfo("Center X Başarısız", result.ErrorMessage);
+                }
             }
             catch (Exception ex)
             {
-                App.MainController?.AddLogMessage($"> ❌ Center X (outer) hata: {ex.Message}");
+                App.MainController?.AddLogMessage($"> ❌ Center X hata: {ex.Message}");
             }
         }
 
@@ -1187,12 +1115,33 @@ namespace CncControlApp
         {
             try
             {
-                App.MainController?.AddLogMessage("> ▶ Center Y (outer edges) başlatılıyor – Z probe ile başlar");
-                await CenterYOuterSequenceAsync();
+                var probeManager = App.MainController?.ProbeManager;
+                if (probeManager == null)
+                {
+                    Controls.MessageDialog.ShowInfo("Hata", "ProbeManager bulunamadı");
+                    return;
+                }
+                
+                // Önceki marker'ları temizle
+                CncControlApp.Managers.GCodeOverlayManager.ClearProbeEdgeMarkers();
+
+                var result = await probeManager.CenterYAsync();
+                
+                if (result.Success)
+                {
+                    string depthInfo = result.Width > 0 ? $"Derinlik: {result.Width:F3} mm\n\n" : "";
+                    Controls.MessageDialog.ShowInfo("Center Y Tamamlandı", 
+                        depthInfo +
+                        "Y = 0 olarak ayarlandı.");
+                }
+                else
+                {
+                    Controls.MessageDialog.ShowInfo("Center Y Başarısız", result.ErrorMessage);
+                }
             }
             catch (Exception ex)
             {
-                App.MainController?.AddLogMessage($"> ❌ Center Y (outer) hata: {ex.Message}");
+                App.MainController?.AddLogMessage($"> ❌ Center Y hata: {ex.Message}");
             }
         }
 
@@ -1200,24 +1149,34 @@ namespace CncControlApp
         {
             try
             {
-                App.MainController?.AddLogMessage("> ▶ Center XY (outer edges) başlatılıyor – her eksen Z probe ile başlar");
-                var okX = await CenterXOuterSequenceAsync();
-                if (!okX)
+                var probeManager = App.MainController?.ProbeManager;
+                if (probeManager == null)
                 {
-                    App.MainController?.AddLogMessage("> ❌ Center XY: X aşaması başarısız");
+                    Controls.MessageDialog.ShowInfo("Hata", "ProbeManager bulunamadı");
                     return;
                 }
-                var okY = await CenterYOuterSequenceAsync();
-                if (!okY)
+
+                var result = await probeManager.CenterXYAsync();
+                if (result.Success)
                 {
-                    App.MainController?.AddLogMessage("> ❌ Center XY: Y aşaması başarısız");
-                    return;
+                    string info = "";
+                    if (result.Width > 0) info += $"Genişlik: {result.Width:F3}mm";
+                    if (result.Depth > 0)
+                    {
+                        if (info.Length > 0) info += "\n";
+                        info += $"Derinlik: {result.Depth:F3}mm";
+                    }
+                    if (info.Length > 0)
+                        Controls.MessageDialog.ShowInfo("Center XY Tamamlandı", info);
                 }
-                App.MainController?.AddLogMessage("> ✅ Center XY (outer) tamamlandı");
+                else
+                {
+                    Controls.MessageDialog.ShowError("Center XY Hatası", result.ErrorMessage ?? "Bilinmeyen hata");
+                }
             }
             catch (Exception ex)
             {
-                App.MainController?.AddLogMessage($"> ❌ Center XY (outer) hata: {ex.Message}");
+                App.MainController?.AddLogMessage($"> ❌ Center XY hata: {ex.Message}");
             }
         }
 

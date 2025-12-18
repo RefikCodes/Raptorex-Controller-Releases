@@ -311,17 +311,17 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Orientation="Vertical" Margin="0,0,20,0">
-                            <TextBlock Text="FILE NAME" FontSize="10" Foreground="YellowGreen"
+                            <TextBlock Text="DOSYA ADI" FontSize="10" Foreground="YellowGreen"
             FontWeight="SemiBold" Margin="0,0,0,2"/>
                             <TextBlock x:Name="FileNameTextBlock"
-    Text="No file selected"
+    Text="Dosya seçilmedi"
     FontSize="18"
     Foreground="LightGoldenrodYellow"
         FontWeight="Medium"
          TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Vertical" Margin="0,0,20,0">
-                            <TextBlock Text="SIZE" FontSize="10" Foreground="YellowGreen"
+                            <TextBlock Text="BOYUT" FontSize="10" Foreground="YellowGreen"
             FontWeight="SemiBold" Margin="0,0,0,2"/>
                             <TextBlock x:Name="FileSizeTextBlock"
      Text="0 KB"
@@ -330,7 +330,7 @@
           FontWeight="Medium"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Vertical">
-                            <TextBlock Text="LINES" FontSize="10" Foreground="YellowGreen"
+                            <TextBlock Text="SATIRLAR" FontSize="10" Foreground="YellowGreen"
      FontWeight="SemiBold" Margin="0,0,0,2"/>
                             <TextBlock x:Name="TotalLinesTextBlock"
         Text="0"
@@ -356,7 +356,7 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Orientation="Vertical" Margin="0,0,8,0" HorizontalAlignment="Center">
-                            <TextBlock Text="LINEAR CUT" FontSize="10" Foreground="Orange"
+                            <TextBlock Text="DOĞRUSAL KESİM" FontSize="10" Foreground="Orange"
       FontWeight="SemiBold" Margin="0,0,0,2" TextAlignment="Center"/>
                             <TextBlock x:Name="LinearDistanceTextBlock"
    Text="0.0mm"
@@ -365,7 +365,7 @@
        FontWeight="Bold" TextAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Vertical" Margin="0,0,8,0" HorizontalAlignment="Center">
-                            <TextBlock Text="RAPID MOVE" FontSize="10" Foreground="LightBlue"
+                            <TextBlock Text="HIZLI HAREKET" FontSize="10" Foreground="LightBlue"
            FontWeight="SemiBold" Margin="0,0,0,2" TextAlignment="Center"/>
                             <TextBlock x:Name="RapidDistanceTextBlock"
     Text="0.0mm"
@@ -374,7 +374,7 @@
  FontWeight="Bold" TextAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Vertical" Margin="0,0,8,0" HorizontalAlignment="Center">
-                            <TextBlock Text="ARC CUT" FontSize="10" Foreground="LightGreen"
+                            <TextBlock Text="YAY KESİM" FontSize="10" Foreground="LightGreen"
      FontWeight="SemiBold" Margin="0,0,0,2" TextAlignment="Center"/>
                             <TextBlock x:Name="ArcDistanceTextBlock"
         Text="0.0mm"
@@ -383,7 +383,7 @@
 FontWeight="Bold" TextAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Grid.Column="3" Orientation="Vertical" HorizontalAlignment="Center">
-                            <TextBlock Text="TOTAL DISTANCE" FontSize="10" Foreground="Gold"
+                            <TextBlock Text="TOPLAM MESAFE" FontSize="10" Foreground="Gold"
         FontWeight="SemiBold" Margin="0,0,0,2" TextAlignment="Center"/>
                             <TextBlock x:Name="TotalDistanceTextBlock"
    Text="0.0mm"
@@ -408,7 +408,7 @@ FontWeight="Bold" TextAlignment="Center"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Orientation="Vertical" Margin="0,0,20,0">
-                            <TextBlock Text="X RANGE" FontSize="10" Foreground="YellowGreen"
+                            <TextBlock Text="X MESAFE" FontSize="10" Foreground="YellowGreen"
 FontWeight="SemiBold" Margin="0,0,0,2"/>
                             <TextBlock x:Name="XDistanceTextBlock"
   Text="0.0mm"
@@ -417,7 +417,7 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
                FontWeight="Medium"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Vertical" Margin="0,0,20,0">
-                            <TextBlock Text="Y RANGE" FontSize="10" Foreground="YellowGreen"
+                            <TextBlock Text="Y MESAFE" FontSize="10" Foreground="YellowGreen"
            FontWeight="SemiBold" Margin="0,0,0,2"/>
                             <TextBlock x:Name="YDistanceTextBlock"
       Text="0.0mm"
@@ -426,7 +426,7 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
            FontWeight="Medium"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Vertical">
-                            <TextBlock Text="Z RANGE" FontSize="10" Foreground="YellowGreen"
+                            <TextBlock Text="Z MESAFE" FontSize="10" Foreground="YellowGreen"
     FontWeight="SemiBold" Margin="0,0,0,2"/>
                             <TextBlock x:Name="ZDistanceTextBlock"
       Text="0.0mm"
@@ -452,37 +452,37 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Orientation="Vertical" Margin="0,0,8,0" HorizontalAlignment="Center">
-                            <TextBlock Text="CUT TIME" FontSize="10" Foreground="Orange"
+                            <TextBlock Text="KESİM SÜRESİ" FontSize="10" Foreground="Orange"
          FontWeight="SemiBold" Margin="0,0,0,2" TextAlignment="Center"/>
                             <TextBlock x:Name="LinearTimeTextBlock"
-             Text="0.0min"
+             Text="0.0dak"
             FontSize="18"
         Foreground="Orange"
     FontWeight="Medium" TextAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Vertical" Margin="0,0,8,0" HorizontalAlignment="Center">
-                            <TextBlock Text="MOVE TIME" FontSize="10" Foreground="LightBlue"
+                            <TextBlock Text="HAREKET SÜRESİ" FontSize="10" Foreground="LightBlue"
           FontWeight="SemiBold" Margin="0,0,0,2" TextAlignment="Center"/>
                             <TextBlock x:Name="RapidTimeTextBlock"
-            Text="0.0min"
+            Text="0.0dak"
          FontSize="18"
             Foreground="LightBlue"
  FontWeight="Medium" TextAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Vertical" Margin="0,0,8,0" HorizontalAlignment="Center">
-                            <TextBlock Text="ARC TIME" FontSize="10" Foreground="LightGreen"
+                            <TextBlock Text="YAY SÜRE" FontSize="10" Foreground="LightGreen"
   FontWeight="SemiBold" Margin="0,0,0,2" TextAlignment="Center"/>
                             <TextBlock x:Name="ArcTimeTextBlock"
-         Text="0.0min"
+         Text="0.0dak"
             FontSize="18"
   Foreground="LightGreen"
            FontWeight="Medium" TextAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Grid.Column="3" Orientation="Vertical" HorizontalAlignment="Center">
-                            <TextBlock Text="TOTAL TIME" FontSize="10" Foreground="Gold"
+                            <TextBlock Text="TOPLAM SÜRE" FontSize="10" Foreground="Gold"
                FontWeight="SemiBold" Margin="0,0,0,2" TextAlignment="Center"/>
                             <TextBlock x:Name="TotalTimeTextBlock"
-         Text="0.0min"
+         Text="0.0dak"
    FontSize="18"
    Foreground="Gold"
           FontWeight="Bold" TextAlignment="Center"/>
@@ -504,7 +504,7 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Orientation="Vertical" Margin="0,0,12,0">
-                            <TextBlock Text="PROGRESS" FontSize="10" Foreground="YellowGreen"
+                            <TextBlock Text="İLERLEME" FontSize="10" Foreground="YellowGreen"
       FontWeight="SemiBold" Margin="0,0,0,2"/>
                             <TextBlock x:Name="ProgressTextBlock"
        Text="{Binding ExecutionProgress, Mode=OneWay, StringFormat='{}{0:F1}%', FallbackValue='0%'}"
@@ -513,7 +513,7 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
         FontWeight="Medium"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Vertical" Margin="0,0,12,0">
-                            <TextBlock Text="ELAPSED TIME" FontSize="10" Foreground="YellowGreen"
+                            <TextBlock Text="GEÇEN SÜRE" FontSize="10" Foreground="YellowGreen"
          FontWeight="SemiBold" Margin="0,0,0,2" HorizontalAlignment="Center"/>
                             <TextBlock x:Name="ExecutionTimeTextBlock"
              Text="{Binding ElapsedTimeText, Mode=OneWay, FallbackValue='00:00:00'}"
@@ -522,7 +522,7 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
     FontWeight="Medium" HorizontalAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Vertical">
-                            <TextBlock Text="REMAINING TIME" FontSize="10" Foreground="Orange"
+                            <TextBlock Text="KALAN SÜRE" FontSize="10" Foreground="Orange"
                  FontWeight="SemiBold" Margin="0,0,0,2" HorizontalAlignment="Right"/>
                             <TextBlock x:Name="RemainingTimeTextBlock"
       Text="{Binding RemainingTimeText, Mode=OneWay, FallbackValue='--:--:--'}"
@@ -541,24 +541,24 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            
+
             <!-- Sol taraf: Mevcut menü butonları -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <!-- Frame 1: OPEN FILE and RUN -->
-                <Border Background="#FF1E1E20"
-     BorderBrush="#FF5F6368"
+                <Border Background="#FF2D2D30"
+     BorderBrush="#FFA2A2A4"
      BorderThickness="1"
-    CornerRadius="5"
-  Padding="6"
+    CornerRadius="8,8,8,8"
+  Padding="10,6,10,6"
        Margin="0,0,20,0"
-       Height="62">
+       Height="80">
                     <StackPanel Orientation="Horizontal">
                         <Button x:Name="FileButton"
            Style="{StaticResource HorizontalMenuButtonStyle}"
  Click="FileButton_Click" Foreground="#FFC8D805">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <TextBlock Text="📁" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="OPEN FILE" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <TextBlock Text="DOSYA AÇ" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                         <Button x:Name="RunButton"
@@ -568,20 +568,20 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
   Margin="0">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <TextBlock Text="▶️" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="RUN" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <TextBlock Text="BAŞLAT" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>
                 </Border>
 
                 <!-- Frame 3: FEED & RPM and G-CODE ROTATION -->
-                <Border Background="#FF1E1E20"
-  BorderBrush="#FF5F6368"
+                <Border Background="#FF2D2D30"
+  BorderBrush="#FFA2A2A4"
      BorderThickness="1"
- CornerRadius="5"
-      Padding="6"
+ CornerRadius="8,8,8,8"
+      Padding="10,6,10,6"
         Margin="0"
-      Height="62">
+      Height="77">
                     <StackPanel Orientation="Horizontal">
                         <Button x:Name="FeedRpmButton"
              Style="{StaticResource HorizontalMenuButtonStyle}"
@@ -610,7 +610,7 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
         Click="GCodeRotationButton_Click">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <TextBlock Text="🧭" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="LightBlue"/>
-                                <TextBlock Text="G-CODE ROTATION" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue"/>
+                                <TextBlock Text="DÖNDÜR" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="LightBlue"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -626,39 +626,42 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
    Visibility="Collapsed" IsEnabled="False">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <TextBlock Text="⏹️" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="STOP / PAUSE" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="DURDUR" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
             </StackPanel>
-            
-            <!-- Sağ taraf: Başlama Satırı butonu - G-Code yüklü değilse gizli -->
-            <Border x:Name="ResumeButtonsPanel" Grid.Column="1" Background="#FF1E1E20"
-                    BorderBrush="#FF5F6368"
+
+            <!-- Sağ taraf: Başlama Satırı butonu - Her zaman görünür, G-Code yüklü değilse inaktif -->
+            <Border x:Name="ResumeButtonsPanel" Grid.Column="1" Background="#FF2D2D30"
+                    BorderBrush="#FFA2A2A4"
                     BorderThickness="1"
-                    CornerRadius="5"
-                    Padding="6"
-                    Height="62"
+                    CornerRadius="8,8,8,8"
+                    Padding="10,6,10,6"
+                    Height="80"
                     HorizontalAlignment="Right"
-                    Visibility="Collapsed">
-                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                    <!-- Uyarı etiketi - sadece kayıtlı satır varsa görünür -->
-                    <TextBlock x:Name="ResumeWarningLabel" 
-                               Text="⚠️ Son kalan işin devamı" 
-                               FontSize="9" 
-                               Foreground="#FFFFCC00" 
-                               HorizontalAlignment="Center"
-                               Margin="0,0,0,4"
-                               Visibility="Collapsed"/>
+                    Visibility="Visible">
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Center">
                     <Button x:Name="StartFromLineButton"
                             Style="{StaticResource HorizontalMenuButtonStyle}"
                             Click="StartFromLineButton_Click"
                             Foreground="#FFFFAA00"
-                            Height="36"
+                            Margin="0"
                             IsEnabled="False">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <TextBlock Text="📍" FontSize="16" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="Başlama Satırı:" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                            <TextBlock x:Name="StartLineNumberText" Text="0" FontSize="12" FontWeight="Bold" Foreground="#FF00BFFF" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+                            <!-- Uyarı etiketi - butonun içinde, üstte -->
+                            <TextBlock x:Name="ResumeWarningLabel" 
+                                       Text="⚠️ Son kalan işin devamı" 
+                                       FontSize="8" 
+                                       Foreground="#FFFFCC00" 
+                                       HorizontalAlignment="Center"
+                                       Margin="0,0,0,2"
+                                       Visibility="Collapsed"/>
+                            <!-- Buton içeriği - satır numarası -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="📍" FontSize="16" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Başlama Satırı:" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock x:Name="StartLineNumberText" Text="0" FontSize="12" FontWeight="Bold" Foreground="#FF00BFFF" VerticalAlignment="Center"/>
+                            </StackPanel>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -702,7 +705,7 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
                                 <RowDefinition Height="2*"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="FEED" FontSize="9" Foreground="YellowGreen" FontWeight="SemiBold" TextAlignment="Center"/>
+                            <TextBlock Grid.Row="0" Text="İLERLEME" FontSize="9" Foreground="YellowGreen" FontWeight="SemiBold" TextAlignment="Center"/>
                             <TextBlock Grid.Row="1" Width="80" Text="{Binding ElementName=FeedOverrideSlider, Path=Value, StringFormat='{}{0:F0}%'}" FontSize="12" Foreground="#FFDDDDDD" FontWeight="Medium" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,2,0,6"/>
 
                             <!-- Slider fills remaining row height -->
@@ -718,7 +721,7 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
                                     LostTouchCapture="OverrideSlider_LostTouchCapture" ValueChanged="FeedOverrideSlider_ValueChanged"
                                     Background="#FF474A50" Foreground="#FF0986E6" BorderBrush="#FFA2A2A4" BorderThickness="1" Margin="0,0,0,29" Grid.RowSpan="3" Height="150"/>
 
-                            <Button x:Name="FeedOverrideResetButton" Grid.Row="4" Content="RESET" Height="28" Width="Auto" Style="{StaticResource OverrideResetButtonStyle}" Margin="0,10,0,0" Click="FeedOverrideResetButton_Click"/>
+                            <Button x:Name="FeedOverrideResetButton" Grid.Row="4" Content="SIFIRLA" Height="28" Width="Auto" Style="{StaticResource OverrideResetButtonStyle}" Margin="0,10,0,0" Click="FeedOverrideResetButton_Click"/>
                         </Grid>
                     </Border>
 
@@ -732,7 +735,7 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="SPINDLE" FontSize="9" Foreground="Orange" FontWeight="SemiBold" HorizontalAlignment="Stretch" TextAlignment="Center"/>
+                            <TextBlock Grid.Row="0" Text="MİL" FontSize="9" Foreground="Orange" FontWeight="SemiBold" HorizontalAlignment="Stretch" TextAlignment="Center"/>
                             <TextBlock Grid.Row="1" Width="80" Text="{Binding ElementName=SpindleOverrideSlider, Path=Value, StringFormat='{}{0:+#;-#;0}%'}" FontSize="12" Foreground="#FFDDDDDD" FontWeight="Medium" TextAlignment="Center" Margin="0,2,0,6"/>
 
                             <!-- Slider fills remaining row height - Range: -50% to +50% -->
@@ -748,7 +751,7 @@ FontWeight="SemiBold" Margin="0,0,0,2"/>
                                     LostTouchCapture="OverrideSlider_LostTouchCapture" ValueChanged="SpindleOverrideSlider_ValueChanged"
                                     Background="#FF474A50" Foreground="#FF0986E6" BorderBrush="#FFA2A2A4" BorderThickness="1" Margin="0,2,0,33" Grid.RowSpan="2" Height="150"/>
 
-                            <Button x:Name="SpindleOverrideResetButton" Grid.Row="2" Content="RESET" Height="28" Width="Auto" Style="{StaticResource OverrideResetButtonStyle}" HorizontalAlignment="Stretch" Margin="0,6,0,10" Click="SpindleOverrideResetButton_Click" VerticalAlignment="Bottom"/>
+                            <Button x:Name="SpindleOverrideResetButton" Grid.Row="2" Content="SIFIRLA" Height="28" Width="Auto" Style="{StaticResource OverrideResetButtonStyle}" HorizontalAlignment="Stretch" Margin="0,6,0,10" Click="SpindleOverrideResetButton_Click" VerticalAlignment="Bottom"/>
                         </Grid>
                     </Border>
                 </Grid>
@@ -793,7 +796,7 @@ CornerRadius="5"
 
                     <!-- Label: ROTATE GCODE -->
                     <TextBlock Grid.Row="1" Grid.Column="0"
-  Text="ROTATE GCODE"
+  Text="G-CODE DÖNDÜR"
 FontSize="10"
                 FontWeight="Bold"
            Foreground="YellowGreen"
@@ -830,8 +833,8 @@ IsManipulationEnabled="True"
 
                     <!-- Control Buttons -->
                     <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Height="42">
-                        <Button x:Name="RotationResetButton" Content="RESET" Width="70" Style="{StaticResource RotateButtonStyle}" Height="42" Margin="0,0,15,0" Click="RotationResetButton_Click"/>
-                        <Button x:Name="ApplyAngleRotationButton" Content="APPLY" Width="70" Style="{StaticResource RotateButtonStyle}" Height="42" Margin="0,0,6,0" Click="ApplyAngleRotationButton_Click"/>
+                        <Button x:Name="RotationResetButton" Content="SIFIRLA" Width="70" Style="{StaticResource RotateButtonStyle}" Height="42" Margin="0,0,15,0" Click="RotationResetButton_Click"/>
+                        <Button x:Name="ApplyAngleRotationButton" Content="UYGULA" Width="70" Style="{StaticResource RotateButtonStyle}" Height="42" Margin="0,0,6,0" Click="ApplyAngleRotationButton_Click"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -857,7 +860,7 @@ IsManipulationEnabled="True"
                 <Grid>
                     <!-- G-Code Tab -->
                     <Grid x:Name="GCodeTabContent" Visibility="Visible" Background="#FF29292B">
-                        
+
                         <ListBox x:Name="GCodeListBox"
              Background="#FF29292B"
          BorderBrush="#FFA2A2A4"
@@ -934,7 +937,7 @@ VirtualizingStackPanel.VirtualizationMode="Recycling"
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
-                        
+
                         <!-- Empty State Placeholder (shows when no file loaded) -->
                         <Border x:Name="EmptyStatePlaceholder"
                                 Background="#FF29292B"
@@ -951,7 +954,7 @@ VirtualizingStackPanel.VirtualizationMode="Recycling"
                                            Foreground="#FF9E9E9E"
                                            HorizontalAlignment="Center"
                                            Margin="0,0,0,12"/>
-                                <TextBlock Text="Dosya yüklemek için üstteki 📂 OPEN butonuna tıklayın" 
+                                <TextBlock Text="Dosya yüklemek için üstteki 📂 DOSYA AÇ butonuna tıklayın" 
                                            FontSize="14" 
                                            Foreground="#FF777777"
                                            HorizontalAlignment="Center"/>
@@ -976,7 +979,7 @@ VirtualizingStackPanel.VirtualizationMode="Recycling"
                 CornerRadius="0,0,8,8"
                 Margin="10,6,10,10"
                 BorderBrush="#FF5A5A5C"
-                BorderThickness="1" Grid.RowSpan="2"
+                BorderThickness="1"
                 MinHeight="60">
             <Grid Margin="20,14">
                 <Grid.ColumnDefinitions>
@@ -985,10 +988,10 @@ VirtualizingStackPanel.VirtualizationMode="Recycling"
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="STATUS:" Foreground="#FF8E8E93" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" x:Name="StatusTextBlock" Text="Ready - G-Code Workspace" Foreground="#FF34C759" FontSize="16" FontWeight="Medium" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2" x:Name="PartSizeTextBlock" Text="| PART: -" Foreground="#FFDDDDDD" FontSize="16" FontWeight="Medium" Margin="20,0,0,0" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="3" x:Name="FitStatusTextBlock" Text="| FIT: -" Foreground="#FFDDDDDD" FontSize="16" FontWeight="Medium" Margin="20,0,0,0" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="0" Text="DURUM:" Foreground="#FF8E8E93" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" x:Name="StatusTextBlock" Text="Hazır - G-Code Çalışma Alanı" Foreground="#FF34C759" FontSize="16" FontWeight="Medium" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" x:Name="PartSizeTextBlock" Text="| PARÇA: -" Foreground="#FFDDDDDD" FontSize="16" FontWeight="Medium" Margin="20,0,0,0" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" x:Name="FitStatusTextBlock" Text="| SIĞAR: -" Foreground="#FFDDDDDD" FontSize="16" FontWeight="Medium" Margin="20,0,0,0" VerticalAlignment="Center"/>
             </Grid>
         </Border>
 

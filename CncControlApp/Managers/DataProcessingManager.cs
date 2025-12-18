@@ -877,18 +877,20 @@ namespace CncControlApp.Managers
         private static readonly object _lock = new object();
         private static DateTime _tsUtc;
         private static double _rawX, _rawY, _rawZ;
+        private static bool _success; // PRB success flag (1 = temas var, 0 = temas yok)
 
         public static event Action<double, double, double, DateTime> Contact; // (X,Y,Z,TsUtc)
 
         private static readonly ConcurrentQueue<TaskCompletionSource<(double x, double y, double z, DateTime ts)>> _waiters = new ConcurrentQueue<TaskCompletionSource<(double, double, double, DateTime)>>();
 
-        public static void SetRaw(double x, double y, double z)
+        public static void SetRaw(double x, double y, double z, bool success = true)
         {
             TaskCompletionSource<(double, double, double, DateTime ts)> waiter = null;
             DateTime ts;
             lock (_lock)
             {
                 _rawX = x; _rawY = y; _rawZ = z;
+                _success = success;
                 _tsUtc = DateTime.UtcNow;
                 ts = _tsUtc;
                 if (_waiters.TryDequeue(out waiter))
@@ -905,6 +907,22 @@ namespace CncControlApp.Managers
             {
                 waiter.TrySetResult((x, y, z, ts));
             }
+        }
+
+        /// <summary>
+        /// Son PRB sonucunda temas oldu mu? (1 = temas, 0 = temas yok)
+        /// </summary>
+        public static bool LastProbeSuccess
+        {
+            get { lock (_lock) { return _success; } }
+        }
+
+        /// <summary>
+        /// Son PRB timestamp (UTC)
+        /// </summary>
+        public static DateTime LastProbeTime
+        {
+            get { lock (_lock) { return _tsUtc; } }
         }
 
         public static bool TryGetAfter(DateTime utcThreshold, out double x, out double y, out double z, out DateTime tsUtc)

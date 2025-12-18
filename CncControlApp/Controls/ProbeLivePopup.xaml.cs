@@ -16,6 +16,16 @@ namespace CncControlApp.Controls
         private bool _thresholdFired;
         private int _consecutiveRequired = 2;
         private int _consec;
+        
+        /// <summary>
+        /// Cancel butonuna basıldığında tetiklenir
+        /// </summary>
+        public event EventHandler Cancelled;
+        
+        /// <summary>
+        /// Sekans iptal edildi mi?
+        /// </summary>
+        public bool IsCancelled { get; private set; }
 
         public ProbeLivePopup()
         {
@@ -105,6 +115,14 @@ namespace CncControlApp.Controls
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
+            try { Close(); } catch { }
+        }
+
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            IsCancelled = true;
+            try { _timer?.Stop(); } catch { }
+            try { Cancelled?.Invoke(this, EventArgs.Empty); } catch { }
             try { Close(); } catch { }
         }
 

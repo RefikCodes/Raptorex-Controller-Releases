@@ -217,8 +217,8 @@ namespace CncControlApp
                     {
                         if (running || hold)
                         {
-                            // Turn RUN into STOP/PAUSE
-                            RunButton.Content = "STOP / PAUSE";
+                            // Turn BAŞLAT into DURDUR
+                            RunButton.Content = "DURDUR";
                             RunButton.Tag = "⏹️";
                             RunButton.Foreground = new SolidColorBrush(Colors.White);
                             RunButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFFF3B30"));
@@ -227,8 +227,8 @@ namespace CncControlApp
                         }
                         else
                         {
-                            // Idle state – show RUN
-                            RunButton.Content = "RUN";
+                            // Idle state – show BAŞLAT
+                            RunButton.Content = "BAŞLAT";
                             RunButton.Tag = "▶️";
                             RunButton.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF06E43E"));
                             RunButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF474A50"));
@@ -237,16 +237,21 @@ namespace CncControlApp
                         }
                     }
                     
-                    // Başlama Satırı paneli - sadece G-Code yüklüyse görünür
+                    // Başlama Satırı paneli - her zaman görünür (G-Code yüklü değilse buton inaktif)
                     if (ResumeButtonsPanel != null)
                     {
-                        ResumeButtonsPanel.Visibility = loaded ? Visibility.Visible : Visibility.Collapsed;
+                        ResumeButtonsPanel.Visibility = Visibility.Visible;
                     }
                     
                     // Başlama Satırı butonu ve satır numarası gösterimi
                     if (StartFromLineButton != null)
                     {
-                        StartFromLineButton.IsEnabled = connected && loaded && !running && !hold;
+                        // ✅ CRITICAL FIX: Check BOTH loaded flag AND actual line count > 0
+                        // This prevents button being enabled if loaded=true but lines are empty
+                        int lineCount = App.MainController?.GCodeLines?.Count ?? 0;
+                        bool hasActualLines = loaded && lineCount > 0;
+                        
+                        StartFromLineButton.IsEnabled = connected && hasActualLines && !running && !hold;
                         
                         // Satır numarasını güncelle
                         int lastLine = App.MainController?.LastStoppedLineIndex ?? -1;
@@ -314,20 +319,37 @@ namespace CncControlApp
             {
                 if (StartFromLineButton == null) return;
                 
+                // ✅ CRITICAL FIX: If MainController is null, keep button disabled
+                if (App.MainController == null)
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        StartFromLineButton.IsEnabled = false;
+                    }));
+                    return;
+                }
+                
                 int lastLine = App.MainController?.LastStoppedLineIndex ?? -1;
                 bool isConnected = App.MainController?.IsConnected ?? false;
-                bool hasGCode = App.MainController?.CanStartExecution ?? false;
+                bool canStart = App.MainController?.CanStartExecution ?? false;
+                bool running = App.MainController?.IsGCodeRunning ?? false;
+                bool hold = (App.MainController?.MachineStatus ?? "").StartsWith("Hold", StringComparison.OrdinalIgnoreCase);
+                
+                // ✅ CRITICAL FIX: Check actual line count, not just CanStartExecution
+                int lineCount = App.MainController?.GCodeLines?.Count ?? 0;
+                bool hasActualGCode = canStart && lineCount > 0;
                 
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    // Panel görünürlüğü - sadece G-Code yüklüyse görünür
+                    // Panel görünürlüğü - her zaman görünür (G-Code yüklü değilse buton inaktif)
                     if (ResumeButtonsPanel != null)
                     {
-                        ResumeButtonsPanel.Visibility = hasGCode ? Visibility.Visible : Visibility.Collapsed;
+                        ResumeButtonsPanel.Visibility = Visibility.Visible;
                     }
                     
-                    // Başlama Satırı butonu - bağlı ve G-Code yüklüyse aktif
-                    StartFromLineButton.IsEnabled = isConnected && hasGCode;
+                    // ✅ CRITICAL FIX: Added running and hold checks (same as UpdateExecutionControlButtons)
+                    // Başlama Satırı butonu - bağlı, G-Code yüklü, çalışmıyor ve hold değilse aktif
+                    StartFromLineButton.IsEnabled = isConnected && hasActualGCode && !running && !hold;
                     
                     // Satır numarasını güncelle
                     int displayLine = (lastLine >= 0) ? (lastLine + 1) : 0;

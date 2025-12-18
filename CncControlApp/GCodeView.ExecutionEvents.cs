@@ -54,7 +54,15 @@ namespace CncControlApp
        UpdateExecutionState(App.MainController.IsGCodeRunning);
             }
 
-            // Ensure the Run/Stop button visual state is correct initially
+            // ✅ CRITICAL FIX: Ensure button state is correct on initial load
+            // Force StartFromLineButton to be disabled BEFORE UpdateExecutionControlButtons runs
+            // This handles the case where App.MainController is null at this point
+            if (StartFromLineButton != null)
+            {
+                StartFromLineButton.IsEnabled = false;
+            }
+            
+            // Force-update to ensure StartFromLineButton starts as disabled when no GCode loaded
             UpdateExecutionControlButtons();
 
    // Update feed and spindle overrides from current execution state

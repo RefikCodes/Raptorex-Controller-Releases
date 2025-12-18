@@ -63,27 +63,72 @@ _stepControlHandler = new StepControlHandler(
 
         private async void JogView_Loaded(object sender, RoutedEventArgs e)
         {
- try
+            try
             {
                 if (_stepControlHandler != null)
-     {
-              _stepControlHandler.UpdateXYZStepButtonSelection();
-        // Removed A-axis step button selection update
-    }
+                {
+                    _stepControlHandler.UpdateXYZStepButtonSelection();
+                }
 
                 if (App.MainController != null)
-        {
-             App.MainController.JogSpeedPercentage = 50;
-                  // Removed A-axis speed percentage initialization
+                {
+                    App.MainController.JogSpeedPercentage = 50;
 
-      await Task.Delay(3000);
-           await JogDebugHelper.TestSystemDiagnosis(App.MainController);
+                    // ✅ Subscribe to MStatus property changes to sync button states from status reports
+                    App.MainController.MStatus.PropertyChanged += MStatus_PropertyChanged;
+                    
+                    // ✅ Initial sync of button states
+                    SyncButtonStatesFromStatus();
+
+                    await Task.Delay(3000);
+                    await JogDebugHelper.TestSystemDiagnosis(App.MainController);
                 }
-    }
+            }
             catch (Exception ex)
             {
-      Log($"> ❌ HATA: JogView yükleme - {ex.Message}");
+                Log($"> ❌ HATA: JogView yükleme - {ex.Message}");
             }
+        }
+        
+        /// <summary>
+        /// Sync button states from MStatus (status report)
+        /// </summary>
+        private void SyncButtonStatesFromStatus()
+        {
+            try
+            {
+                if (App.MainController?.MStatus != null)
+                {
+                    btnSpindle.IsChecked = App.MainController.MStatus.IsSpindleOn;
+                    btnCoolant.IsChecked = App.MainController.MStatus.IsCoolantOn;
+                }
+            }
+            catch { }
+        }
+        
+        /// <summary>
+        /// Handle MStatus property changes to update button visual states
+        /// </summary>
+        private void MStatus_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            try
+            {
+                if (e.PropertyName == nameof(MachineStatus.IsSpindleOn))
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        btnSpindle.IsChecked = App.MainController?.MStatus?.IsSpindleOn ?? false;
+                    }));
+                }
+                else if (e.PropertyName == nameof(MachineStatus.IsCoolantOn))
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        btnCoolant.IsChecked = App.MainController?.MStatus?.IsCoolantOn ?? false;
+                    }));
+                }
+            }
+            catch { }
         }
 
         // ONLY XY OVERLAY
@@ -331,7 +376,5 @@ EventHandlerHelper.SafeHandle(() => _sliderHandler?.HandleSpindleSpeedSliderTouc
      // Removed A-axis step control methods
         
         #endregion
-
-  private void btnSpindle_Checked(object sender, RoutedEventArgs e) { }
     }
 }

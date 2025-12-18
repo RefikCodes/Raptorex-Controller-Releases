@@ -30,83 +30,78 @@ namespace CncControlApp
             return Math.Max(ms, minMs);
         }
 
-        #region Center Probe Methods - TO BE REIMPLEMENTED
+        #region Center Probe Methods
 
         // Center X Outer - Find X center from outer edges
-        // ⚠️ PLACEHOLDER - Will be reimplemented
         private async void CenterXOuter_Click(object sender, RoutedEventArgs e)
         {
-            await CenterXOuterSequenceAsync();
+            try
+            {
+                var probeManager = App.MainController?.ProbeManager;
+                if (probeManager == null)
+                {
+                    Controls.MessageDialog.ShowInfo("Hata", "ProbeManager bulunamadı");
+                    return;
+                }
+
+                var result = await probeManager.CenterXAsync();
+                
+                if (result.Success)
+                {
+                    string widthInfo = result.Width > 0 ? $"Genişlik: {result.Width:F3} mm\n\n" : "";
+                    Controls.MessageDialog.ShowInfo("Center X Tamamlandı", 
+                        widthInfo +
+                        "X = 0 olarak ayarlandı.");
+                }
+                else
+                {
+                    Controls.MessageDialog.ShowInfo("Center X Başarısız", result.ErrorMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                App.MainController?.AddLogMessage($"> ❌ CenterXOuter_Click error: {ex.Message}");
+            }
         }
 
         // Center Y Outer - Find Y center from outer edges
-        // ⚠️ PLACEHOLDER - Will be reimplemented
         private async void CenterYOuter_Click(object sender, RoutedEventArgs e)
         {
-            await CenterYOuterSequenceAsync();
+            try
+            {
+                var probeManager = App.MainController?.ProbeManager;
+                if (probeManager == null)
+                {
+                    Controls.MessageDialog.ShowInfo("Hata", "ProbeManager bulunamadı");
+                    return;
+                }
+
+                var result = await probeManager.CenterYAsync();
+                
+                if (result.Success)
+                {
+                    string depthInfo = result.Width > 0 ? $"Derinlik: {result.Width:F3} mm\n\n" : "";
+                    Controls.MessageDialog.ShowInfo("Center Y Tamamlandı", 
+                        depthInfo +
+                        "Y = 0 olarak ayarlandı.");
+                }
+                else
+                {
+                    Controls.MessageDialog.ShowInfo("Center Y Başarısız", result.ErrorMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                App.MainController?.AddLogMessage($"> ❌ CenterYOuter_Click error: {ex.Message}");
+            }
         }
 
         // Center XY Outer - Find both X and Y center
-        // ⚠️ PLACEHOLDER - Will be reimplemented
+        // TODO: CenterXYAsync henüz yazılmadı
         private void CenterXYOuter_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                App.MainController?.AddLogMessage("> 🔧 Center XY - TO BE REIMPLEMENTED");
-                Controls.MessageDialog.ShowInfo("Not Implemented", 
-                    "Center XY probe will be reimplemented.\n\n" +
-                    "Yeni algoritma yazılacak.");
-            }
-            catch (Exception ex)
-            {
-                App.MainController?.AddLogMessage($"> ❌ CenterXYOuter_Click error: {ex.Message}");
-            }
-        }
-
-        // ⚠️ PLACEHOLDER - Will be reimplemented with new algorithm
-        private Task<bool> CenterXOuterSequenceAsync()
-        {
-            try
-            {
-                App.MainController?.AddLogMessage("> 🔧 Center X Outer - TO BE REIMPLEMENTED");
-                Controls.MessageDialog.ShowInfo("Not Implemented", 
-                    "Center X probe will be reimplemented.\n\n" +
-                    "Yeni algoritma yazılacak:\n" +
-                    "1. +X probe → temas noktası kaydet\n" +
-                    "2. Merkeze dön\n" +
-                    "3. -X probe → temas noktası kaydet\n" +
-                    "4. İki nokta ortasını hesapla\n" +
-                    "5. Merkeze git ve X=0 yap");
-                return Task.FromResult(false);
-            }
-            catch (Exception ex)
-            {
-                App.MainController?.AddLogMessage($"> ❌ CenterXOuterSequenceAsync error: {ex.Message}");
-                return Task.FromResult(false);
-            }
-        }
-
-        // ⚠️ PLACEHOLDER - Will be reimplemented with new algorithm
-        private Task<bool> CenterYOuterSequenceAsync()
-        {
-            try
-            {
-                App.MainController?.AddLogMessage("> 🔧 Center Y Outer - TO BE REIMPLEMENTED");
-                Controls.MessageDialog.ShowInfo("Not Implemented", 
-                    "Center Y probe will be reimplemented.\n\n" +
-                    "Yeni algoritma yazılacak:\n" +
-                    "1. +Y probe → temas noktası kaydet\n" +
-                    "2. Merkeze dön\n" +
-                    "3. -Y probe → temas noktası kaydet\n" +
-                    "4. İki nokta ortasını hesapla\n" +
-                    "5. Merkeze git ve Y=0 yap");
-                return Task.FromResult(false);
-            }
-            catch (Exception ex)
-            {
-                App.MainController?.AddLogMessage($"> ❌ CenterYOuterSequenceAsync error: {ex.Message}");
-                return Task.FromResult(false);
-            }
+            Controls.MessageDialog.ShowInfo("Henüz Uygulanmadı", 
+                "Center XY probe henüz yazılmadı.\n\nCenter X ve Y test edildikten sonra eklenecek.");
         }
 
         #endregion

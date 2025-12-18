@@ -30,27 +30,61 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Selected/pressed state: keep background neutral, highlight only border -->
-        <Style x:Key="ControlToggleButtonBorderOnlyStyle"
-       TargetType="{x:Type ToggleButton}"
-    BasedOn="{StaticResource ControlToggleButtonStyle}">
+        <!-- MİL ve SOĞUTMA butonları için özel stil - Kendi template'i ile -->
+        <Style x:Key="ControlToggleButtonBorderOnlyStyle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#FFE0E0E0"/>
             <Setter Property="Background" Value="#FF474A50"/>
             <Setter Property="BorderBrush" Value="#FFA2A2A4"/>
-
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#FF5A5D63"/>
-                    <Setter Property="BorderBrush" Value="#FF9CCC65"/>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#FF5A5D63"/>
-                    <Setter Property="BorderBrush" Value="#FF8BC34A"/>
-                </Trigger>
-                <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Background" Value="#FF474A50"/>
-                    <Setter Property="BorderBrush" Value="#FF8BC34A"/>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Margin" Value="8,5"/>
+            <Setter Property="Width" Value="120"/>
+            <Setter Property="Height" Value="45"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Border x:Name="border"
+                                CornerRadius="8"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border.Effect>
+                                <DropShadowEffect Color="Black" BlurRadius="3" ShadowDepth="2" Opacity="0.3"/>
+                            </Border.Effect>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- Normal: Hover -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FF5A5D63"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FF9CCC65"/>
+                            </Trigger>
+                            <!-- Normal: Pressed -->
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FF5A5D63"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FF8BC34A"/>
+                            </Trigger>
+                            <!-- AKTİF (Checked=True): Yeşil arka plan -->
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FF2E7D32"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FF4CAF50"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <!-- AKTİF + Hover: Daha açık yeşil -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="border" Property="Background" Value="#FF388E3C"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FF81C784"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
 
@@ -77,9 +111,12 @@
     BorderThickness="1"
      Background="#FF2D2D30" Margin="5,0,5,0">
                 <StackPanel Orientation="Horizontal">
-                    <ToggleButton x:Name="btnCoolant" Content="COOLANT" Style="{StaticResource ControlToggleButtonBorderOnlyStyle}"
-       IsChecked="{Binding IsCoolantOn, Mode=OneWay}" Click="CoolantButton_Click"
- ToolTip="Coolant On/Off" Background="#FF474A50" Height="55" BorderBrush="#FFA2A2A4"/>
+                    <ToggleButton x:Name="btnCoolant" 
+                        Content="SOĞUTMA" 
+                        Style="{StaticResource ControlToggleButtonBorderOnlyStyle}"
+                        Click="CoolantButton_Click"
+                        ToolTip="Soğutma Açık/Kapalı" 
+                        Height="55"/>
                 </StackPanel>
             </Border>
 
@@ -92,10 +129,13 @@ Padding="15,8"
    BorderThickness="1"
        BorderBrush="#FFA2A2A4">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
-                    <ToggleButton x:Name="btnSpindle" Content="SPINDLE" Style="{StaticResource ControlToggleButtonBorderOnlyStyle}"
- IsChecked="{Binding IsSpindleOn, Mode=OneWay}" Click="SpindleButton_Click"
-   ToolTip="Spindle On/Off" Margin="0,0,20,0" Background="#FF474A50" Height="55"
-  Checked="btnSpindle_Checked" BorderBrush="#FFA2A2A4"/>
+                    <ToggleButton x:Name="btnSpindle" 
+                        Content="MİL" 
+                        Style="{StaticResource ControlToggleButtonBorderOnlyStyle}"
+                        Click="SpindleButton_Click"
+                        ToolTip="Mil Açık/Kapalı" 
+                        Margin="0,0,20,0" 
+                        Height="55"/>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Grid Margin="5,0,5,0" VerticalAlignment="Center" Width="496">
                             <Grid.ColumnDefinitions>
@@ -169,7 +209,7 @@ VerticalAlignment="Center" Margin="10,0,0,0"/>
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Grid.Row="0" Grid.ColumnSpan="3"
-  Text="X-Y AXIS MOVEMENT"
+  Text="X-Y EKSEN HAREKETİ"
     Style="{StaticResource SectionHeaderStyle}"
  HorizontalAlignment="Center"/>
 
@@ -332,7 +372,7 @@ Background="Transparent"
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Grid.Row="0" Grid.ColumnSpan="1"
-    Text="Z AXIS MOVEMENT"
+    Text="Z EKSEN HAREKETİ"
     Style="{StaticResource SectionHeaderStyle}"
   HorizontalAlignment="Center"/>
 
@@ -433,14 +473,14 @@ BorderThickness="1"
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center" Margin="0,0,20,0">
-                        <TextBlock Text="XYZ STEP CONTROL"
+                        <TextBlock Text="XYZ ADIM KONTROLÜ"
       Style="{StaticResource SectionHeaderStyle}"
    HorizontalAlignment="Left"
   Margin="0,0,0,10"/>
 
                         <ToggleButton x:Name="XYZContinuousButton"
      Style="{StaticResource RadioStepToggleButtonStyle}"
-    Content="CONTINUOUS"
+    Content="SÜREKLİ"
    FontSize="12"
      FontWeight="Bold"
  Width="140"
@@ -456,7 +496,7 @@ BorderThickness="1"
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0"
-         Text="STEP SIZE (mm)"
+         Text="ADIM BOYUTU (mm)"
  FontSize="11"
    Foreground="#FFBDBDBD"
   HorizontalAlignment="Left"
@@ -523,7 +563,7 @@ PreviewMouseLeftButtonDown="XYZStepSize_PreviewMouseDown"
     </Grid.ColumnDefinitions>
 
          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
-      <TextBlock Text="JOG SPEED"
+      <TextBlock Text="HAREKET HIZI"
        FontSize="12"
   FontWeight="Bold"
  Foreground="White"
@@ -600,7 +640,7 @@ FontSize="10"
 
            <!-- Reset Button -->
   <Button x:Name="JogSpeedResetButton"
-  Content="↻ RESET"
+  Content="↻ SIFIRLA"
     Click="JogSpeedResetButton_Click"
    Background="#FF474A50"
         BorderBrush="#FFA2A2A4"
@@ -608,7 +648,7 @@ FontSize="10"
     Height="55"
  Width="100"
          Margin="20,0,0,0"
-ToolTip="Reset jog speed to 50%"
+ToolTip="Hareket hızını %50'ye sıfırla"
   FontSize="12"
     FontWeight="Bold"
   Foreground="White"

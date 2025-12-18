@@ -127,14 +127,21 @@ namespace CncControlApp
         /// <summary>
         /// Versiyon string'ini kısalt (4.0.0 -> 4.0) - Inno Setup dosya adı için
         /// </summary>
+        /// <summary>
+        /// Versiyon string'ini kısalt - Inno Setup dosya adı için
+        /// 4.0.0 -> 4.0 (son 0'ları kaldır), 4.0.6 -> 4.0.6 (olduğu gibi)
+        /// </summary>
         private static string GetShortVersion(string version)
         {
             var parts = version.Split('.');
-            if (parts.Length >= 2)
+            
+            // Son 0'ları kaldır
+            while (parts.Length > 2 && parts[parts.Length - 1] == "0")
             {
-                return $"{parts[0]}.{parts[1]}";
+                Array.Resize(ref parts, parts.Length - 1);
             }
-            return version;
+            
+            return string.Join(".", parts);
         }
 
         /// <summary>

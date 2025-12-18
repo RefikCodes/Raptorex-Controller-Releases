@@ -23,25 +23,53 @@ namespace CncControlApp.Handlers
                 {
                     if (sender is ToggleButton button)
                     {
-                        bool isOn = button.IsChecked ?? false;
-                        bool success = await _controller.ToggleSpindleAsync(isOn);
+                        // WPF ToggleButton Click event'i tetiklendiğinde, IsChecked durumu ZATEN değişmiştir.
+                        // Yani kullanıcı tıkladığında:
+                        // - Eğer False ise True olmuştur.
+                        // - Eğer True ise False olmuştur.
+                        
+                        // Bizim amacımız bu YENİ durumu (button.IsChecked) alıp,
+                        // Controller'a (VM) uygulamak ve makineye komut göndermektir.
+                        
+                        // Ancak OneWay binding olduğu için, VM'den gelen eski değerin
+                        // bu yeni durumu ezmesini engellememiz gerekebilir.
+                        // Şimdilik en basit ve doğru mantık: Butonun ŞU ANKİ (tıklanmış) halini hedef kabul etmektir.
+
+                        bool targetState = button.IsChecked ?? false;
+                        bool currentVmState = _controller.IsSpindleOn;
+
+                        // Eğer butonun yeni hali ile VM zaten aynıysa, işlem yapmaya gerek yok (senkronize)
+                        // Ancak kullanıcı "zorla" basmış olabilir, o yüzden komutu yine de gönderebiliriz.
+                        // Fakat "random" davranışı engellemek için loglayalım.
+
+                        _controller.AddLogMessage($"> 🔄 Mil butonu tıklandı - Yeni Durum: {(targetState ? "AÇIK" : "KAPALI")} (VM: {(currentVmState ? "AÇIK" : "KAPALI")})");
+
+                        bool success = await _controller.ToggleSpindleAsync(targetState);
 
                         if (!success)
                         {
-                            button.IsChecked = !isOn;
+                            // Başarısız olursa, butonu VM'in eski haline geri döndür
+                            button.IsChecked = currentVmState;
+                            _controller.AddLogMessage($"> ❌ Mil komutu başarısız - durum geri alındı");
+                        }
+                        else
+                        {
+                            _controller.AddLogMessage($"> ✅ Mil {(targetState ? "AÇILDI" : "KAPATILDI")}");
                         }
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    _controller.AddLogMessage($"> ❌ Mil hatası: {ex.Message}");
                     if (sender is ToggleButton button)
                     {
-                        button.IsChecked = !button.IsChecked;
+                         button.IsChecked = _controller.IsSpindleOn;
                     }
                 }
             }
             else
             {
+                _controller?.AddLogMessage("> ❌ CNC bağlı değil - Mil komutu gönderilemedi");
                 if (sender is ToggleButton button)
                 {
                     button.IsChecked = false;
@@ -57,25 +85,40 @@ namespace CncControlApp.Handlers
                 {
                     if (sender is ToggleButton button)
                     {
-                        bool isOn = button.IsChecked ?? false;
-                        bool success = await _controller.ToggleCoolantAsync(isOn);
+                        // WPF ToggleButton Click event'i tetiklendiğinde, IsChecked durumu ZATEN değişmiştir.
+                        // Hedef durum, butonun ŞU ANKİ (tıklanmış) halidir.
+                        
+                        bool targetState = button.IsChecked ?? false;
+                        bool currentVmState = _controller.IsCoolantOn;
+                        
+                        _controller.AddLogMessage($"> 🔄 Soğutma butonu tıklandı - Yeni Durum: {(targetState ? "AÇIK" : "KAPALI")} (VM: {(currentVmState ? "AÇIK" : "KAPALI")})");
+                        
+                        bool success = await _controller.ToggleCoolantAsync(targetState);
 
                         if (!success)
                         {
-                            button.IsChecked = !isOn;
+                            // Başarısız olursa, butonu VM'in eski haline geri döndür
+                            button.IsChecked = currentVmState;
+                            _controller.AddLogMessage($"> ❌ Soğutma komutu başarısız - durum geri alındı");
+                        }
+                        else
+                        {
+                            _controller.AddLogMessage($"> ✅ Soğutma {(targetState ? "AÇILDI" : "KAPATILDI")}");
                         }
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    _controller.AddLogMessage($"> ❌ Soğutma hatası: {ex.Message}");
                     if (sender is ToggleButton button)
                     {
-                        button.IsChecked = !button.IsChecked;
+                        button.IsChecked = _controller.IsCoolantOn;
                     }
                 }
             }
             else
             {
+                _controller?.AddLogMessage("> ❌ CNC bağlı değil - Soğutma komutu gönderilemedi");
                 if (sender is ToggleButton button)
                 {
                     button.IsChecked = false;

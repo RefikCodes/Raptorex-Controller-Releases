@@ -139,7 +139,7 @@
                         Style="{StaticResource SelectableMenuButtonStyle}"
                         Click="MenuButton_Click"
                         BorderBrush="#FFA2A2A4"
-                        Content="JOG"
+                        Content="HAREKET"
                         CommandParameter="🎮"
                         ContentTemplate="{StaticResource MenuButtonContentTemplate}"/>
 
@@ -150,7 +150,7 @@
                         Style="{StaticResource SelectableMenuButtonStyle}"
                         Click="ProbeButton_Click"
                         BorderBrush="#FFA2A2A4"
-                        Content="PROBE"
+                        Content="PROB"
                         CommandParameter="📏"
                         ContentTemplate="{StaticResource MenuButtonContentTemplate}"/>
 
@@ -161,7 +161,7 @@
                         Style="{StaticResource SelectableMenuButtonStyle}"
                         Click="MenuButton_Click"
                         BorderBrush="#FFA2A2A4"
-                        Content="CONSOLE"
+                        Content="KONSOL"
                         CommandParameter="💻"
                         ContentTemplate="{StaticResource MenuButtonContentTemplate}"/>
 
@@ -174,7 +174,7 @@
                         Tag="Active"
                         Click="MenuButton_Click"
                         BorderBrush="#FFA2A2A4"
-                        Content="SETTINGS"
+                        Content="AYARLAR"
                         CommandParameter="⚙️"
                         ContentTemplate="{StaticResource MenuButtonContentTemplate}"/>
 
@@ -207,7 +207,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Spindle" FontSize="14" FontWeight="Bold" VerticalAlignment="Center">
+                        <TextBlock Text="Mil" FontSize="14" FontWeight="Bold" VerticalAlignment="Center">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="#FFB0BEC5"/>
@@ -241,7 +241,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Coolant" FontSize="14" FontWeight="Bold" VerticalAlignment="Center">
+                        <TextBlock Text="Sogutma" FontSize="14" FontWeight="Bold" VerticalAlignment="Center">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="#FFB0BEC5"/>
@@ -279,7 +279,7 @@
                         
                         <!-- X Limit -->
                         <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                            <TextBlock Text="X Lim" FontSize="10" Margin="0,0,0,4">
+                            <TextBlock Text="X Sinir" FontSize="10" Margin="0,0,0,4">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Foreground" Value="#FFB0BEC5"/>
@@ -307,7 +307,7 @@
 
                         <!-- Y Limit -->
                         <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                            <TextBlock Text="Y Lim" FontSize="10" Margin="0,0,0,4">
+                            <TextBlock Text="Y Sinir" FontSize="10" Margin="0,0,0,4">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Foreground" Value="#FFB0BEC5"/>
@@ -335,7 +335,7 @@
 
                         <!-- Z Limit -->
                         <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                            <TextBlock Text="Z Lim" FontSize="10" Margin="0,0,0,4">
+                            <TextBlock Text="Z Sinir" FontSize="10" Margin="0,0,0,4">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Foreground" Value="#FFB0BEC5"/>
@@ -365,7 +365,7 @@
 
                 <!-- Clear Alarm Button -->
                 <Button x:Name="ClearAlarmMenuButton"
-                        Content="CLEAR ALARM"
+                        Content="ALARM TEMIZLE"
                         Click="ClearAlarmMenuButton_Click"
                         Margin="0,0,0,0"
                         Padding="0,8"
