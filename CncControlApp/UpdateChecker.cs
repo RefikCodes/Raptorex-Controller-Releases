@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
@@ -568,20 +569,26 @@ namespace CncControlApp
         {
             try
             {
-                // Batch dosyası oluştur: bekle, sonra installer'ı çalıştır
+                // Batch dosyası oluştur: bekle, installer'ı çalıştır, ardından uygulamayı yeniden başlatmayı dene
                 string batchPath = Path.Combine(Path.GetTempPath(), "RaptorexUpdate.bat");
                 string exePath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
                 string exeName = Path.GetFileNameWithoutExtension(exePath);
+                string targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Raptorex Controller", "Rptx01.exe");
                 
-                // Batch script: uygulamanın kapanmasını bekle, sonra installer'ı çalıştır
+                // Batch script: uygulamanın kapanmasını bekle, installer'ı çalıştır (görünür), ardından default path'ten uygulamayı başlatmayı dene
                 string batchContent = $@"@echo off
+setlocal
+set installer=""{installerPath}""
+set target=""{targetPath}""
 :waitloop
 tasklist /FI ""IMAGENAME eq {exeName}.exe"" 2>NUL | find /I ""{exeName}.exe"" >NUL
 if ""%ERRORLEVEL%""==""0"" (
     timeout /t 1 /nobreak >NUL
     goto waitloop
 )
-start """" ""{installerPath}"" /SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS
+start /wait """" %installer% /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS
+if exist %target% start """" %target%
+endlocal
 del ""%~f0""
 ";
                 File.WriteAllText(batchPath, batchContent);
