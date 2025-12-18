@@ -78,7 +78,7 @@ namespace CncControlApp
                                 {
                                     bool hasUpdate = latestVersion > CurrentVersion;
 
-                                    // Aday dosya adlarını sırayla kontrol et (yeni ve eski formatlar)
+                                    // Aday dosya adlarını oluştur - indirme sırasında sırayla denenecek (rate limit yok)
                                     string shortVersion = GetShortVersion(latestVersionStr);
                                     string[] candidates = new[]
                                     {
@@ -87,14 +87,13 @@ namespace CncControlApp
                                         $"https://github.com/{GITHUB_REPO}/releases/download/v{latestVersionStr}/RaptorexController_Setup_{shortVersion}.exe"        // eski underscore (kısa)
                                     };
 
-                                    string resolvedUrl = await ResolveFirstExistingAsync(candidates);
-                                    
                                     return new UpdateInfo
                                     {
                                         HasUpdate = hasUpdate,
                                         CurrentVersion = CurrentVersion,
                                         LatestVersion = latestVersion,
-                                        DownloadUrl = resolvedUrl ?? candidates[0],
+                                        DownloadUrl = candidates[0],
+                                        FallbackUrls = candidates.Skip(1).ToArray(),
                                         ReleaseNotes = ""
                                     };
                                 }
@@ -511,24 +510,40 @@ namespace CncControlApp
                 border.MouseLeftButtonDown += (s, e) => { if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed) progressWindow.DragMove(); };
 
                 progressWindow.Show();
-                
-                // İndirme işlemi
-                ErrorLogger.LogInfo($"Güncelleme indiriliyor: {updateInfo.DownloadUrl}");
-                
-                using (var client = new HttpClient())
+
+                // İndirme - birden fazla URL adayını sırayla dene (rate limit yok)
+                var allUrls = new[] { updateInfo.DownloadUrl }.Concat(updateInfo.FallbackUrls ?? Array.Empty<string>()).ToArray();
+                Exception lastEx = null;
+                bool ok = false;
+
+                foreach (var url in allUrls)
                 {
-                    client.DefaultRequestHeaders.Add("User-Agent", "RaptorexController-Updater");
-                    client.Timeout = TimeSpan.FromMinutes(5);
-                    
-                    var response = await client.GetAsync(updateInfo.DownloadUrl, HttpCompletionOption.ResponseHeadersRead);
-                    response.EnsureSuccessStatusCode();
-                    
-                    using (var stream = await response.Content.ReadAsStreamAsync())
-                    using (var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                    try
                     {
-                        await stream.CopyToAsync(fileStream);
+                        ErrorLogger.LogInfo($"Deneniyor: {url}");
+                        using (var client = new HttpClient())
+                        {
+                            client.DefaultRequestHeaders.Add("User-Agent", "RaptorexController-Updater");
+                            client.Timeout = TimeSpan.FromMinutes(5);
+                            var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+                            response.EnsureSuccessStatusCode();
+                            using (var stream = await response.Content.ReadAsStreamAsync())
+                            using (var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                            {
+                                await stream.CopyToAsync(fileStream);
+                            }
+                        }
+                        ok = true;
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        lastEx = ex;
+                        ErrorLogger.LogWarning($"URL hata: {url}");
                     }
                 }
+
+                if (!ok) throw lastEx ?? new Exception("İndirme başarısız");
                 
                 progressWindow.Close();
                 
@@ -595,35 +610,6 @@ del ""%~f0""
             }
         }
 
-        /// <summary>
-        /// Verilen URL adaylarından ilk erişilebilenini döndürür (HEAD/redirect kontrolü)
-        /// </summary>
-        private static async Task<string> ResolveFirstExistingAsync(string[] urls)
-        {
-            foreach (var url in urls)
-            {
-                try
-                {
-                    using (var handler = new HttpClientHandler { AllowAutoRedirect = false })
-                    using (var client = new HttpClient(handler))
-                    using (var request = new HttpRequestMessage(HttpMethod.Head, url))
-                    {
-                        client.DefaultRequestHeaders.Add("User-Agent", "RaptorexController-UpdateChecker");
-                        client.Timeout = TimeSpan.FromSeconds(8);
-                        var response = await client.SendAsync(request);
-                        if ((int)response.StatusCode >= 200 && (int)response.StatusCode < 400)
-                        {
-                            return url;
-                        }
-                    }
-                }
-                catch
-                {
-                    // ignore and try next
-                }
-            }
-            return null;
-        }
     }
 
     /// <summary>
@@ -635,6 +621,7 @@ del ""%~f0""
         public Version CurrentVersion { get; set; }
         public Version LatestVersion { get; set; }
         public string DownloadUrl { get; set; }
+        public string[] FallbackUrls { get; set; }
         public string ReleaseNotes { get; set; }
         public string ErrorMessage { get; set; }
     }
