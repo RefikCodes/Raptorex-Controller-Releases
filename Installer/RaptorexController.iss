@@ -1,6 +1,6 @@
 ; Inno Setup Script for Raptorex Controller
 #define MyAppName "Raptorex Controller"
-#define MyAppVersion "4.0.7"
+#define MyAppVersion "5.0.0"
 #define MyAppPublisher "Raptorex CNC"
 #define MyAppExeName "Rptx01.exe"
 #define MyAppId "{{2A68D3EC-7122-4F42-83D0-3F2BA6B7A9E2}}"
