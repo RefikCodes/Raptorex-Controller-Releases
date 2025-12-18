@@ -27,10 +27,10 @@
     <UpdateRequired>true</UpdateRequired>
     <MapFileExtensions>false</MapFileExtensions>
     <UpdateUrl>http://localhost/Rptx01/</UpdateUrl>
-    <MinimumRequiredVersion>4.0.6.0</MinimumRequiredVersion>
+    <MinimumRequiredVersion>4.0.7.0</MinimumRequiredVersion>
     <OpenBrowserOnPublish>false</OpenBrowserOnPublish>
     <ApplicationRevision>1</ApplicationRevision>
-    <ApplicationVersion>4.0.6.%2a</ApplicationVersion>
+    <ApplicationVersion>4.0.7.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
     <PublishWizardCompleted>true</PublishWizardCompleted>
