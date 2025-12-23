@@ -1,3 +1,0 @@
-Change requiredIdleCount from 5 to 10
-Change Task.Delay from 100 to 150
-This means 10 × 150ms = 1500ms (1.5 seconds) of stable Idle before declaring completion
